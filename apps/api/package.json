@@ -1,0 +1,31 @@
+{
+  "name": "@lucky-wheel/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:push": "prisma db push --schema prisma/schema.prisma",
+    "db:seed": "node prisma/seed.js",
+    "db:setup": "npm run db:generate && npm run db:push && npm run db:seed"
+  },
+  "dependencies": {
+    "@lucky-wheel/contracts": "file:../contracts",
+    "@nestjs/common": "^11.0.11",
+    "@nestjs/core": "^11.0.11",
+    "@nestjs/platform-express": "^11.0.11",
+    "@prisma/client": "^6.19.2",
+    "prisma": "^6.19.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.5",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.3"
+  }
+}

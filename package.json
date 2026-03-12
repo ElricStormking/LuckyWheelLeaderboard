@@ -1,0 +1,19 @@
+{
+  "name": "lucky-wheel-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:game": "npm run dev --workspace @lucky-wheel/game",
+    "dev:api": "npm run start:dev --workspace @lucky-wheel/api",
+    "dev:merchant-api": "npm run start:dev --workspace @lucky-wheel/merchant-api",
+    "dev:admin": "npm run dev --workspace @lucky-wheel/admin",
+    "db:setup": "node scripts/db-setup.mjs",
+    "build": "npm run build --workspace @lucky-wheel/contracts && npm run build --workspace @lucky-wheel/merchant-api && npm run build --workspace @lucky-wheel/api && npm run build --workspace @lucky-wheel/game && npm run build --workspace @lucky-wheel/admin",
+    "typecheck": "npm run typecheck --workspace @lucky-wheel/contracts && npm run typecheck --workspace @lucky-wheel/merchant-api && npm run typecheck --workspace @lucky-wheel/api && npm run typecheck --workspace @lucky-wheel/game && npm run typecheck --workspace @lucky-wheel/admin",
+    "playtest": "node scripts/playtest.mjs"
+  }
+}

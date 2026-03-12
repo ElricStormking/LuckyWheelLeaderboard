@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id                 String              @id
+  externalUserId     String              @unique
+  displayName        String
+  status             String              @default("active")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  eventScores        PlayerEventScore[]
+  spinTransactions   SpinTransaction[]
+  spinRequestRecords SpinRequestRecord[]
+  eventSummaries     PlayerEventSummary[]
+}
+
+model EventCampaign {
+  id                   String               @id
+  code                 String               @unique
+  siteCode             String               @default("iBET")
+  status               String
+  title                String
+  shortDescription     String
+  rulesContent         String
+  timezone             String
+  styleTheme           String
+  promotionPeriodLabel String
+  startAt              DateTime
+  endAt                DateTime
+  countdownEndsAt      DateTime
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  localizations        EventCampaignLocalization[]
+  wheelSegments        WheelSegment[]
+  prizes               EventPrize[]
+  platformLinks        PlatformLink[]
+  playerScores         PlayerEventScore[]
+  spinTransactions     SpinTransaction[]
+  spinRequestRecords   SpinRequestRecord[]
+  eventSummaries       PlayerEventSummary[]
+  auditLogs            AdminAuditLog[]
+}
+
+model WheelSegment {
+  id              String       @id
+  eventCampaignId String
+  eventCampaign   EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  segmentIndex    Int
+  label           String
+  scoreOperator   String
+  scoreOperand    Int
+  weightPercent   Int
+  displayAssetKey String
+  rewardType      String?
+  rewardValue     String?
+  localizations   WheelSegmentLocalization[]
+
+  @@unique([eventCampaignId, segmentIndex])
+}
+
+model EventPrize {
+  id              String        @id
+  eventCampaignId String
+  eventCampaign   EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  rankFrom        Int
+  rankTo          Int
+  prizeLabel      String
+  prizeDescription String
+  imageUrl        String?
+  accentLabel     String?
+  displayOrder    Int
+  localizations   EventPrizeLocalization[]
+}
+
+model PlatformLink {
+  id              String        @id
+  eventCampaignId String
+  eventCampaign   EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  linkType        String
+  label           String
+  url             String
+  displayOrder    Int
+  localizations   PlatformLinkLocalization[]
+}
+
+model EventCampaignLocalization {
+  id                   String        @id
+  eventCampaignId      String
+  eventCampaign        EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  locale               String
+  title                String
+  shortDescription     String
+  rulesContent         String
+  promotionPeriodLabel String
+
+  @@unique([eventCampaignId, locale])
+}
+
+model WheelSegmentLocalization {
+  id            String       @id
+  wheelSegmentId String
+  wheelSegment   WheelSegment @relation(fields: [wheelSegmentId], references: [id], onDelete: Cascade)
+  locale         String
+  label          String
+
+  @@unique([wheelSegmentId, locale])
+}
+
+model EventPrizeLocalization {
+  id              String     @id
+  eventPrizeId     String
+  eventPrize       EventPrize @relation(fields: [eventPrizeId], references: [id], onDelete: Cascade)
+  locale           String
+  prizeLabel       String
+  prizeDescription String
+  accentLabel      String?
+
+  @@unique([eventPrizeId, locale])
+}
+
+model PlatformLinkLocalization {
+  id             String       @id
+  platformLinkId String
+  platformLink   PlatformLink @relation(fields: [platformLinkId], references: [id], onDelete: Cascade)
+  locale         String
+  label          String
+
+  @@unique([platformLinkId, locale])
+}
+
+model PlayerEventScore {
+  id              String        @id
+  eventCampaignId String
+  playerId        String
+  eventCampaign   EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  player          Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  totalScore      Int
+  hasSpun         Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([eventCampaignId, playerId])
+}
+
+model SpinTransaction {
+  id                String        @id
+  eventCampaignId   String
+  playerId          String
+  eventCampaign     EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  player            Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  segmentIndex      Int
+  segmentLabel      String
+  scoreDelta        Int
+  runningEventTotal Int
+  rewardType        String
+  rewardValue       String?
+  createdAt         DateTime      @default(now())
+}
+
+model SpinRequestRecord {
+  id                String        @id
+  idempotencyKey    String        @unique
+  eventCampaignId   String
+  playerId          String
+  success           Boolean
+  eligibilityStatus String?
+  segmentIndex      Int?
+  scoreDelta        Int?
+  runningEventTotal Int?
+  rewardType        String?
+  rewardValue       String?
+  rank              Int?
+  leaderboardChanged Boolean?
+  depositUrl        String?
+  messageKey        String?
+  createdAt         DateTime      @default(now())
+  eventCampaign     EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  player            Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model PlayerEventSummary {
+  id              String        @id
+  eventCampaignId String
+  playerId        String
+  finalScore      Int
+  finalRank       Int?
+  prizeName       String?
+  endedAt         DateTime
+  eventCampaign   EventCampaign @relation(fields: [eventCampaignId], references: [id], onDelete: Cascade)
+  player          Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([eventCampaignId, playerId])
+}
+
+model AdminAuditLog {
+  id              String        @id
+  eventCampaignId String?
+  eventCampaign   EventCampaign? @relation(fields: [eventCampaignId], references: [id], onDelete: SetNull)
+  action          String
+  entityType      String
+  entityId        String
+  summary         String
+  payloadJson     String?
+  createdAt       DateTime      @default(now())
+}
