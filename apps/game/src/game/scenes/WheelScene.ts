@@ -15,6 +15,11 @@ export class WheelScene extends Phaser.Scene {
   private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
   private spinning = false;
+  private highlightedSegmentIndex?: number;
+  private highlightGraphic?: Phaser.GameObjects.Graphics;
+  private highlightTween?: Phaser.Tweens.Tween;
+  private celebrationTimer?: Phaser.Time.TimerEvent;
+  private celebrationBursts: Phaser.Time.TimerEvent[] = [];
   private cleanup: Array<() => void> = [];
 
   constructor() {
@@ -96,6 +101,10 @@ export class WheelScene extends Phaser.Scene {
     );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.highlightTween?.stop();
+      this.highlightGraphic?.destroy();
+      this.celebrationTimer?.remove(false);
+      this.clearCelebrationBursts();
       this.cleanup.forEach((cleanup) => cleanup());
       this.cleanup = [];
     });
@@ -137,7 +146,7 @@ export class WheelScene extends Phaser.Scene {
 
   private animateToSegment(result: SpinSuccessResponse) {
     this.animateWheelToSegmentIndex(result.segmentIndex, () => {
-      this.scene.launch(SCENE_KEYS.ResultPopup, result);
+      this.playSpinCelebration(result.segmentIndex);
     });
   }
 
@@ -164,8 +173,6 @@ export class WheelScene extends Phaser.Scene {
       ease: "Cubic.easeOut",
       onComplete: () => {
         this.wheelRotation = targetRotation;
-        this.spinning = false;
-        this.applyState();
         onComplete?.();
       },
     });
@@ -180,7 +187,28 @@ export class WheelScene extends Phaser.Scene {
     this.spinning = true;
     this.applyState();
     const segmentIndex = Phaser.Math.Between(0, segments.length - 1);
-    this.animateWheelToSegmentIndex(segmentIndex);
+    this.animateWheelToSegmentIndex(segmentIndex, () => {
+      this.playSpinCelebration(segmentIndex);
+    });
+  }
+
+  private playSpinCelebration(segmentIndex: number) {
+    this.highlightedSegmentIndex = segmentIndex;
+    this.applyState();
+    this.launchCelebrationFireworks();
+
+    this.celebrationTimer?.remove(false);
+    this.celebrationTimer = this.time.delayedCall(4000, () => {
+      this.clearCelebrationBursts();
+      this.highlightedSegmentIndex = undefined;
+      this.highlightTween?.stop();
+      this.highlightGraphic?.destroy();
+      this.highlightGraphic = undefined;
+      this.highlightTween = undefined;
+      this.spinning = false;
+      prototypeState.acknowledgeSpinResult();
+      this.applyState();
+    });
   }
 
   private drawWheel(segments: WheelSegmentDto[]) {
@@ -276,6 +304,202 @@ export class WheelScene extends Phaser.Scene {
     const centerRing = this.add.circle(0, 0, 114, 0xf8fdff, 1);
     centerRing.setStrokeStyle(12, 0xffffff, 0.6);
     this.wheelRoot.add(centerRing);
+
+    if (this.highlightedSegmentIndex !== undefined) {
+      this.attachWinningSegmentPulse(this.highlightedSegmentIndex);
+    }
+  }
+
+  private attachWinningSegmentPulse(segmentIndex: number) {
+    if (!this.wheelRoot) {
+      return;
+    }
+
+    this.highlightTween?.stop();
+    this.highlightGraphic?.destroy();
+
+    const startAngle = Phaser.Math.DegToRad(-120 + segmentIndex * 60);
+    const endAngle = Phaser.Math.DegToRad(-60 + segmentIndex * 60);
+    const highlight = this.add.graphics();
+    highlight.fillStyle(0xffffff, 0.18);
+    highlight.slice(0, 0, 282, startAngle, endAngle, false);
+    highlight.fillPath();
+    highlight.lineStyle(8, 0xfff7c2, 0.95);
+    highlight.slice(0, 0, 286, startAngle, endAngle, false);
+    highlight.strokePath();
+    highlight.setBlendMode(Phaser.BlendModes.ADD);
+
+    this.wheelRoot.add(highlight);
+    this.highlightGraphic = highlight;
+
+    this.highlightTween = this.tweens.add({
+      targets: highlight,
+      alpha: 0.18,
+      duration: 240,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      repeat: 7,
+    });
+  }
+
+  private launchCelebrationFireworks() {
+    this.clearCelebrationBursts();
+
+    const burstCount = 34;
+    for (let index = 0; index < burstCount; index += 1) {
+      const timer = this.time.delayedCall(index * 110, () => {
+        const point = this.getRandomFireworkPoint();
+        this.createFireworkBurst(point.x, point.y, Phaser.Math.FloatBetween(0.9, 1.15));
+
+        if (Math.random() < 0.62) {
+          const echo = this.getNearbyFireworkPoint(point);
+          this.createFireworkBurst(echo.x, echo.y, Phaser.Math.FloatBetween(0.58, 0.9));
+        }
+
+        if (Math.random() < 0.28) {
+          const extra = this.getRandomFireworkPoint();
+          this.createFireworkBurst(extra.x, extra.y, Phaser.Math.FloatBetween(0.7, 1));
+        }
+      });
+
+      this.celebrationBursts.push(timer);
+    }
+  }
+
+  private clearCelebrationBursts() {
+    this.celebrationBursts.forEach((timer) => timer.remove(false));
+    this.celebrationBursts = [];
+  }
+
+  private getRandomFireworkPoint() {
+    const centerX = 540;
+    const centerY = 1120;
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const radius = Phaser.Math.Between(250, 520);
+    const x = Phaser.Math.Clamp(
+      centerX + Math.cos(angle) * radius + Phaser.Math.Between(-40, 40),
+      90,
+      990,
+    );
+    const y = Phaser.Math.Clamp(
+      centerY + Math.sin(angle) * radius + Phaser.Math.Between(-35, 35),
+      700,
+      1545,
+    );
+
+    return { x, y };
+  }
+
+  private getNearbyFireworkPoint(origin: { x: number; y: number }) {
+    return {
+      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-110, 110), 90, 990),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-95, 95), 700, 1545),
+    };
+  }
+
+  private createFireworkBurst(x: number, y: number, scale = 1) {
+    const colors = [
+      0xff4d6d,
+      0xff7b00,
+      0xffd60a,
+      0x9ef01a,
+      0x2dd4bf,
+      0x14b8ff,
+      0x7c4dff,
+      0xff66c4,
+    ];
+
+    const flash = this.add
+      .circle(x, y, 22 * scale, 0xffffff, 0.48)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets: flash,
+      scale: 5.6,
+      alpha: 0,
+      duration: 420,
+      ease: "Quad.easeOut",
+      onComplete: () => flash.destroy(),
+    });
+
+    const ring = this.add.circle(x, y, 30 * scale);
+    ring.setStrokeStyle(8 * scale, colors[Phaser.Math.Between(0, colors.length - 1)], 0.9);
+    ring.setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({
+      targets: ring,
+      scale: 4.6,
+      alpha: 0,
+      duration: 920,
+      ease: "Cubic.easeOut",
+      onComplete: () => ring.destroy(),
+    });
+
+    const cloud = this.add.container(x, y).setBlendMode(Phaser.BlendModes.ADD);
+    Array.from({ length: 6 }).forEach((_, index) => {
+      const puff = this.add.circle(
+        Phaser.Math.Between(-34, 34) * scale,
+        Phaser.Math.Between(-30, 30) * scale,
+        Phaser.Math.Between(12, 24) * scale,
+        colors[(index + Phaser.Math.Between(0, colors.length - 1)) % colors.length],
+        0.34,
+      );
+      cloud.add(puff);
+    });
+    this.tweens.add({
+      targets: cloud,
+      scale: 1.9,
+      alpha: 0,
+      duration: 760,
+      ease: "Cubic.easeOut",
+      onComplete: () => cloud.destroy(),
+    });
+
+    const spokes = this.add.graphics({ x, y }).setBlendMode(Phaser.BlendModes.ADD);
+    for (let index = 0; index < 12; index += 1) {
+      const angle = (Math.PI * 2 * index) / 12 + Phaser.Math.FloatBetween(-0.08, 0.08);
+      const inner = 18 * scale;
+      const outer = Phaser.Math.Between(90, 160) * scale;
+      spokes.lineStyle(7 * scale, colors[index % colors.length], 0.95);
+      spokes.beginPath();
+      spokes.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      spokes.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+      spokes.strokePath();
+    }
+    this.tweens.add({
+      targets: spokes,
+      scale: 1.28,
+      alpha: 0,
+      angle: Phaser.Math.Between(-25, 25),
+      duration: 860,
+      ease: "Quart.easeOut",
+      onComplete: () => spokes.destroy(),
+    });
+
+    const particleCount = Phaser.Math.Between(22, 30);
+    for (let index = 0; index < particleCount; index += 1) {
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const distance = Phaser.Math.Between(150, 260) * scale;
+      const size = Phaser.Math.Between(6, 14) * scale;
+      const particle = this.add
+        .circle(
+          x,
+          y,
+          size,
+          colors[index % colors.length],
+          Phaser.Math.FloatBetween(0.78, 1),
+        )
+        .setBlendMode(Phaser.BlendModes.ADD);
+
+      this.tweens.add({
+        targets: particle,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance + Phaser.Math.Between(-24, 34) * scale,
+        scale: 0.12,
+        alpha: 0,
+        duration: Phaser.Math.Between(1200, 1850),
+        ease: "Cubic.easeOut",
+        onComplete: () => particle.destroy(),
+      });
+    }
   }
 
   private drawPointer() {
