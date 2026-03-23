@@ -11,10 +11,10 @@ export class MerchantApiController {
   }
 
   @Get("lucky-wheel/players/:playerId/events/:eventId/eligibility")
-  getEligibility(
+  getEligibilitySnapshot(
     @Param("playerId") playerId: string,
     @Param("eventId") eventId: string,
   ) {
-    return this.merchantApiService.getEligibilitySnapshot(eventId, playerId);
+    return this.merchantApiService.getEligibilitySnapshot(playerId, eventId);
   }
 }

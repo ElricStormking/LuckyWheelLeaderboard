@@ -639,7 +639,7 @@ function renderEligibilitySection() {
       <div class="card__header">
         <div>
           <div class="card__eyebrow">Eligibility Monitoring</div>
-          <h3>Merchant quota and gate state</h3>
+          <h3>Lucky Wheel spin eligibility</h3>
         </div>
       </div>
       <div class="summary-grid">
@@ -648,10 +648,10 @@ function renderEligibilitySection() {
           <strong>${formatNumber(eligibility.summary.playableNow)}</strong>
         </article>
         <article class="summary-card summary-card--spent">
-          <span>Already Used</span>
+          <span>Used Today</span>
           <strong>${formatNumber(eligibility.summary.alreadySpin)}</strong>
         </article>
-        <article class="summary-card summary-card--deposit">
+        <article class="summary-card summary-card--scheduled">
           <span>Deposit Required</span>
           <strong>${formatNumber(eligibility.summary.goToDeposit)}</strong>
         </article>
@@ -667,9 +667,9 @@ function renderEligibilitySection() {
             <tr>
               <th>Player</th>
               <th>Status</th>
-              <th>Granted</th>
-              <th>Used</th>
-              <th>Remaining</th>
+              <th>Limit</th>
+              <th>Used Today</th>
+              <th>Remaining Today</th>
               <th>Source</th>
               <th>Reason</th>
               <th>Updated</th>
@@ -686,7 +686,7 @@ function renderEligibilitySection() {
                     <td>${formatNumber(entry.usedSpinCount)}</td>
                     <td>${formatNumber(entry.remainingSpinCount)}</td>
                     <td>${escapeHtml(formatSourceLabel(entry.spinAllowanceSource))}</td>
-                    <td>${escapeHtml(entry.merchantReasonCode ?? "-")}</td>
+                    <td>${escapeHtml(entry.reasonCode ?? "-")}</td>
                     <td>${formatDateTime(entry.updatedAt)}</td>
                   </tr>
                 `,
@@ -1540,7 +1540,7 @@ function formatEligibilityStatus(status: string) {
     case "PLAYABLE_NOW":
       return "Playable";
     case "ALREADY_SPIN":
-      return "Already Used";
+      return "Used Today";
     case "GO_TO_DEPOSIT":
       return "Deposit Required";
     case "EVENT_ENDED":
@@ -1566,8 +1566,8 @@ function formatEligibilityTone(status: string) {
 
 function formatSourceLabel(source: string) {
   switch (source) {
-    case "merchant_api":
-      return "Merchant API";
+    case "lucky_wheel_server":
+      return "Lucky Wheel Server";
     case "archive_snapshot":
       return "Archive Snapshot";
     default:

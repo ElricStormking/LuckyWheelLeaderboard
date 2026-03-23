@@ -1,0 +1,169 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Lucky Wheel Public Integration API",
+    "version": "1.1.0",
+    "description": "Customer-platform-facing Lucky Wheel launch API."
+  },
+  "servers": [
+    {
+      "url": "https://merchant-api.luckywheel.example.com/merchant-api",
+      "description": "Production"
+    },
+    {
+      "url": "https://sandbox-merchant-api.luckywheel.example.com/merchant-api",
+      "description": "Sandbox"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Public Integration"
+    }
+  ],
+  "paths": {
+    "/integration/launch": {
+      "post": {
+        "tags": [
+          "Public Integration"
+        ],
+        "summary": "Launch Lucky Wheel",
+        "description": "Creates a Lucky Wheel launch session for a customer-platform player and returns a game URL. Customer Platform also sends initialEligibility bootstrap data on launch, but Lucky Wheel still reloads authoritative eligibility after launch. Player locale is resolved in the Lucky Wheel client from browser or device settings. Lucky Wheel resolves the current live event from its own admin-managed event schedule, then reloads deposit eligibility through Merchant API and Customer Platform after launch.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Launch response envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LaunchRequest": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "playerId",
+          "initialEligibility",
+          "timestamp",
+          "hash"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "playerId": {
+            "type": "string"
+          },
+          "initialEligibility": {
+            "$ref": "#/components/schemas/InitialEligibilityBootstrap"
+          },
+          "timestamp": {
+            "type": "integer"
+          },
+          "hash": {
+            "type": "string"
+          }
+        }
+      },
+      "InitialEligibilityBootstrap": {
+        "type": "object",
+        "required": [
+          "depositQualified"
+        ],
+        "properties": {
+          "depositQualified": {
+            "type": "boolean"
+          },
+          "depositUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "reasonCode": {
+            "type": "string"
+          },
+          "decisionId": {
+            "type": "string"
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Customer-platform bootstrap eligibility data sent on launch. This object is not authoritative for Lucky Wheel gameplay."
+      },
+      "LaunchData": {
+        "type": "object",
+        "required": [
+          "url",
+          "sessionId",
+          "expiresAt"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LaunchEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "errorCode",
+          "errorMessage",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "integer"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaunchData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

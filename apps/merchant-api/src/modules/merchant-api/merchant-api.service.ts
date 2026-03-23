@@ -3,9 +3,14 @@ import {
   MerchantApiStatusDto,
   MerchantEligibilityResponseDto,
 } from "@lucky-wheel/contracts";
+import { CustomerPlatformService } from "./customer-platform.service";
 
 @Injectable()
 export class MerchantApiService {
+  constructor(
+    private readonly customerPlatformService: CustomerPlatformService,
+  ) {}
+
   getHealth(): MerchantApiStatusDto {
     return {
       service: "merchant-api",
@@ -16,51 +21,9 @@ export class MerchantApiService {
   }
 
   getEligibilitySnapshot(
-    eventId: string,
     playerId: string,
+    eventId: string,
   ): MerchantEligibilityResponseDto {
-    const snapshot = this.resolvePrototypeQuota(eventId, playerId);
-
-    return {
-      eventId,
-      playerId,
-      grantedSpinCount: snapshot.grantedSpinCount,
-      requiresDeposit: snapshot.requiresDeposit,
-      reasonCode: snapshot.reasonCode,
-      upstreamSource: "customer_platform",
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  private resolvePrototypeQuota(eventId: string, playerId: string) {
-    if (playerId !== "player_demo_001") {
-      return {
-        grantedSpinCount: 1,
-        requiresDeposit: false,
-        reasonCode: "SPIN_QUOTA_GRANTED",
-      };
-    }
-
-    switch (eventId) {
-      case "evt_2026_march":
-        return {
-          grantedSpinCount: 7,
-          requiresDeposit: false,
-          reasonCode: "SPIN_QUOTA_GRANTED",
-        };
-      case "evt_2026_february":
-      case "evt_2026_january":
-        return {
-          grantedSpinCount: 6,
-          requiresDeposit: false,
-          reasonCode: "ARCHIVE_SNAPSHOT",
-        };
-      default:
-        return {
-          grantedSpinCount: 1,
-          requiresDeposit: false,
-          reasonCode: "SPIN_QUOTA_GRANTED",
-        };
-    }
+    return this.customerPlatformService.getEligibilitySnapshot(playerId, eventId);
   }
 }

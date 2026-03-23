@@ -1,0 +1,546 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Lucky Wheel Merchant API",
+    "version": "1.1.0",
+    "description": "Production contract for customer-platform launch, deposit-eligibility resolution, and Merchant API operational health."
+  },
+  "servers": [
+    {
+      "url": "https://merchant-api.luckywheel.example.com/merchant-api",
+      "description": "Production"
+    },
+    {
+      "url": "https://sandbox-merchant-api.luckywheel.example.com/merchant-api",
+      "description": "Sandbox"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Merchant API"
+    }
+  ],
+  "paths": {
+    "/integration/launch": {
+      "post": {
+        "tags": [
+          "Merchant API"
+        ],
+        "summary": "Launch Lucky Wheel for a customer-platform player",
+        "description": "Customer-platform-facing launch endpoint using sample-style body signature authentication. Customer Platform also sends initialEligibility bootstrap data on launch, but Lucky Wheel still reloads authoritative eligibility after launch. Lucky Wheel resolves the current live event from its admin-managed event schedule.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationLaunchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Launch result envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationLaunchEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "Merchant API"
+        ],
+        "summary": "Get Merchant API health",
+        "description": "Requires service bearer authentication. Mutual TLS is required in production even though it is not fully expressible in OpenAPI.",
+        "security": [
+          {
+            "ServiceBearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XRequestId"
+          },
+          {
+            "$ref": "#/components/parameters/Traceparent"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/lucky-wheel/players/{playerId}/events/{eventId}/eligibility": {
+      "get": {
+        "tags": [
+          "Merchant API"
+        ],
+        "summary": "Get deposit eligibility decision",
+        "description": "Returns the Customer Platform deposit-eligibility decision and deposit URL that Lucky Wheel Server uses together with its own daily-spin counts.",
+        "security": [
+          {
+            "ServiceBearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PlayerId"
+          },
+          {
+            "$ref": "#/components/parameters/EventId"
+          },
+          {
+            "$ref": "#/components/parameters/XRequestId"
+          },
+          {
+            "$ref": "#/components/parameters/Traceparent"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deposit eligibility decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EligibilityEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/UpstreamUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/UpstreamTimeout"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ServiceBearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Internal Lucky Wheel service token. Mutual TLS is also required in production."
+      }
+    },
+    "parameters": {
+      "PlayerId": {
+        "name": "playerId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "EventId": {
+        "name": "eventId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "XRequestId": {
+        "name": "X-Request-Id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Traceparent": {
+        "name": "traceparent",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication failed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "UpstreamUnavailable": {
+        "description": "Customer Platform unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      },
+      "UpstreamTimeout": {
+        "description": "Customer Platform timed out",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Meta": {
+        "type": "object",
+        "required": [
+          "requestId",
+          "traceId",
+          "timestamp",
+          "version"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorObject": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "error",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "data": {
+            "type": "object",
+            "nullable": true
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorObject"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "HealthData": {
+        "type": "object",
+        "required": [
+          "service",
+          "status",
+          "upstreamSource",
+          "updatedAt"
+        ],
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "upstreamSource": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EligibilityDecisionData": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "playerId",
+          "depositQualified",
+          "reasonCode",
+          "decisionId",
+          "upstreamSource",
+          "evaluatedAt",
+          "expiresAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "playerId": {
+            "type": "string"
+          },
+          "depositQualified": {
+            "type": "boolean"
+          },
+          "depositUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "reasonCode": {
+            "type": "string"
+          },
+          "decisionId": {
+            "type": "string"
+          },
+          "upstreamSource": {
+            "type": "string"
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IntegrationLaunchRequest": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "playerId",
+          "initialEligibility",
+          "timestamp",
+          "hash"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "playerId": {
+            "type": "string"
+          },
+          "initialEligibility": {
+            "$ref": "#/components/schemas/InitialEligibilityBootstrap"
+          },
+          "timestamp": {
+            "type": "integer"
+          },
+          "hash": {
+            "type": "string"
+          }
+        }
+      },
+      "InitialEligibilityBootstrap": {
+        "type": "object",
+        "required": [
+          "depositQualified"
+        ],
+        "properties": {
+          "depositQualified": {
+            "type": "boolean"
+          },
+          "depositUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "reasonCode": {
+            "type": "string"
+          },
+          "decisionId": {
+            "type": "string"
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Customer-platform bootstrap eligibility data sent on launch. This object is not authoritative for Lucky Wheel gameplay."
+      },
+      "IntegrationLaunchData": {
+        "type": "object",
+        "required": [
+          "url",
+          "sessionId",
+          "expiresAt"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HealthEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "error",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/HealthData"
+          },
+          "error": {
+            "nullable": true
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      },
+      "IntegrationLaunchEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "errorCode",
+          "errorMessage",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "errorCode": {
+            "type": "integer"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntegrationLaunchData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "EligibilityEnvelope": {
+        "type": "object",
+        "required": [
+          "success",
+          "data",
+          "error",
+          "meta"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/EligibilityDecisionData"
+          },
+          "error": {
+            "nullable": true
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        }
+      }
+    }
+  }
+}

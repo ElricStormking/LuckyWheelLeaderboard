@@ -5,12 +5,14 @@ import { EventLifecycleService } from "./event-lifecycle.service";
 import { LuckyWheelController } from "./lucky-wheel.controller";
 import { MerchantApiClientService } from "./merchant-api-client.service";
 import { LuckyWheelService } from "./lucky-wheel.service";
+import { PlayerSessionService } from "./player-session.service";
 
 @Module({
   imports: [PrismaModule],
   controllers: [LuckyWheelController],
   providers: [
     LuckyWheelService,
+    PlayerSessionService,
     MerchantApiClientService,
     EventFinalizationService,
     EventLifecycleService,

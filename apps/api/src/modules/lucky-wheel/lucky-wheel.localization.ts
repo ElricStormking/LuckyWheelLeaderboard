@@ -8,25 +8,22 @@ const LOCALE_LABELS: Record<AppLocale, string> = {
   "zh-CN": "简体中文",
 };
 
-const ELIGIBILITY_BUTTON_LABELS: Record<
-  AppLocale,
-  Record<EligibilityStatus, string>
-> = {
+const ELIGIBILITY_BUTTON_LABELS: Record<AppLocale, Record<EligibilityStatus, string>> = {
   en: {
     [EligibilityStatus.PlayableNow]: "SPIN NOW",
-    [EligibilityStatus.AlreadySpin]: "ALREADY SPIN",
+    [EligibilityStatus.AlreadySpin]: "SPUN TODAY",
     [EligibilityStatus.GoToDeposit]: "GO TO DEPOSIT",
     [EligibilityStatus.EventEnded]: "ENDED",
   },
   ms: {
     [EligibilityStatus.PlayableNow]: "PUSAR SEKARANG",
-    [EligibilityStatus.AlreadySpin]: "SUDAH PUSAR",
+    [EligibilityStatus.AlreadySpin]: "SUDAH GUNA HARI INI",
     [EligibilityStatus.GoToDeposit]: "PERGI DEPOSIT",
     [EligibilityStatus.EventEnded]: "TAMAT",
   },
   "zh-CN": {
     [EligibilityStatus.PlayableNow]: "立即旋转",
-    [EligibilityStatus.AlreadySpin]: "已旋转",
+    [EligibilityStatus.AlreadySpin]: "今日已使用",
     [EligibilityStatus.GoToDeposit]: "前往充值",
     [EligibilityStatus.EventEnded]: "已结束",
   },
@@ -44,7 +41,7 @@ const HERO_STEPS_BY_LOCALE: Record<
     },
     {
       title: "Spin & Score",
-      subtitle: "Merchant API returns spin quota, the server resolves results.",
+      subtitle: "Customer Platform confirms deposit eligibility before today's spin.",
       iconKey: "spin",
     },
     {
@@ -61,7 +58,7 @@ const HERO_STEPS_BY_LOCALE: Record<
     },
     {
       title: "Putar & Skor",
-      subtitle: "Merchant API memulangkan kuota, pelayan menentukan hasil.",
+      subtitle: "Customer Platform mengesahkan kelayakan deposit sebelum putaran hari ini.",
       iconKey: "spin",
     },
     {
@@ -73,17 +70,17 @@ const HERO_STEPS_BY_LOCALE: Record<
   "zh-CN": [
     {
       title: "每日充值",
-      subtitle: "单日 RM50 即可解锁当天机会。",
+      subtitle: "充值 RM50 即可获得今天的机会。",
       iconKey: "deposit",
     },
     {
-      title: "转动得分",
-      subtitle: "Merchant API 返回额度，服务器判定结果。",
+      title: "旋转得分",
+      subtitle: "Customer Platform 会先确认今天的充值资格，再允许旋转。",
       iconKey: "spin",
     },
     {
-      title: "冲击排名",
-      subtitle: "进入前 30 可赢取现金奖励。",
+      title: "冲刺排行",
+      subtitle: "进入前 30 名即可获得现金奖励。",
       iconKey: "rank",
     },
   ],
@@ -109,10 +106,7 @@ export function getSupportedLocaleOptions() {
   }));
 }
 
-export function getEligibilityButtonLabel(
-  status: EligibilityStatus,
-  locale: AppLocale,
-) {
+export function getEligibilityButtonLabel(status: EligibilityStatus, locale: AppLocale) {
   return ELIGIBILITY_BUTTON_LABELS[locale][status];
 }
 

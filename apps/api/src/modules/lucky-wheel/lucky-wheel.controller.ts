@@ -1,11 +1,45 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Sse } from "@nestjs/common";
-import { EligibilityStatus, EventStatus, SpinRequest } from "@lucky-wheel/contracts";
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, Sse } from "@nestjs/common";
+import {
+  EligibilityStatus,
+  EventStatus,
+  LuckyWheelPlayerSessionLaunchRequestDto,
+  SpinRequest,
+} from "@lucky-wheel/contracts";
 import { LuckyWheelService } from "./lucky-wheel.service";
+import { PlayerSessionService } from "./player-session.service";
 import { resolveRequestedLocale } from "./lucky-wheel.localization";
 
 @Controller("v2")
 export class LuckyWheelController {
-  constructor(private readonly luckyWheelService: LuckyWheelService) {}
+  constructor(
+    private readonly luckyWheelService: LuckyWheelService,
+    private readonly playerSessionService: PlayerSessionService,
+  ) {}
+
+  @Post("player/session/launch")
+  launchPlayerSession(
+    @Body() request: LuckyWheelPlayerSessionLaunchRequestDto,
+    @Headers("x-merchant-id") merchantId?: string,
+    @Headers("x-timestamp") timestamp?: string,
+    @Headers("x-nonce") nonce?: string,
+    @Headers("x-signature") signature?: string,
+    @Req()
+    httpRequest?: {
+      rawBody?: Buffer;
+      originalUrl?: string;
+      method?: string;
+    },
+  ) {
+    return this.playerSessionService.launchPlayerSession(request, {
+      merchantId,
+      timestamp,
+      nonce,
+      signature,
+      rawBody: httpRequest?.rawBody?.toString("utf8") ?? JSON.stringify(request),
+      method: httpRequest?.method,
+      path: httpRequest?.originalUrl,
+    });
+  }
 
   @Get("config/localization")
   getLocalizationConfig(

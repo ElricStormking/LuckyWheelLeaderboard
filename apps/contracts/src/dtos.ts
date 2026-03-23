@@ -84,7 +84,7 @@ export interface EventListResponse {
 }
 
 export type AppLocale = "en" | "ms" | "zh-CN";
-export type SpinAllowanceSource = "merchant_api" | "archive_snapshot";
+export type SpinAllowanceSource = "lucky_wheel_server" | "archive_snapshot";
 
 export interface LocalizationOptionDto {
   code: AppLocale;
@@ -100,9 +100,12 @@ export interface LocalizationConfigResponse {
 export interface MerchantEligibilityResponseDto {
   eventId: string;
   playerId: string;
-  grantedSpinCount: number;
-  requiresDeposit: boolean;
+  depositQualified: boolean;
+  depositUrl?: string;
   reasonCode?: string;
+  decisionId: string;
+  evaluatedAt: string;
+  expiresAt: string;
   upstreamSource: "customer_platform";
   updatedAt: string;
 }
@@ -110,10 +113,64 @@ export interface MerchantEligibilityResponseDto {
 export interface MerchantApiStatusDto {
   service: "merchant-api";
   status: "online" | "degraded";
-  upstreamSource: "customer_platform";
+  upstreamSource: "lucky_wheel_platform" | "customer_platform";
   updatedAt: string;
   error?: string;
 }
+
+export interface LuckyWheelPlayerSessionDeviceDto {
+  platform?: string;
+  userAgent?: string;
+}
+
+export interface LuckyWheelPlayerSessionLaunchRequestDto {
+  merchantPlayerId: string;
+  playerDisplayName?: string;
+  locale?: AppLocale;
+  eventId?: string;
+  device?: LuckyWheelPlayerSessionDeviceDto;
+}
+
+export interface LuckyWheelPlayerSessionLaunchResponseDto {
+  sessionId: string;
+  launchUrl: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+}
+
+export interface IntegrationApiResponseDto<TData> {
+  success: boolean;
+  errorCode: number;
+  errorMessage: string;
+  data: TData | null;
+}
+
+export interface InitialEligibilityBootstrapDto {
+  depositQualified: boolean;
+  depositUrl?: string;
+  reasonCode?: string;
+  decisionId?: string;
+  evaluatedAt?: string;
+  expiresAt?: string;
+}
+
+export interface MerchantIntegrationLaunchRequestDto {
+  merchantId: string;
+  playerId: string;
+  initialEligibility: InitialEligibilityBootstrapDto;
+  timestamp: number;
+  hash: string;
+}
+
+export interface MerchantIntegrationLaunchDataDto {
+  url: string;
+  sessionId: string;
+  expiresAt: string;
+}
+
+export type MerchantIntegrationLaunchResponseDto =
+  IntegrationApiResponseDto<MerchantIntegrationLaunchDataDto>;
 
 export interface SpinAllowanceDto {
   grantedSpinCount: number;
@@ -192,7 +249,7 @@ export interface EligibilityResponse extends SpinAllowanceDto {
   wheelVisualState: WheelVisualState;
   depositUrl?: string;
   messageKey?: string;
-  merchantReasonCode?: string;
+  reasonCode?: string;
 }
 
 export interface SpinRequest {
@@ -431,8 +488,7 @@ export interface AdminEligibilityRecordDto {
   usedSpinCount: number;
   remainingSpinCount: number;
   spinAllowanceSource: SpinAllowanceSource;
-  requiresDeposit: boolean;
-  merchantReasonCode?: string;
+  reasonCode?: string;
   updatedAt: string;
 }
 

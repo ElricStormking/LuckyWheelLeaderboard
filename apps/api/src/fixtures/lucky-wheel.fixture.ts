@@ -189,10 +189,10 @@ export function createPrototypeFixture(): {
     prizeName: "RM 58",
     isTop30: true,
     hasSpun: true,
-    grantedSpinCount: 7,
-    usedSpinCount: recentSpinHistory.length,
+    grantedSpinCount: 1,
+    usedSpinCount: 0,
     remainingSpinCount: 1,
-    spinAllowanceSource: "merchant_api",
+    spinAllowanceSource: "lucky_wheel_server",
     resultsVisible: true,
     spinHistory: recentSpinHistory.map((entry, index) => ({
       id: `spin-history-${index + 1}`,
@@ -207,7 +207,7 @@ export function createPrototypeFixture(): {
         id: demoEventId,
         code: "LUCKY-WHEEL-2026-02",
         title: "iBET Lucky Wheel",
-        shortDescription: "Spin with your platform-granted quota and chase a Top 30 cash prize.",
+        shortDescription: "Take one server-validated spin per day and chase a Top 30 cash prize.",
         status: EventStatus.Live,
         startAt: "2026-02-01T00:00:00+08:00",
         endAt: "2026-02-28T23:59:59+08:00",
@@ -223,7 +223,7 @@ export function createPrototypeFixture(): {
           },
           {
             title: "Spin & Score",
-            subtitle: "Merchant API returns spins, the server resolves results.",
+            subtitle: "Lucky Wheel checks today's server-side spin usage before each daily spin.",
             iconKey: "spin",
           },
           {
@@ -234,9 +234,9 @@ export function createPrototypeFixture(): {
         ],
         wheelSegments,
         rulesContent: [
-          "1. Each member's spin quota is returned by Merchant API and sourced from Customer Platform.",
+          "1. Each member may use Lucky Wheel once per day when Lucky Wheel server confirms daily eligibility.",
           "2. Results are server-authoritative and update your event total immediately.",
-          "3. Top 30 rankings are refreshed after successful spins and periodic syncs.",
+          "3. Top 30 rankings are refreshed after successful daily spins and periodic syncs.",
           "4. Deposit and customer-service links are configurable and shown in-menu.",
           "5. Ended events remain viewable but their wheel is locked.",
         ].join("\n"),

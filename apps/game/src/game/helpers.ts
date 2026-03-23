@@ -15,6 +15,7 @@ type ButtonOptions = {
   backgroundColor?: number;
   labelColor?: string;
   radius?: number;
+  shape?: "rounded-rect" | "circle";
 };
 
 export function formatNumber(value: number, locale: AppLocale = "en") {
@@ -97,17 +98,33 @@ export function addTextButton(
   const radius = options.radius ?? 30;
   const backgroundColor = options.backgroundColor ?? COLORS.primary;
   const labelColor = options.labelColor ?? "#ffffff";
+  const shape = options.shape ?? "rounded-rect";
+  const circleRadius = Math.min(width, height) / 2;
 
-  graphics.fillStyle(backgroundColor, 1);
-  graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-  graphics.fillStyle(COLORS.white, 0.18);
-  graphics.fillRoundedRect(
-    -width * 0.38,
-    -height * 0.34,
-    width * 0.76,
-    height * 0.24,
-    radius,
-  );
+  const drawBackground = (color: number) => {
+    graphics.clear();
+
+    if (shape === "circle") {
+      graphics.fillStyle(color, 0.94);
+      graphics.fillCircle(0, 0, circleRadius);
+      graphics.fillStyle(COLORS.white, 0.14);
+      graphics.fillEllipse(0, -height * 0.18, width * 0.76, height * 0.28);
+      return;
+    }
+
+    graphics.fillStyle(color, 1);
+    graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
+    graphics.fillStyle(COLORS.white, 0.18);
+    graphics.fillRoundedRect(
+      -width * 0.38,
+      -height * 0.34,
+      width * 0.76,
+      height * 0.24,
+      radius,
+    );
+  };
+
+  drawBackground(backgroundColor);
 
   const text = scene.add
     .text(0, 0, label, {
@@ -120,10 +137,24 @@ export function addTextButton(
 
   container.add([graphics, text]);
   container.setSize(width, height);
-  container.setInteractive(
-    new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
-    Phaser.Geom.Rectangle.Contains,
-  );
+  const setInteractiveShape = () => {
+    container.disableInteractive();
+
+    if (shape === "circle") {
+      container.setInteractive(
+        new Phaser.Geom.Circle(0, 0, circleRadius),
+        Phaser.Geom.Circle.Contains,
+      );
+      return;
+    }
+
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
+      Phaser.Geom.Rectangle.Contains,
+    );
+  };
+
+  setInteractiveShape();
   container.on("pointerup", onClick);
   container.on("pointerover", () => {
     container.setScale(1.02);
@@ -139,25 +170,12 @@ export function addTextButton(
       text.setText(nextLabel);
     },
     setBackground(color: number) {
-      graphics.clear();
-      graphics.fillStyle(color, 1);
-      graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-      graphics.fillStyle(COLORS.white, 0.18);
-      graphics.fillRoundedRect(
-        -width * 0.38,
-        -height * 0.34,
-        width * 0.76,
-        height * 0.24,
-        radius,
-      );
+      drawBackground(color);
     },
     setEnabled(enabled: boolean) {
       container.disableInteractive();
       if (enabled) {
-        container.setInteractive(
-          new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
-          Phaser.Geom.Rectangle.Contains,
-        );
+        setInteractiveShape();
       }
 
       container.setAlpha(enabled ? 1 : 0.72);

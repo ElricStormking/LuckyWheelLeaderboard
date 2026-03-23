@@ -14,12 +14,18 @@ import {
   addPill,
   addRoundedPanel,
   addTextButton,
-  createSectionTitle,
   drawCircleIcon,
   formatTime,
   formatNumber,
   openExternalLink,
 } from "../helpers";
+
+type MarqueeCard = {
+  container: Phaser.GameObjects.Container;
+  text: Phaser.GameObjects.Text;
+  width: number;
+  speed: number;
+};
 
 export class LobbyScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
@@ -36,6 +42,7 @@ export class LobbyScene extends Phaser.Scene {
     label: Phaser.GameObjects.Text;
     value?: EligibilityStatus;
   }> = [];
+  private marqueeCards: MarqueeCard[] = [];
 
   constructor() {
     super(SCENE_KEYS.Lobby);
@@ -63,8 +70,10 @@ export class LobbyScene extends Phaser.Scene {
     );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.UPDATE, this.updateMarquee, this);
       this.cleanup.forEach((cleanup) => cleanup());
       this.cleanup = [];
+      this.marqueeCards = [];
     });
 
     if (!prototypeState.getSnapshot().currentEvent && !prototypeState.getSnapshot().isBootstrapping) {
@@ -132,23 +141,26 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const localeBubble = drawCircleIcon(this, 874, 110, "icon-globe");
+    const localeIcon = localeBubble.getAt(1) as Phaser.GameObjects.Image | undefined;
+    localeIcon?.setY(-10).setScale(0.62);
     localeBubble.setSize(84, 84);
     localeBubble.setInteractive(
       new Phaser.Geom.Circle(0, 0, 42),
       Phaser.Geom.Circle.Contains,
     );
     localeBubble.on("pointerup", () => this.toggleOverlay(SCENE_KEYS.LocaleOverlay));
+    localeBubble.add(
+      this.add
+        .text(0, 20, snapshot.locale.toUpperCase(), {
+          fontFamily: FONTS.body,
+          fontSize: "13px",
+          fontStyle: "700",
+          color: "#0a2942",
+        })
+        .setOrigin(0.5),
+    );
 
     drawCircleIcon(this, 980, 110, "icon-menu");
-
-    this.add
-      .text(874, 158, snapshot.locale.toUpperCase(), {
-        fontFamily: FONTS.body,
-        fontSize: "14px",
-        fontStyle: "700",
-        color: "#dff7ff",
-      })
-      .setOrigin(0.5);
   }
 
   private drawHero() {
@@ -176,6 +188,8 @@ export class LobbyScene extends Phaser.Scene {
         fontSize: "30px",
         fontStyle: "700",
         color: "#d7f6ff",
+        align: "center",
+        wordWrap: { width: 860, useAdvancedWrap: true },
       })
       .setOrigin(0.5);
 
@@ -200,36 +214,10 @@ export class LobbyScene extends Phaser.Scene {
       },
     ];
 
-    steps.forEach((step) => {
-      drawCircleIcon(this, step.x, 398, step.icon, 0xeef9ff);
-      addRoundedPanel(this, step.x, 450, 250, 174, {
-        fillColor: COLORS.panel,
-        radius: 30,
-      });
+    this.drawHeroRibbon(steps);
 
-      this.add
-        .text(step.x, 460, step.title, {
-          fontFamily: FONTS.display,
-          fontSize: "32px",
-          fontStyle: "700",
-          color: "#0a2942",
-        })
-        .setOrigin(0.5);
-
-      this.add
-        .text(step.x, 504, step.copy, {
-          fontFamily: FONTS.body,
-          fontSize: "18px",
-          color: "#5f7e97",
-          align: "center",
-          wordWrap: { width: 190, useAdvancedWrap: true },
-        })
-        .setOrigin(0.5);
-    });
-
-    createSectionTitle(this, 540, 595, prototypeState.t("lobby.phaseSlice"));
     this.eligibilityText = this.add
-      .text(540, 648, prototypeState.t("lobby.checkingEligibility"), {
+      .text(540, 612, prototypeState.t("lobby.checkingEligibility"), {
         fontFamily: FONTS.body,
         fontSize: "26px",
         color: "#d7f4ff",
@@ -239,28 +227,130 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5);
   }
 
-  private drawActionRow() {
-    const rowY = 732;
-    const chips = [
-      prototypeState.t("lobby.chipTop30"),
-      prototypeState.t("lobby.chipWheel"),
-      prototypeState.t("lobby.chipPlaceholder"),
-    ];
+  private drawHeroRibbon(
+    steps: Array<{ x: number; icon: string; title: string; copy: string }>,
+  ) {
+    const ribbonCenterX = 540;
+    const ribbonCenterY = 454;
+    const ribbonWidth = 846;
+    const ribbonHeight = 152;
+    const left = ribbonCenterX - ribbonWidth / 2;
+    const top = ribbonCenterY - ribbonHeight / 2;
+    const segmentWidth = ribbonWidth / 3;
+    const dividerInset = 26;
 
-    chips.forEach((chip, index) => {
+    const ribbonShadow = this.add.graphics();
+    ribbonShadow.fillStyle(0x041a2c, 0.22);
+    ribbonShadow.fillRoundedRect(left, top + 10, ribbonWidth, ribbonHeight, 38);
+
+    const ribbon = this.add.graphics();
+    ribbon.fillStyle(COLORS.panel, 0.98);
+    ribbon.fillRoundedRect(left, top, ribbonWidth, ribbonHeight, 38);
+    ribbon.lineStyle(3, COLORS.primary, 0.95);
+    ribbon.strokeRoundedRect(left, top, ribbonWidth, ribbonHeight, 38);
+
+    steps.forEach((_, index) => {
+      const segmentLeft = left + index * segmentWidth;
+      ribbon.fillStyle(COLORS.white, index === 1 ? 0.18 : 0.13);
+      ribbon.fillRoundedRect(
+        segmentLeft + 38,
+        top + 10,
+        segmentWidth - 76,
+        28,
+        18,
+      );
+
+      if (index < steps.length - 1) {
+        const dividerX = segmentLeft + segmentWidth;
+        ribbon.fillStyle(COLORS.primary, 0.08);
+        ribbon.fillTriangle(
+          dividerX - dividerInset,
+          top + 10,
+          dividerX + dividerInset,
+          ribbonCenterY,
+          dividerX - dividerInset,
+          top + ribbonHeight - 10,
+        );
+
+        ribbon.lineStyle(5, COLORS.primary, 0.95);
+        ribbon.beginPath();
+        ribbon.moveTo(dividerX - dividerInset, top + 10);
+        ribbon.lineTo(dividerX + dividerInset, ribbonCenterY);
+        ribbon.lineTo(dividerX - dividerInset, top + ribbonHeight - 10);
+        ribbon.strokePath();
+      }
+    });
+
+    steps.forEach((step, index) => {
+      const centerX = left + segmentWidth * (index + 0.5);
+      const badge = this.add.container(centerX, top + 18);
+      const badgeGlow = this.add.circle(0, 0, 44, 0xc3f0ff, 0.26);
+      const badgeCircle = this.add.circle(0, 0, 38, COLORS.primary, 1);
+      badgeCircle.setStrokeStyle(4, 0xb9efff, 0.98);
+      const badgeIcon = this.add.image(0, -2, step.icon).setScale(0.62).setTint(0xffffff);
+      badge.add([badgeGlow, badgeCircle, badgeIcon]);
+
+      this.add
+        .text(centerX, top + 78, step.title, {
+          fontFamily: FONTS.display,
+          fontSize: "28px",
+          fontStyle: "700",
+          color: "#12324a",
+          align: "center",
+          wordWrap: { width: 210, useAdvancedWrap: true },
+        })
+        .setOrigin(0.5);
+
+      this.add
+        .text(centerX, top + 116, step.copy, {
+          fontFamily: FONTS.body,
+          fontSize: "18px",
+          color: "#5f7e97",
+          align: "center",
+          wordWrap: { width: 210, useAdvancedWrap: true },
+        })
+        .setOrigin(0.5);
+    });
+  }
+
+  private drawActionRow() {
+    const itemWidth = 320;
+    const itemHeight = 56;
+    const marqueeCount = 8;
+    const laneSpacing = 190;
+    const initialX = -220;
+
+    this.marqueeCards = Array.from({ length: marqueeCount }, (_, index) => {
+      const y = this.getRandomMarqueeY();
       const pill = addPill(
         this,
-        252 + index * 290,
-        rowY,
-        260,
-        56,
-        chip,
+        initialX + index * laneSpacing,
+        y,
+        itemWidth,
+        itemHeight,
+        "",
         0xe9f7ff,
         "#0a2942",
       );
-      pill.text.setFontSize("18px");
-      pill.text.setWordWrapWidth(230, true);
+
+      pill.text.setFontSize("20px");
+      pill.text.setWordWrapWidth(276, true);
+      pill.text.setLineSpacing(-6);
+      pill.container.setAlpha(Phaser.Math.FloatBetween(0.88, 0.98));
+      pill.container.setScale(Phaser.Math.FloatBetween(0.94, 1.02));
+
+      const card = {
+        container: pill.container,
+        text: pill.text,
+        width: itemWidth,
+        speed: Phaser.Math.FloatBetween(0.08, 0.13),
+      };
+
+      this.assignMarqueeMessage(card);
+      return card;
     });
+
+    this.events.on(Phaser.Scenes.Events.UPDATE, this.updateMarquee, this);
   }
 
   private drawSummaryArea() {
@@ -305,91 +395,102 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawBottomButtons() {
-    addTextButton(this, 250, 1668, 290, 92, prototypeState.t("lobby.leaderboard"), () => {
-      this.toggleOverlay(SCENE_KEYS.LeaderboardOverlay);
+    this.drawCenteredButtonRow(1668, 32, [
+      {
+        label: prototypeState.t("lobby.leaderboard"),
+        width: 290,
+        onClick: () => this.toggleOverlay(SCENE_KEYS.LeaderboardOverlay),
+      },
+      {
+        label: prototypeState.t("lobby.prizes"),
+        width: 220,
+        onClick: () => this.toggleOverlay(SCENE_KEYS.PrizeOverlay),
+        options: {
+          backgroundColor: COLORS.primaryDark,
+        },
+      },
+      {
+        label: prototypeState.t("lobby.rules"),
+        width: 220,
+        onClick: () => this.toggleOverlay(SCENE_KEYS.RulesOverlay),
+        options: {
+          backgroundColor: COLORS.primaryDark,
+        },
+      },
+    ]);
+
+    this.drawCenteredButtonRow(1790, 32, [
+      {
+        label: prototypeState.t("lobby.history"),
+        width: 320,
+        onClick: () => this.toggleOverlay(SCENE_KEYS.HistoryOverlay),
+        options: {
+          backgroundColor: 0xeef9ff,
+          labelColor: "#0a2942",
+        },
+      },
+      {
+        label: prototypeState.t("lobby.deposit"),
+        width: 250,
+        onClick: () => {
+          const depositUrl = prototypeState
+            .getSnapshot()
+            .currentEvent?.platformLinks.find(
+              (link) => link.type === PlatformLinkType.Deposit,
+            )?.url;
+          openExternalLink(depositUrl);
+        },
+        options: {
+          backgroundColor: COLORS.accent,
+          labelColor: "#0a2942",
+        },
+      },
+      {
+        label: prototypeState.t("lobby.support"),
+        width: 250,
+        onClick: () => {
+          const supportUrl = prototypeState
+            .getSnapshot()
+            .currentEvent?.platformLinks.find(
+              (link) => link.type === PlatformLinkType.CustomerService,
+            )?.url;
+          openExternalLink(supportUrl);
+        },
+        options: {
+          backgroundColor: 0xeef9ff,
+          labelColor: "#0a2942",
+        },
+      },
+    ]);
+  }
+
+  private drawCenteredButtonRow(
+    y: number,
+    gap: number,
+    buttons: Array<{
+      label: string;
+      width: number;
+      onClick: () => void;
+      options?: Parameters<typeof addTextButton>[7];
+    }>,
+  ) {
+    const totalWidth =
+      buttons.reduce((sum, button) => sum + button.width, 0) + gap * (buttons.length - 1);
+    let left = STAGE_WIDTH / 2 - totalWidth / 2;
+
+    buttons.forEach((button) => {
+      addTextButton(
+        this,
+        left + button.width / 2,
+        y,
+        button.width,
+        92,
+        button.label,
+        button.onClick,
+        button.options,
+      );
+      left += button.width + gap;
     });
-
-    addTextButton(
-      this,
-      540,
-      1668,
-      220,
-      92,
-      prototypeState.t("lobby.prizes"),
-      () => this.toggleOverlay(SCENE_KEYS.PrizeOverlay),
-      {
-        backgroundColor: COLORS.primaryDark,
-      },
-    );
-
-    addTextButton(
-      this,
-      830,
-      1668,
-      220,
-      92,
-      prototypeState.t("lobby.rules"),
-      () => this.toggleOverlay(SCENE_KEYS.RulesOverlay),
-      {
-        backgroundColor: COLORS.primaryDark,
-      },
-    );
-
-    addTextButton(
-      this,
-      300,
-      1790,
-      320,
-      92,
-      prototypeState.t("lobby.history"),
-      () => this.toggleOverlay(SCENE_KEYS.HistoryOverlay),
-      {
-        backgroundColor: 0xeef9ff,
-        labelColor: "#0a2942",
-      },
-    );
-
-    addTextButton(
-      this,
-      624,
-      1790,
-      250,
-      92,
-      prototypeState.t("lobby.deposit"),
-      () => {
-        const depositUrl = prototypeState
-          .getSnapshot()
-          .currentEvent?.platformLinks.find(
-            (link) => link.type === PlatformLinkType.Deposit,
-          )?.url;
-        openExternalLink(depositUrl);
-      },
-      {
-        backgroundColor: COLORS.accent,
-        labelColor: "#0a2942",
-      },
-    );
-
-    addTextButton(
-      this,
-      848,
-      1790,
-      250,
-      92,
-      prototypeState.t("lobby.support"),
-      () => {
-        const supportUrl = prototypeState
-          .getSnapshot()
-          .currentEvent?.platformLinks.find(
-            (link) => link.type === PlatformLinkType.CustomerService,
-          )?.url;
-        openExternalLink(supportUrl);
-      },
-      {
-        backgroundColor: 0xeef9ff,
-        labelColor: "#0a2942",
-      },
-    );
   }
 
   private drawDevPanel() {
@@ -479,6 +580,7 @@ export class LobbyScene extends Phaser.Scene {
         : snapshot.eligibility
         ? prototypeState.t("lobby.eligibilityLine", {
             buttonLabel: snapshot.eligibility.buttonLabel,
+            used: snapshot.eligibility.usedSpinCount,
             remaining: snapshot.eligibility.remainingSpinCount,
             granted: snapshot.eligibility.grantedSpinCount,
           })
@@ -486,6 +588,14 @@ export class LobbyScene extends Phaser.Scene {
           ? prototypeState.t("lobby.loadingPayload")
           : prototypeState.t("lobby.checkingEligibility"),
     );
+
+    if (snapshot.leaderboard?.leaderboard.length) {
+      this.marqueeCards.forEach((card) => {
+        if (!card.text.text || card.text.text === "Loading top 30 activity...") {
+          this.assignMarqueeMessage(card);
+        }
+      });
+    }
 
     this.devControls.forEach((control) => {
       const isActive = control.value === snapshot.eligibilityOverride;
@@ -497,6 +607,72 @@ export class LobbyScene extends Phaser.Scene {
       graphics.strokeRoundedRect(-92, -22, 184, 44, 22);
       control.label.setColor(isActive ? "#0a2942" : "#0a2942");
     });
+  }
+
+  private updateMarquee(_time: number, delta: number) {
+    if (this.marqueeCards.length === 0) {
+      return;
+    }
+
+    this.marqueeCards.forEach((card) => {
+      card.container.x += delta * card.speed;
+    });
+
+    this.marqueeCards.forEach((card) => {
+      if (card.container.x - card.width / 2 <= STAGE_WIDTH + 20) {
+        return;
+      }
+
+      const leftmostX = Math.min(...this.marqueeCards.map((entry) => entry.container.x));
+      card.container.x = leftmostX - (card.width + Phaser.Math.Between(80, 150));
+      card.container.y = this.getRandomMarqueeY();
+      card.speed = Phaser.Math.FloatBetween(0.08, 0.13);
+      card.container.setAlpha(Phaser.Math.FloatBetween(0.88, 0.98));
+      card.container.setScale(Phaser.Math.FloatBetween(0.94, 1.02));
+      this.assignMarqueeMessage(card);
+    });
+  }
+
+  private assignMarqueeMessage(card: MarqueeCard) {
+    const snapshot = prototypeState.getSnapshot();
+    const entries = snapshot.leaderboard?.leaderboard ?? [];
+
+    if (entries.length === 0) {
+      card.text.setText("Loading top 30 activity...");
+      return;
+    }
+
+    const entry = entries[Math.floor(Math.random() * Math.min(entries.length, 30))];
+    const playerId = this.formatMarqueePlayerId(entry.playerName);
+    const points = this.getRandomMarqueePoints();
+
+    card.text.setText(
+      `ID ${playerId} earned ${formatNumber(points, snapshot.locale)} points`,
+    );
+  }
+
+  private getRandomMarqueePoints() {
+    const segmentLabels =
+      prototypeState
+        .getSnapshot()
+        .currentEvent?.wheelSegments.map((segment) =>
+          Number(segment.label.replace(/[^\d]/g, "")),
+        )
+        .filter((value) => Number.isFinite(value) && value >= 10) ?? [];
+
+    const pointsPool = segmentLabels.length > 0 ? segmentLabels : [40, 80, 120];
+    return pointsPool[Math.floor(Math.random() * pointsPool.length)];
+  }
+
+  private formatMarqueePlayerId(playerName: string) {
+    const normalized = playerName.replace(/\s+/g, "");
+    return normalized.length > 11 ? `${normalized.slice(0, 11)}...` : normalized;
+  }
+
+  private getRandomMarqueeY() {
+    const lanes = [672, 698, 724];
+    const lane = lanes[Math.floor(Math.random() * lanes.length)];
+    return lane + Phaser.Math.Between(-4, 4);
   }
 
   private toggleOverlay(key: string) {

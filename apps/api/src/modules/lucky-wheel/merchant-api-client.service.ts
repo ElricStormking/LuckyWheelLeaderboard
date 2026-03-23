@@ -4,12 +4,6 @@ import {
   MerchantEligibilityResponseDto,
 } from "@lucky-wheel/contracts";
 
-export interface MerchantEligibilitySnapshot {
-  grantedSpinCount: number;
-  requiresDeposit: boolean;
-  reasonCode?: string;
-}
-
 @Injectable()
 export class MerchantApiClientService {
   private readonly baseUrl =
@@ -24,18 +18,12 @@ export class MerchantApiClientService {
   }
 
   async getEligibilitySnapshot(
-    eventId: string,
     playerId: string,
-  ): Promise<MerchantEligibilitySnapshot> {
-    const response = await this.request<MerchantEligibilityResponseDto>(
+    eventId: string,
+  ): Promise<MerchantEligibilityResponseDto> {
+    return this.request<MerchantEligibilityResponseDto>(
       `/v1/lucky-wheel/players/${encodeURIComponent(playerId)}/events/${encodeURIComponent(eventId)}/eligibility`,
     );
-
-    return {
-      grantedSpinCount: response.grantedSpinCount,
-      requiresDeposit: response.requiresDeposit,
-      reasonCode: response.reasonCode,
-    };
   }
 
   private async request<T>(pathname: string): Promise<T> {

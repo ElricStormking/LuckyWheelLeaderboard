@@ -12,7 +12,7 @@ export const HERO_STEPS = [
   },
   {
     title: "Spin & Score",
-    subtitle: "Merchant API returns spin quota, the server resolves results.",
+    subtitle: "Customer Platform confirms deposit eligibility before today's spin.",
     iconKey: "spin",
   },
   {

@@ -30,7 +30,6 @@ import {
   PlayerRankChangedEventDto,
   PlayerScoreChangedEventDto,
   PlayerSpinHistoryResponse,
-  SpinAllowanceDto,
   SpinHistoryEntryDto,
   SpinRequest,
   SpinResponse,
@@ -40,7 +39,12 @@ import {
 } from "@lucky-wheel/contracts";
 import { Observable, Subject } from "rxjs";
 import { PrismaService } from "../../prisma/prisma.service";
-import { MerchantApiClientService } from "./merchant-api-client.service";
+import {
+  createArchivedDailySpinAllowance,
+  createServerDailySpinAllowance,
+  type NormalizedDailySpinAllowance,
+  resolveCurrentDayWindow,
+} from "./daily-spin-policy";
 import { resolveAutoFinalizeGraceMinutes } from "./event-lifecycle.config";
 import {
   DEMO_PLAYER_ID,
@@ -56,6 +60,7 @@ import {
   resolveRequestedLocale,
   SUPPORTED_LOCALES,
 } from "./lucky-wheel.localization";
+import { MerchantApiClientService } from "./merchant-api-client.service";
 
 type DatabaseClient = Prisma.TransactionClient | PrismaService;
 type EventWithRelations = Prisma.EventCampaignGetPayload<{
@@ -118,9 +123,9 @@ type EventSummaryRecord = Prisma.PlayerEventSummaryGetPayload<{
     };
   };
 }>;
-type NormalizedSpinAllowance = SpinAllowanceDto & {
-  requiresDeposit: boolean;
-  merchantReasonCode?: string;
+type NormalizedSpinAllowance = NormalizedDailySpinAllowance & {
+  depositEligible: boolean;
+  depositUrl?: string;
 };
 
 @Injectable()
@@ -370,7 +375,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       this.prisma,
       eventStatus === EventStatus.Live,
     );
-    const usedSpinCount = await this.countUsedSpins(event.id);
+    const usedSpinCount = await this.countUsedSpinsForCurrentDay(
+      event.id,
+      event.timezone,
+    );
     const spinAllowance = await this.resolveSpinAllowance(
       event.id,
       eventStatus,
@@ -393,10 +401,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           : WheelVisualState.Normal,
       depositUrl:
         eligibilityStatus === EligibilityStatus.GoToDeposit
-          ? this.findDepositUrl(event.platformLinks)
+          ? spinAllowance.depositUrl
           : undefined,
       messageKey: this.getMessageKey(eligibilityStatus),
-      merchantReasonCode: spinAllowance.merchantReasonCode,
+      reasonCode: spinAllowance.reasonCode,
     };
   }
 
@@ -459,7 +467,11 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
 
         const previousRankedScores = await this.getRankedScores(event.id, transaction);
         const previousRank = this.findPlayerRank(previousRankedScores, DEMO_PLAYER_ID);
-        const usedSpinCount = await this.countUsedSpins(event.id, transaction);
+        const usedSpinCount = await this.countUsedSpinsForCurrentDay(
+          event.id,
+          event.timezone,
+          transaction,
+        );
         const spinAllowance = await this.resolveSpinAllowance(
           event.id,
           eventStatus,
@@ -468,10 +480,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         const eligibilityStatus = this.resolveEligibility(eventStatus, spinAllowance, override);
 
         if (eligibilityStatus !== EligibilityStatus.PlayableNow) {
-          const failure = this.buildFailureResponse(
-            eligibilityStatus,
-            this.findDepositUrl(event.platformLinks),
-          );
+          const failure = this.buildFailureResponse(eligibilityStatus, spinAllowance.depositUrl);
 
           await transaction.spinRequestRecord.create({
             data: {
@@ -638,7 +647,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           },
           take: HISTORY_PAGE_SIZE,
         }),
-        this.countUsedSpins(event.id),
+        this.countUsedSpinsForCurrentDay(event.id, event.timezone),
         this.prisma.playerEventSummary.findMany({
           where: {
             playerId: DEMO_PLAYER_ID,
@@ -691,7 +700,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           ? this.resolvePrizeName(rank, prizes)
           : null,
       isTop30: resultVisibility.resultsVisible && rank !== null && rank <= 30,
-      hasSpun: usedSpinCount > 0 || Boolean(summaryRecord),
+      hasSpun: spinHistory.length > 0 || Boolean(summaryRecord),
       grantedSpinCount: spinAllowance.grantedSpinCount,
       usedSpinCount: spinAllowance.usedSpinCount,
       remainingSpinCount: spinAllowance.remainingSpinCount,
@@ -861,14 +870,21 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private countUsedSpins(
+  private countUsedSpinsForCurrentDay(
     eventId: string,
+    timezone: string,
     client: DatabaseClient = this.prisma,
   ) {
+    const { start, end } = resolveCurrentDayWindow(timezone);
+
     return client.spinTransaction.count({
       where: {
         eventCampaignId: eventId,
         playerId: DEMO_PLAYER_ID,
+        createdAt: {
+          gte: start,
+          lt: end,
+        },
       },
     });
   }
@@ -1104,35 +1120,24 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   ): Promise<NormalizedSpinAllowance> {
     if (eventStatus !== EventStatus.Live) {
       return {
-        grantedSpinCount: usedSpinCount,
-        usedSpinCount,
-        remainingSpinCount: 0,
-        spinAllowanceSource: "archive_snapshot",
-        requiresDeposit: false,
-        merchantReasonCode: "ARCHIVE_SNAPSHOT",
+        ...createArchivedDailySpinAllowance(),
+        depositEligible: false,
       };
     }
 
-    const policy = await this.merchantApiClientService.getEligibilitySnapshot(
-      eventId,
+    const dailySpinAllowance = createServerDailySpinAllowance(usedSpinCount);
+    const merchantEligibility = await this.merchantApiClientService.getEligibilitySnapshot(
       DEMO_PLAYER_ID,
+      eventId,
     );
-    const grantedSpinCount = Math.max(0, Math.floor(policy.grantedSpinCount));
-    const remainingSpinCount = Math.max(0, grantedSpinCount - usedSpinCount);
 
     return {
-      grantedSpinCount,
-      usedSpinCount,
-      remainingSpinCount,
-      spinAllowanceSource: "merchant_api",
-      requiresDeposit: policy.requiresDeposit,
-      merchantReasonCode:
-        policy.reasonCode ??
-        (policy.requiresDeposit
-          ? "DEPOSIT_REQUIRED"
-          : remainingSpinCount > 0
-            ? "SPIN_QUOTA_GRANTED"
-            : "SPIN_QUOTA_EXHAUSTED"),
+      ...dailySpinAllowance,
+      depositEligible: merchantEligibility.depositQualified,
+      depositUrl: merchantEligibility.depositUrl,
+      reasonCode: merchantEligibility.depositQualified
+        ? dailySpinAllowance.reasonCode
+        : merchantEligibility.reasonCode ?? "DEPOSIT_REQUIRED",
     };
   }
 
@@ -1149,12 +1154,12 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       return EligibilityStatus.EventEnded;
     }
 
-    if (spinAllowance.requiresDeposit) {
-      return EligibilityStatus.GoToDeposit;
+    if (!spinAllowance.canSpinToday || spinAllowance.remainingSpinCount <= 0) {
+      return EligibilityStatus.AlreadySpin;
     }
 
-    if (spinAllowance.remainingSpinCount <= 0) {
-      return EligibilityStatus.AlreadySpin;
+    if (!spinAllowance.depositEligible) {
+      return EligibilityStatus.GoToDeposit;
     }
 
     return EligibilityStatus.PlayableNow;
@@ -1167,8 +1172,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return {
       success: false,
       eligibilityStatus,
-      depositUrl:
-        eligibilityStatus === EligibilityStatus.GoToDeposit ? depositUrl : undefined,
+      depositUrl,
       messageKey: this.getMessageKey(eligibilityStatus),
     };
   }
@@ -1238,14 +1242,6 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     );
 
     return new Date(latestScoreUpdate).toISOString();
-  }
-
-  private findDepositUrl(platformLinks: EventWithRelations["platformLinks"]) {
-    return platformLinks.find(
-      (entry) =>
-        this.parseEnumValue(PlatformLinkType, entry.linkType, "platform link type") ===
-        PlatformLinkType.Deposit,
-    )?.url;
   }
 
   private resolveResultVisibility(

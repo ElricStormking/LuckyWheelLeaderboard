@@ -98,9 +98,9 @@ const eventDefinitions = [
     code: "LUCKY-WHEEL-2026-03",
     status: "live",
     title: "iBET Lucky Wheel",
-    shortDescription: "Use your platform-granted spins, climb the leaderboard, and lock in a Top 30 cash prize.",
+    shortDescription: "Use your once-per-day Lucky Wheel spin, climb the leaderboard, and lock in a Top 30 cash prize.",
     rulesContent: [
-      "1. Each member's spin quota is returned by Merchant API and sourced from Customer Platform.",
+      "1. Each member may spin Lucky Wheel once per day when Lucky Wheel server confirms daily eligibility.",
       "2. Results are server-authoritative and update your event total immediately.",
       "3. Top 30 rankings are refreshed after successful spins and realtime syncs.",
       "4. Deposit and customer-service links are configurable and shown in-menu.",
@@ -121,7 +121,7 @@ const eventDefinitions = [
     shortDescription: "Scheduled event configuration prepared in admin before publish goes live.",
     rulesContent: [
       "1. This future event is visible in admin and used to test scheduling flow.",
-      "2. Merchant API quota is checked only when the event becomes live.",
+      "2. Lucky Wheel daily spin eligibility is checked only when the event becomes live.",
       "3. Admin can still adjust wheel, prizes, links, and language content before launch.",
     ].join("\n"),
     promotionPeriodLabel: "01/04/2026 - 30/04/2026",
@@ -175,9 +175,9 @@ const localizedEventContent = {
     en: {
       title: "iBET Lucky Wheel",
       shortDescription:
-        "Use your Merchant-API spin quota, climb the leaderboard, and lock in a Top 30 cash prize.",
+        "Use your once-per-day Lucky Wheel spin, climb the leaderboard, and lock in a Top 30 cash prize.",
       rulesContent: [
-        "1. Each member's spin quota is returned by Merchant API and sourced from Customer Platform.",
+        "1. Each member may spin Lucky Wheel once per day when Lucky Wheel server confirms daily eligibility.",
         "2. Results are server-authoritative and update your event total immediately.",
         "3. Top 30 rankings are refreshed after successful spins and realtime syncs.",
         "4. Deposit and customer-service links are configurable and shown in-menu.",
@@ -188,9 +188,9 @@ const localizedEventContent = {
     ms: {
       title: "iBET Roda Tuah",
       shortDescription:
-        "Gunakan kuota putaran daripada Merchant API, panjat carta, dan rebut hadiah tunai Top 30.",
+        "Gunakan kuota putaran harian Lucky Wheel, panjat carta, dan rebut hadiah tunai Top 30.",
       rulesContent: [
-        "1. Kuota putaran ahli dipulangkan oleh Merchant API dan bersumberkan Customer Platform.",
+        "1. Kuota putaran harian ahli disahkan oleh pelayan Lucky Wheel.",
         "2. Keputusan adalah autoritatif di pelayan dan mengemas kini jumlah acara anda serta-merta.",
         "3. Kedudukan Top 30 dikemas kini selepas putaran berjaya dan penyegerakan masa nyata.",
         "4. Pautan deposit dan khidmat pelanggan boleh dikonfigurasi dan dipaparkan dalam menu.",
@@ -219,7 +219,7 @@ const localizedEventContent = {
         "Scheduled admin-ready event with editable wheel, prizes, and rules before launch.",
       rulesContent: [
         "1. This future event is visible in admin and used to test scheduling flow.",
-        "2. Merchant API quota is checked only when the event becomes live.",
+        "2. Merchant API daily spin eligibility is checked only when the event becomes live.",
         "3. Admin can still adjust wheel, prizes, links, and language content before launch.",
       ].join("\n"),
       promotionPeriodLabel: "01/04/2026 - 30/04/2026",
@@ -230,7 +230,7 @@ const localizedEventContent = {
         "Acara berjadual sedia admin dengan roda, hadiah dan peraturan yang boleh diubah sebelum pelancaran.",
       rulesContent: [
         "1. Acara masa hadapan ini dipaparkan dalam admin untuk menguji aliran jadual.",
-        "2. Kuota Merchant API hanya diperiksa apabila acara menjadi live.",
+        "2. Kelayakan putaran harian Merchant API hanya diperiksa apabila acara menjadi live.",
         "3. Admin masih boleh melaras roda, hadiah, pautan dan bahasa sebelum pelancaran.",
       ].join("\n"),
       promotionPeriodLabel: "01/04/2026 - 30/04/2026",

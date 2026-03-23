@@ -26,6 +26,11 @@ import {
   WheelSegmentOperator,
 } from "@lucky-wheel/contracts";
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  createArchivedDailySpinAllowance,
+  createServerDailySpinAllowance,
+  resolveCurrentDayWindow,
+} from "../lucky-wheel/daily-spin-policy";
 import { EventFinalizationService } from "../lucky-wheel/event-finalization.service";
 import { MerchantApiClientService } from "../lucky-wheel/merchant-api-client.service";
 import {
@@ -93,7 +98,7 @@ export class AdminService {
           label: "Merchant API",
           url: this.merchantApiClientService.getBaseUrl(),
           description:
-            "External quota boundary that returns spin entitlement sourced from Customer Platform.",
+            "Customer-platform-facing launch gateway that brokers Lucky Wheel session creation.",
         },
         {
           key: "admin",
@@ -380,7 +385,7 @@ export class AdminService {
   ): Promise<AdminEligibilityRecordsResponse> {
     const event = await this.prisma.eventCampaign.findUniqueOrThrow({
       where: { id: eventId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, timezone: true },
     });
     const eventStatus = this.parseEnumValue(
       EventStatus,
@@ -390,6 +395,7 @@ export class AdminService {
     const safePage = Math.max(page, 1);
     const safePageSize = Math.min(Math.max(pageSize, 1), 50);
     const skip = (safePage - 1) * safePageSize;
+    const { start, end } = resolveCurrentDayWindow(event.timezone);
 
     const allScores = await this.prisma.playerEventScore.findMany({
       where: { eventCampaignId: eventId },
@@ -403,6 +409,10 @@ export class AdminService {
             where: {
               eventCampaignId: eventId,
               playerId: { in: playerIds },
+              createdAt: {
+                gte: start,
+                lt: end,
+              },
             },
             select: { playerId: true },
           })
@@ -480,8 +490,7 @@ export class AdminService {
           usedSpinCount: snapshot.usedSpinCount,
           remainingSpinCount: snapshot.remainingSpinCount,
           spinAllowanceSource: snapshot.spinAllowanceSource,
-          requiresDeposit: snapshot.requiresDeposit,
-          merchantReasonCode: snapshot.merchantReasonCode,
+          reasonCode: snapshot.reasonCode,
           updatedAt: entry.updatedAt.toISOString(),
         };
       }),
@@ -1013,57 +1022,52 @@ export class AdminService {
     usedSpinCount: number,
   ) {
     if (eventStatus !== EventStatus.Live) {
+      const archivedAllowance = createArchivedDailySpinAllowance();
+
       return {
         eligibilityStatus: EligibilityStatus.EventEnded,
-        grantedSpinCount: usedSpinCount,
-        usedSpinCount,
-        remainingSpinCount: 0,
-        spinAllowanceSource: "archive_snapshot" as const,
-        requiresDeposit: false,
-        merchantReasonCode: "ARCHIVE_SNAPSHOT",
+        grantedSpinCount: archivedAllowance.grantedSpinCount,
+        usedSpinCount: archivedAllowance.usedSpinCount,
+        remainingSpinCount: archivedAllowance.remainingSpinCount,
+        spinAllowanceSource: archivedAllowance.spinAllowanceSource,
+        reasonCode: archivedAllowance.reasonCode,
       };
     }
 
     try {
-      const policy = await this.merchantApiClientService.getEligibilitySnapshot(
-        eventId,
+      const allowance = createServerDailySpinAllowance(usedSpinCount);
+      const merchantEligibility = await this.merchantApiClientService.getEligibilitySnapshot(
         playerId,
+        eventId,
       );
-      const grantedSpinCount = Math.max(0, Math.floor(policy.grantedSpinCount));
-      const remainingSpinCount = Math.max(0, grantedSpinCount - usedSpinCount);
-      const eligibilityStatus = policy.requiresDeposit
-        ? EligibilityStatus.GoToDeposit
-        : remainingSpinCount <= 0
+      const eligibilityStatus =
+        !allowance.canSpinToday || allowance.remainingSpinCount <= 0
           ? EligibilityStatus.AlreadySpin
-          : EligibilityStatus.PlayableNow;
+          : !merchantEligibility.depositQualified
+            ? EligibilityStatus.GoToDeposit
+            : EligibilityStatus.PlayableNow;
 
       return {
         eligibilityStatus,
-        grantedSpinCount,
-        usedSpinCount,
-        remainingSpinCount,
-        spinAllowanceSource: "merchant_api" as const,
-        requiresDeposit: policy.requiresDeposit,
-        merchantReasonCode:
-          policy.reasonCode ??
-          (policy.requiresDeposit
-            ? "DEPOSIT_REQUIRED"
-            : remainingSpinCount > 0
-              ? "SPIN_QUOTA_GRANTED"
-              : "SPIN_QUOTA_EXHAUSTED"),
+        grantedSpinCount: allowance.grantedSpinCount,
+        usedSpinCount: allowance.usedSpinCount,
+        remainingSpinCount: allowance.remainingSpinCount,
+        spinAllowanceSource: allowance.spinAllowanceSource,
+        reasonCode: merchantEligibility.depositQualified
+          ? allowance.reasonCode
+          : merchantEligibility.reasonCode ?? "DEPOSIT_REQUIRED",
       };
     } catch (error) {
       return {
         eligibilityStatus: EligibilityStatus.AlreadySpin,
-        grantedSpinCount: usedSpinCount,
-        usedSpinCount,
+        grantedSpinCount: 0,
+        usedSpinCount: Math.max(0, usedSpinCount),
         remainingSpinCount: 0,
         spinAllowanceSource: "archive_snapshot" as const,
-        requiresDeposit: false,
-        merchantReasonCode:
+        reasonCode:
           error instanceof Error
-            ? `MERCHANT_API_UNAVAILABLE: ${error.message}`
-            : "MERCHANT_API_UNAVAILABLE",
+            ? `ELIGIBILITY_RESOLUTION_FAILED: ${error.message}`
+            : "ELIGIBILITY_RESOLUTION_FAILED",
       };
     }
   }
