@@ -1,176 +1,114 @@
 import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
-import { addRoundedPanel, addTextButton, formatDate, formatNumber } from "../helpers";
+import { addRoundedPanel, formatDate, formatNumber } from "../helpers";
 import { COLORS, FONTS, SCENE_KEYS } from "../constants";
 
-type HistoryTab = "spins" | "events";
-
 export class HistoryOverlayScene extends BaseOverlayScene {
-  private activeTab: HistoryTab = "spins";
-
   constructor() {
     super(SCENE_KEYS.HistoryOverlay);
   }
 
   create() {
     const snapshot = prototypeState.getSnapshot();
-    const frame = this.createFrame(
-      prototypeState.t("history.title"),
-      this.activeTab === "spins"
-        ? prototypeState.t("history.spinsSubtitle", {
-            title: snapshot.currentEvent?.title ?? prototypeState.t("rules.loading"),
-          })
-        : prototypeState.t("history.eventsSubtitle"),
-      1380,
-    );
+    const frame = this.createFrame(prototypeState.t("history.title"), undefined, 1500);
+    const spinHistory = snapshot.spinHistory;
 
-    addTextButton(
-      this,
-      374,
-      frame.top + 48,
-      240,
-      74,
-      prototypeState.t("history.spinTab"),
-      () => {
-        this.activeTab = "spins";
-        this.scene.restart();
-      },
-      {
-        backgroundColor: this.activeTab === "spins" ? COLORS.primary : COLORS.panelSoft,
-        labelColor: this.activeTab === "spins" ? "#ffffff" : "#0a2942",
-        radius: 28,
-      },
-    );
+    const headerY = frame.top + 22;
+    this.add
+      .text(frame.left + 72, headerY, prototypeState.t("history.date"), {
+        fontFamily: FONTS.body,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#11a0e7",
+      })
+      .setOrigin(0, 0.5);
 
-    addTextButton(
-      this,
-      704,
-      frame.top + 48,
-      240,
-      74,
-      prototypeState.t("history.eventTab"),
-      () => {
-        this.activeTab = "events";
-        this.scene.restart();
-      },
-      {
-        backgroundColor: this.activeTab === "events" ? COLORS.primary : COLORS.panelSoft,
-        labelColor: this.activeTab === "events" ? "#ffffff" : "#0a2942",
-        radius: 28,
-      },
-    );
+    this.add
+      .text(540, headerY, prototypeState.t("history.points"), {
+        fontFamily: FONTS.body,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#11a0e7",
+      })
+      .setOrigin(0.5);
 
-    if (this.activeTab === "spins") {
-      const spinHistory = snapshot.spinHistory;
-      spinHistory?.items.forEach((entry, index) => {
-        const y = frame.top + 170 + index * 112;
-        addRoundedPanel(this, 540, y, 860, 84, {
-          fillColor: index % 2 === 0 ? COLORS.white : 0xeef9ff,
-          radius: 24,
-        });
+    this.add
+      .text(frame.right - 10, headerY, prototypeState.t("history.totalPoints"), {
+        fontFamily: FONTS.body,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#11a0e7",
+      })
+      .setOrigin(1, 0.5);
 
-        this.add
-          .text(frame.left + 18, y, formatDate(entry.createdAt, snapshot.locale, { dateStyle: "short" }), {
-            fontFamily: FONTS.body,
-            fontSize: "24px",
-            color: "#526f88",
-          })
-          .setOrigin(0, 0.5);
-
-        this.add
-          .text(540, y, `${entry.segmentLabel}  (${entry.scoreDelta >= 0 ? "+" : ""}${entry.scoreDelta})`, {
-            fontFamily: FONTS.display,
-            fontSize: "28px",
-            fontStyle: "700",
-            color: "#10a7eb",
-          })
-          .setOrigin(0.5);
-
-        this.add
-          .text(frame.right, y, formatNumber(entry.runningEventTotal, snapshot.locale), {
-            fontFamily: FONTS.display,
-            fontSize: "28px",
-            fontStyle: "700",
-            color: "#0a2942",
-          })
-          .setOrigin(1, 0.5);
+    spinHistory?.items.forEach((entry, index) => {
+      const y = frame.top + 118 + index * 118;
+      addRoundedPanel(this, 540, y, 860, 88, {
+        fillColor: COLORS.white,
+        fillAlpha: 0.98,
+        strokeColor: 0xd9edf9,
+        strokeAlpha: 1,
+        radius: 18,
       });
 
-      if (!spinHistory?.items.length) {
-        this.drawEmptyState(frame, prototypeState.t("history.noSpins"));
-      }
+      const separatorLeftX = 540 - 150;
+      const separatorRightX = 540 + 140;
+      const separatorTop = y - 28;
+      const separatorBottom = y + 28;
 
-      this.drawPager(
-        frame,
-        spinHistory?.page ?? 1,
-        spinHistory?.pageSize ?? 1,
-        spinHistory?.total ?? 0,
-        (nextPage) => {
-          void prototypeState.setSpinHistoryPage(nextPage).then(() => this.scene.restart());
-        },
-      );
-      return;
-    }
-
-    const eventHistory = snapshot.eventHistory;
-    eventHistory?.items.forEach((entry, index) => {
-      const y = frame.top + 170 + index * 198;
-      addRoundedPanel(this, 540, y, 860, 150, {
-        fillColor: index % 2 === 0 ? COLORS.white : 0xeef9ff,
-        radius: 32,
-      });
-
-      this.add
-        .text(frame.left + 22, y - 24, entry.eventName, {
-          fontFamily: FONTS.display,
-          fontSize: "36px",
-          fontStyle: "700",
-          color: "#0a2942",
-        })
-        .setOrigin(0, 0.5);
+      const separatorGraphics = this.add.graphics();
+      separatorGraphics.lineStyle(2, 0xd4eefb, 1);
+      separatorGraphics.lineBetween(separatorLeftX, separatorTop, separatorLeftX, separatorBottom);
+      separatorGraphics.lineBetween(separatorRightX, separatorTop, separatorRightX, separatorBottom);
 
       this.add
         .text(
-          frame.left + 22,
-          y + 20,
-          prototypeState.t("history.finalRank", { rank: entry.finalRank ?? "-" }),
+          frame.left + 18,
+          y,
+          formatDate(entry.createdAt, snapshot.locale, {
+            day: "numeric",
+            month: "numeric",
+            year: "numeric",
+          }),
           {
             fontFamily: FONTS.body,
-            fontSize: "24px",
-            color: "#5d7d97",
+            fontSize: "32px",
+            color: "#4f5965",
+            fontStyle: "600",
           },
         )
         .setOrigin(0, 0.5);
 
       this.add
-        .text(frame.right, y - 8, formatNumber(entry.finalScore, snapshot.locale), {
-          fontFamily: FONTS.display,
+        .text(540, y, `${entry.scoreDelta >= 0 ? "+" : ""}${formatNumber(entry.scoreDelta, snapshot.locale)}`, {
+          fontFamily: FONTS.body,
           fontSize: "34px",
           fontStyle: "700",
-          color: "#10a7eb",
+          color: "#11a0e7",
         })
-        .setOrigin(1, 0.5);
+        .setOrigin(0.5);
 
       this.add
-        .text(frame.right, y + 26, entry.prizeName ?? prototypeState.t("history.noPrize"), {
+        .text(frame.right, y, formatNumber(entry.runningEventTotal, snapshot.locale), {
           fontFamily: FONTS.body,
-          fontSize: "24px",
-          color: "#5d7d97",
+          fontSize: "34px",
+          fontStyle: "700",
+          color: "#11a0e7",
         })
         .setOrigin(1, 0.5);
     });
 
-    if (!eventHistory?.items.length) {
-      this.drawEmptyState(frame, prototypeState.t("history.noEvents"));
+    if (!spinHistory?.items.length) {
+      this.drawEmptyState(frame, prototypeState.t("history.noSpins"));
     }
 
     this.drawPager(
       frame,
-      eventHistory?.page ?? 1,
-      eventHistory?.pageSize ?? 1,
-      eventHistory?.total ?? 0,
+      spinHistory?.page ?? 1,
+      spinHistory?.pageSize ?? 1,
+      spinHistory?.total ?? 0,
       (nextPage) => {
-        void prototypeState.setEventHistoryPage(nextPage).then(() => this.scene.restart());
+        void prototypeState.setSpinHistoryPage(nextPage).then(() => this.scene.restart());
       },
     );
   }
@@ -183,48 +121,71 @@ export class HistoryOverlayScene extends BaseOverlayScene {
     onChange: (page: number) => void,
   ) {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    addTextButton(
-      this,
-      frame.left + 92,
-      frame.bottom - 6,
-      140,
-      72,
-      prototypeState.t("history.prev"),
-      () => onChange(Math.max(1, page - 1)),
-      {
-        backgroundColor: page > 1 ? COLORS.primaryDark : COLORS.disabled,
-        radius: 28,
-      },
-    );
-
-    addTextButton(
-      this,
-      frame.right - 92,
-      frame.bottom - 6,
-      140,
-      72,
-      prototypeState.t("history.next"),
-      () => onChange(Math.min(totalPages, page + 1)),
-      {
-        backgroundColor: page < totalPages ? COLORS.primary : COLORS.disabled,
-        radius: 28,
-      },
-    );
+    const pagerY = frame.bottom - 12;
+    const activeFill = 0x11a0e7;
+    const inactiveColor = "#11a0e7";
+    const pageNumbers = Array.from(
+      { length: Math.min(3, totalPages) },
+      (_, index) => Math.min(Math.max(1, page - 1) + index, totalPages),
+    ).filter((value, index, list) => list.indexOf(value) === index);
 
     this.add
-      .text(
-        540,
-        frame.bottom - 6,
-        prototypeState.t("history.page", { page, totalPages }),
-        {
+      .text(336, pagerY, "\u2039", {
+        fontFamily: FONTS.body,
+        fontSize: "40px",
+        fontStyle: "700",
+        color: page > 1 ? "#11a0e7" : "#9fc5dc",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: page > 1 })
+      .on("pointerup", () => {
+        if (page > 1) {
+          onChange(page - 1);
+        }
+      });
+
+    pageNumbers.forEach((pageNumber, index) => {
+      const x = 450 + index * 82;
+      if (pageNumber === page) {
+        const activeCircle = this.add.circle(x, pagerY, 24, activeFill, 1);
+        activeCircle.setStrokeStyle(0);
+        this.add
+          .text(x, pagerY, String(pageNumber), {
+            fontFamily: FONTS.body,
+            fontSize: "26px",
+            fontStyle: "700",
+            color: "#ffffff",
+          })
+          .setOrigin(0.5);
+        return;
+      }
+
+      this.add
+        .text(x, pagerY, String(pageNumber), {
           fontFamily: FONTS.body,
-          fontSize: "24px",
+          fontSize: "28px",
           fontStyle: "700",
-          color: "#56768f",
-        },
-      )
-      .setOrigin(0.5);
+          color: inactiveColor,
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerup", () => onChange(pageNumber));
+    });
+
+    this.add
+      .text(744, pagerY, "\u203A", {
+        fontFamily: FONTS.body,
+        fontSize: "40px",
+        fontStyle: "700",
+        color: page < totalPages ? "#11a0e7" : "#9fc5dc",
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: page < totalPages })
+      .on("pointerup", () => {
+        if (page < totalPages) {
+          onChange(page + 1);
+        }
+      });
   }
 
   private drawEmptyState(frame: { left: number; right: number; top: number; bottom: number }, copy: string) {

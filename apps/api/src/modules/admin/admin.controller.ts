@@ -1,5 +1,9 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
-import { AdminEventUpsertRequest } from "@lucky-wheel/contracts";
+import {
+  AdminEventTermsUpdateRequest,
+  AdminEventUpsertRequest,
+  AdminPlatformLinksUpdateRequest,
+} from "@lucky-wheel/contracts";
 import { resolveRequestedLocale } from "../lucky-wheel/lucky-wheel.localization";
 import { AdminService } from "./admin.service";
 
@@ -66,6 +70,36 @@ export class AdminController {
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.adminService.updateEvent(
+      eventId,
+      request,
+      resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+    );
+  }
+
+  @Patch("events/:eventId/terms")
+  updateEventTerms(
+    @Param("eventId") eventId: string,
+    @Body() request: AdminEventTermsUpdateRequest,
+    @Query("locale") locale?: string,
+    @Headers("x-lucky-locale") localeHeader?: string,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.adminService.updateEventTerms(
+      eventId,
+      request,
+      resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+    );
+  }
+
+  @Patch("events/:eventId/platform-links")
+  updateEventPlatformLinks(
+    @Param("eventId") eventId: string,
+    @Body() request: AdminPlatformLinksUpdateRequest,
+    @Query("locale") locale?: string,
+    @Headers("x-lucky-locale") localeHeader?: string,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.adminService.updateEventPlatformLinks(
       eventId,
       request,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),

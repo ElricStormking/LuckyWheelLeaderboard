@@ -70,6 +70,9 @@ type CopyKey =
   | "history.prev"
   | "history.next"
   | "history.page"
+  | "history.date"
+  | "history.points"
+  | "history.totalPoints"
   | "result.title"
   | "result.subtitle"
   | "result.segment"
@@ -84,7 +87,7 @@ type CopyKey =
   | "locale.subtitle"
   | "locale.current";
 
-const COPY: Record<AppLocale, Record<CopyKey, string>> = {
+const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
   en: {
     "lobby.selectPeriod": "Select Period",
     "lobby.loadingLiveEvent": "Loading live event...",
@@ -155,6 +158,9 @@ const COPY: Record<AppLocale, Record<CopyKey, string>> = {
     "history.prev": "Prev",
     "history.next": "Next",
     "history.page": "Page {page} / {totalPages}",
+    "history.date": "Date",
+    "history.points": "Points",
+    "history.totalPoints": "Total Points",
     "result.title": "Spin Resolved",
     "result.subtitle": "Animation finished on the server-returned segment.",
     "result.segment": "Segment {index}",
@@ -239,6 +245,9 @@ const COPY: Record<AppLocale, Record<CopyKey, string>> = {
     "history.prev": "Sebelum",
     "history.next": "Seterusnya",
     "history.page": "Halaman {page} / {totalPages}",
+    "history.date": "Tarikh",
+    "history.points": "Mata",
+    "history.totalPoints": "Jumlah Mata",
     "result.title": "Putaran Selesai",
     "result.subtitle": "Animasi berhenti pada segmen yang dipulangkan pelayan.",
     "result.segment": "Segmen {index}",
@@ -342,7 +351,7 @@ export function translate(
   key: CopyKey,
   params: Record<string, string | number> = {},
 ) {
-  const template = COPY[locale][key] ?? COPY[FALLBACK_LOCALE][key];
+  const template = COPY[locale][key] ?? COPY[FALLBACK_LOCALE][key] ?? key;
   return Object.entries(params).reduce(
     (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
     template,

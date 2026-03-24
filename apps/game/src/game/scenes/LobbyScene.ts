@@ -395,7 +395,7 @@ export class LobbyScene extends Phaser.Scene {
     ];
     this.bottomMenuIndex = 0;
 
-    addTextButton(
+    const depositButton = addTextButton(
       this,
       220,
       1768,
@@ -410,9 +410,11 @@ export class LobbyScene extends Phaser.Scene {
         labelColor: "#ffffff",
       },
     );
+    depositButton.container.setDepth(8);
 
     const bottomMenu = this.add.container(540, 1768);
-    const hitArea = this.add.rectangle(0, 0, 430, 102, 0xffffff, 0.001);
+    bottomMenu.setDepth(6);
+    const hitArea = this.add.rectangle(12, 0, 332, 102, 0xffffff, 0.001);
     const arrowShadow = this.add.circle(148, 6, 36, 0x041a2c, 0.22);
     const arrowBubble = this.add.circle(140, 0, 34, COLORS.white, 0.98);
     arrowBubble.setStrokeStyle(2, COLORS.line, 0.7);
@@ -436,9 +438,9 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5, 0.54);
 
     bottomMenu.add([hitArea, this.bottomMenuLabel, arrowShadow, arrowBubble, arrowLabel]);
-    bottomMenu.setSize(430, 102);
+    bottomMenu.setSize(332, 102);
     bottomMenu.setInteractive(
-      new Phaser.Geom.Rectangle(-215, -51, 430, 102),
+      new Phaser.Geom.Rectangle(-154, -51, 332, 102),
       Phaser.Geom.Rectangle.Contains,
     );
     bottomMenu.on("pointerover", () => bottomMenu.setScale(1.03));

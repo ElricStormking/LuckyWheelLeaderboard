@@ -12,11 +12,13 @@ import {
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
   AdminEventLocalizationDto,
+  AdminEventTermsUpdateRequest,
   AdminEventUpsertRequest,
   AdminEligibilityRecordsResponse,
   AdminLocalizationCoverageDto,
   AdminOverviewResponse,
   AdminParticipantsResponse,
+  AdminPlatformLinksUpdateRequest,
   AdminSpinRecordsResponse,
   AppLocale,
   EligibilityStatus,
@@ -244,7 +246,7 @@ export class AdminService {
       });
       await transaction.eventCampaign.update({
         where: { id: eventId },
-        data: this.buildEventUpdateInput(request),
+        data: this.buildEventUpdateInput(eventId, request),
       });
       await this.createAuditLog(transaction, {
         eventCampaignId: eventId,
@@ -255,6 +257,87 @@ export class AdminService {
         payloadJson: JSON.stringify({
           code: request.code,
           status: request.status,
+        }),
+      });
+    });
+
+    return this.getEventEditor(eventId, locale);
+  }
+
+  async updateEventTerms(
+    eventId: string,
+    request: AdminEventTermsUpdateRequest,
+    locale: AppLocale,
+  ): Promise<AdminEventEditorResponse> {
+    const event = await this.getEventRecordOrThrow(eventId);
+    this.validateEventLocalizations(request.localizations);
+    const englishContent = this.getEnglishLocalization(request.localizations);
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.eventCampaignLocalization.deleteMany({
+        where: { eventCampaignId: eventId },
+      });
+      await transaction.eventCampaign.update({
+        where: { id: eventId },
+        data: {
+          title: englishContent.title,
+          shortDescription: englishContent.shortDescription,
+          rulesContent: englishContent.rulesContent,
+          promotionPeriodLabel: englishContent.promotionPeriodLabel,
+          localizations: {
+            create: this.buildEventLocalizationsCreateInput(
+              eventId,
+              request.localizations,
+            ),
+          },
+        },
+      });
+      await this.createAuditLog(transaction, {
+        eventCampaignId: eventId,
+        action: "update_terms",
+        entityType: "event_campaign",
+        entityId: eventId,
+        summary: `Updated terms and rules for event ${event.code}.`,
+        payloadJson: JSON.stringify({
+          locales: request.localizations.map((entry) => entry.locale),
+        }),
+      });
+    });
+
+    return this.getEventEditor(eventId, locale);
+  }
+
+  async updateEventPlatformLinks(
+    eventId: string,
+    request: AdminPlatformLinksUpdateRequest,
+    locale: AppLocale,
+  ): Promise<AdminEventEditorResponse> {
+    const event = await this.getEventRecordOrThrow(eventId);
+    this.validatePlatformLinks(request.platformLinks);
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.platformLink.deleteMany({
+        where: { eventCampaignId: eventId },
+      });
+      await transaction.eventCampaign.update({
+        where: { id: eventId },
+        data: {
+          platformLinks: {
+            create: this.buildPlatformLinksCreateInput(
+              eventId,
+              request.platformLinks,
+            ),
+          },
+        },
+      });
+      await this.createAuditLog(transaction, {
+        eventCampaignId: eventId,
+        action: "update_platform_links",
+        entityType: "event_campaign",
+        entityId: eventId,
+        summary: `Updated platform links for event ${event.code}.`,
+        payloadJson: JSON.stringify({
+          linkTypes: request.platformLinks.map((entry) => entry.type),
         }),
       });
     });
@@ -590,37 +673,37 @@ export class AdminService {
       endAt: new Date(request.endAt),
       countdownEndsAt: new Date(request.countdownEndsAt),
       localizations: {
-        create: request.localizations.map((entry) => ({
-          id: `${eventId}-locale-${entry.locale}`,
-          locale: entry.locale,
-          title: entry.title,
-          shortDescription: entry.shortDescription,
-          rulesContent: entry.rulesContent,
-          promotionPeriodLabel: entry.promotionPeriodLabel,
-        })),
+        create: this.buildEventLocalizationsCreateInput(eventId, request.localizations),
       },
       wheelSegments: {
         create: request.wheelSegments
           .slice()
           .sort((left, right) => left.segmentIndex - right.segmentIndex)
-          .map((entry) => ({
-            id: `${eventId}-segment-${entry.segmentIndex}`,
-            segmentIndex: entry.segmentIndex,
-            label: this.getEnglishWheelLabel(entry.localizations),
-            scoreOperator: entry.scoreOperator,
-            scoreOperand: entry.scoreOperand,
-            weightPercent: entry.weightPercent,
-            displayAssetKey: entry.displayAssetKey,
-            rewardType: entry.rewardType ?? null,
-            rewardValue: this.toStoredRewardValue(entry.rewardValue),
-            localizations: {
-              create: entry.localizations.map((translation) => ({
-                id: `${eventId}-segment-${entry.segmentIndex}-${translation.locale}`,
-                locale: translation.locale,
-                label: translation.label,
-              })),
-            },
-          })),
+          .map((entry) => {
+            const rewardMetadata = this.resolveRewardMetadata(
+              entry.scoreOperator,
+              entry.scoreOperand,
+            );
+
+            return {
+              id: `${eventId}-segment-${entry.segmentIndex}`,
+              segmentIndex: entry.segmentIndex,
+              label: this.getEnglishWheelLabel(entry.localizations),
+              scoreOperator: entry.scoreOperator,
+              scoreOperand: entry.scoreOperand,
+              weightPercent: entry.weightPercent,
+              displayAssetKey: entry.displayAssetKey,
+              rewardType: rewardMetadata.rewardType,
+              rewardValue: rewardMetadata.rewardValue,
+              localizations: {
+                create: entry.localizations.map((translation) => ({
+                  id: `${eventId}-segment-${entry.segmentIndex}-${translation.locale}`,
+                  locale: translation.locale,
+                  label: translation.label,
+                })),
+              },
+            };
+          }),
       },
       prizes: {
         create: request.prizes
@@ -651,31 +734,16 @@ export class AdminService {
           }),
       },
       platformLinks: {
-        create: request.platformLinks
-          .slice()
-          .sort((left, right) => left.displayOrder - right.displayOrder)
-          .map((entry, index) => ({
-            id: `${eventId}-platform-link-${index + 1}`,
-            linkType: entry.type,
-            label: this.getEnglishPlatformLabel(entry.localizations),
-            url: entry.url,
-            displayOrder: entry.displayOrder,
-            localizations: {
-              create: entry.localizations.map((translation) => ({
-                id: `${eventId}-platform-link-${index + 1}-${translation.locale}`,
-                locale: translation.locale,
-                label: translation.label,
-              })),
-            },
-          })),
+        create: this.buildPlatformLinksCreateInput(eventId, request.platformLinks),
       },
     };
   }
 
   private buildEventUpdateInput(
+    eventId: string,
     request: AdminEventUpsertRequest,
   ): Prisma.EventCampaignUpdateInput {
-    const createInput = this.buildEventCreateInput("event-replacement", request);
+    const createInput = this.buildEventCreateInput(eventId, request);
 
     return {
       code: request.code,
@@ -728,10 +796,7 @@ export class AdminService {
       );
     }
 
-    this.validateLocaleCollection(
-      request.localizations.map((entry) => entry.locale),
-      "event localizations",
-    );
+    this.validateEventLocalizations(request.localizations);
 
     if (request.wheelSegments.length !== 6) {
       throw new BadRequestException("Wheel configuration must contain exactly 6 segments.");
@@ -777,21 +842,35 @@ export class AdminService {
       );
     });
 
-    if (request.platformLinks.length !== 2) {
+    this.validatePlatformLinks(request.platformLinks);
+  }
+
+  private validateEventLocalizations(localizations: AdminEventLocalizationDto[]) {
+    this.validateLocaleCollection(
+      localizations.map((entry) => entry.locale),
+      "event localizations",
+    );
+    this.getEnglishLocalization(localizations);
+  }
+
+  private validatePlatformLinks(
+    platformLinks: AdminPlatformLinksUpdateRequest["platformLinks"],
+  ) {
+    if (platformLinks.length !== 2) {
       throw new BadRequestException(
         "Platform links must include deposit and customer service.",
       );
     }
 
     [PlatformLinkType.Deposit, PlatformLinkType.CustomerService].forEach((type) => {
-      if (!request.platformLinks.some((entry) => entry.type === type)) {
+      if (!platformLinks.some((entry) => entry.type === type)) {
         throw new BadRequestException(
           "Platform links must include deposit and customer service.",
         );
       }
     });
 
-    request.platformLinks.forEach((entry) => {
+    platformLinks.forEach((entry) => {
       if (!entry.url.trim()) {
         throw new BadRequestException("Platform link URLs cannot be empty.");
       }
@@ -799,6 +878,7 @@ export class AdminService {
         entry.localizations.map((translation) => translation.locale),
         `${entry.type} localizations`,
       );
+      this.getEnglishPlatformLabel(entry.localizations);
     });
   }
 
@@ -925,8 +1005,6 @@ export class AdminService {
         scoreOperand: segment.scoreOperand,
         weightPercent: segment.weightPercent,
         displayAssetKey: segment.displayAssetKey,
-        rewardType: segment.rewardType ?? undefined,
-        rewardValue: this.parseStoredRewardValue(segment.rewardValue),
         localizations: SUPPORTED_LOCALES.map((locale) => ({
           locale,
           label:
@@ -1196,6 +1274,43 @@ export class AdminService {
     return english.label;
   }
 
+  private buildEventLocalizationsCreateInput(
+    eventId: string,
+    localizations: AdminEventLocalizationDto[],
+  ) {
+    return localizations.map((entry) => ({
+      id: `${eventId}-locale-${entry.locale}`,
+      locale: entry.locale,
+      title: entry.title,
+      shortDescription: entry.shortDescription,
+      rulesContent: entry.rulesContent,
+      promotionPeriodLabel: entry.promotionPeriodLabel,
+    }));
+  }
+
+  private buildPlatformLinksCreateInput(
+    eventId: string,
+    platformLinks: AdminPlatformLinksUpdateRequest["platformLinks"],
+  ) {
+    return platformLinks
+      .slice()
+      .sort((left, right) => left.displayOrder - right.displayOrder)
+      .map((entry, index) => ({
+        id: `${eventId}-platform-link-${index + 1}`,
+        linkType: entry.type,
+        label: this.getEnglishPlatformLabel(entry.localizations),
+        url: entry.url,
+        displayOrder: entry.displayOrder,
+        localizations: {
+          create: entry.localizations.map((translation) => ({
+            id: `${eventId}-platform-link-${index + 1}-${translation.locale}`,
+            locale: translation.locale,
+            label: translation.label,
+          })),
+        },
+      }));
+  }
+
   private async getMerchantApiStatus(): Promise<MerchantApiStatusDto> {
     try {
       return await this.merchantApiClientService.getHealth();
@@ -1217,6 +1332,44 @@ export class AdminService {
     }
     const numericValue = Number(value);
     return Number.isNaN(numericValue) ? value : numericValue;
+  }
+
+  private resolveRewardMetadata(
+    scoreOperator: WheelSegmentOperator,
+    scoreOperand: number,
+  ) {
+    switch (scoreOperator) {
+      case WheelSegmentOperator.Add:
+        return {
+          rewardType: "score",
+          rewardValue: this.toStoredRewardValue(scoreOperand),
+        };
+      case WheelSegmentOperator.Subtract:
+        return {
+          rewardType: "score",
+          rewardValue: this.toStoredRewardValue(-scoreOperand),
+        };
+      case WheelSegmentOperator.Multiply:
+        return {
+          rewardType: "multiplier",
+          rewardValue: this.toStoredRewardValue(scoreOperand),
+        };
+      case WheelSegmentOperator.Divide:
+        return {
+          rewardType: "divider",
+          rewardValue: this.toStoredRewardValue(scoreOperand),
+        };
+      case WheelSegmentOperator.Equals:
+        return {
+          rewardType: scoreOperand === 0 ? "reset" : "score",
+          rewardValue: this.toStoredRewardValue(scoreOperand),
+        };
+      default:
+        return {
+          rewardType: "score",
+          rewardValue: this.toStoredRewardValue(scoreOperand),
+        };
+    }
   }
 
   private toStoredRewardValue(value: string | number | null | undefined) {

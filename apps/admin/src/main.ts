@@ -8,7 +8,8 @@ import type {
   AdminEventConfigDto,
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
-  AdminEligibilityRecordsResponse,
+  AdminEventTermsUpdateRequest,
+  AdminPlatformLinksUpdateRequest,
   AdminEventUpsertRequest,
   AdminOverviewResponse,
   AdminParticipantsResponse,
@@ -25,7 +26,6 @@ const SECTION_ORDER = [
   "prizes",
   "terms",
   "links",
-  "eligibility",
   "participants",
   "spins",
   "audit",
@@ -41,7 +41,6 @@ type AdminState = {
   overview?: AdminOverviewResponse;
   editor?: AdminEventEditorResponse;
   dashboard?: AdminEventDashboardResponse;
-  eligibility?: AdminEligibilityRecordsResponse;
   participants?: AdminParticipantsResponse;
   spins?: AdminSpinRecordsResponse;
   audit?: AdminAuditLogResponse;
@@ -117,15 +116,12 @@ async function loadEventWorkspace(eventId: string) {
   render();
 
   try {
-    const [editor, dashboard, eligibility, participants, spins, audit] = await Promise.all([
+    const [editor, dashboard, participants, spins, audit] = await Promise.all([
       request<AdminEventEditorResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/editor?locale=${encodeURIComponent(state.locale)}`,
       ),
       request<AdminEventDashboardResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/dashboard?locale=${encodeURIComponent(state.locale)}`,
-      ),
-      request<AdminEligibilityRecordsResponse>(
-        `/v2/admin/events/${encodeURIComponent(eventId)}/eligibility?page=1&pageSize=12`,
       ),
       request<AdminParticipantsResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/participants?page=1&pageSize=12`,
@@ -141,7 +137,6 @@ async function loadEventWorkspace(eventId: string) {
     state.selectedEventId = eventId;
     state.editor = editor;
     state.dashboard = dashboard;
-    state.eligibility = eligibility;
     state.participants = participants;
     state.spins = spins;
     state.audit = audit;
@@ -163,12 +158,9 @@ async function refreshCurrentWorkspace() {
   }
 
   try {
-    const [dashboard, eligibility, participants, spins, audit] = await Promise.all([
+    const [dashboard, participants, spins, audit] = await Promise.all([
       request<AdminEventDashboardResponse>(
         `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/dashboard?locale=${encodeURIComponent(state.locale)}`,
-      ),
-      request<AdminEligibilityRecordsResponse>(
-        `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/eligibility?page=${state.eligibility?.page ?? 1}&pageSize=${state.eligibility?.pageSize ?? 12}`,
       ),
       request<AdminParticipantsResponse>(
         `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/participants?page=${state.participants?.page ?? 1}&pageSize=${state.participants?.pageSize ?? 12}`,
@@ -182,7 +174,6 @@ async function refreshCurrentWorkspace() {
     ]);
 
     state.dashboard = dashboard;
-    state.eligibility = eligibility;
     state.participants = participants;
     state.spins = spins;
     state.audit = audit;
@@ -325,8 +316,6 @@ function renderActiveSection() {
       return renderTermsSection();
     case "links":
       return renderLinksSection();
-    case "eligibility":
-      return renderEligibilitySection();
     case "participants":
       return renderParticipantsSection();
     case "spins":
@@ -450,14 +439,6 @@ function renderRouletteSection() {
                   <label class="field">
                     <span>Probability</span>
                     <input type="number" data-segment-index="${index}" data-segment-field="weightPercent" value="${segment.weightPercent}" />
-                  </label>
-                  <label class="field">
-                    <span>Reward Type</span>
-                    <input data-segment-index="${index}" data-segment-field="rewardType" value="${escapeHtml(segment.rewardType ?? "")}" />
-                  </label>
-                  <label class="field">
-                    <span>Reward Value</span>
-                    <input data-segment-index="${index}" data-segment-field="rewardValue" value="${escapeHtml(String(segment.rewardValue ?? ""))}" />
                   </label>
                   <label class="field field--full">
                     <span>Display Asset Key</span>
@@ -622,78 +603,6 @@ function renderLinksSection() {
             `;
           })
           .join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderEligibilitySection() {
-  const eligibility = state.eligibility;
-
-  if (!eligibility) {
-    return `<div class="empty-panel">Eligibility monitoring unavailable.</div>`;
-  }
-
-  return `
-    <div class="card">
-      <div class="card__header">
-        <div>
-          <div class="card__eyebrow">Eligibility Monitoring</div>
-          <h3>Lucky Wheel spin eligibility</h3>
-        </div>
-      </div>
-      <div class="summary-grid">
-        <article class="summary-card summary-card--playable">
-          <span>Playable</span>
-          <strong>${formatNumber(eligibility.summary.playableNow)}</strong>
-        </article>
-        <article class="summary-card summary-card--spent">
-          <span>Used Today</span>
-          <strong>${formatNumber(eligibility.summary.alreadySpin)}</strong>
-        </article>
-        <article class="summary-card summary-card--scheduled">
-          <span>Deposit Required</span>
-          <strong>${formatNumber(eligibility.summary.goToDeposit)}</strong>
-        </article>
-        <article class="summary-card summary-card--ended">
-          <span>Locked / Ended</span>
-          <strong>${formatNumber(eligibility.summary.eventEnded)}</strong>
-        </article>
-      </div>
-      ${renderPager("eligibility", eligibility.page, eligibility.pageSize, eligibility.total)}
-      <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Status</th>
-              <th>Limit</th>
-              <th>Used Today</th>
-              <th>Remaining Today</th>
-              <th>Source</th>
-              <th>Reason</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${eligibility.items
-              .map(
-                (entry) => `
-                  <tr>
-                    <td>${escapeHtml(entry.playerName)}</td>
-                    <td><span class="status-pill status-pill--${formatEligibilityTone(entry.eligibilityStatus)}">${formatEligibilityStatus(entry.eligibilityStatus)}</span></td>
-                    <td>${formatNumber(entry.grantedSpinCount)}</td>
-                    <td>${formatNumber(entry.usedSpinCount)}</td>
-                    <td>${formatNumber(entry.remainingSpinCount)}</td>
-                    <td>${escapeHtml(formatSourceLabel(entry.spinAllowanceSource))}</td>
-                    <td>${escapeHtml(entry.reasonCode ?? "-")}</td>
-                    <td>${formatDateTime(entry.updatedAt)}</td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
       </div>
     </div>
   `;
@@ -910,7 +819,7 @@ function renderLocaleTabs() {
 }
 
 function renderPager(
-  kind: "eligibility" | "participants" | "spins" | "audit",
+  kind: "participants" | "spins" | "audit",
   page: number,
   pageSize: number,
   total: number,
@@ -996,7 +905,7 @@ async function handleActionClick(event: Event) {
       return;
     case "page":
       await loadPagedResource(
-        target.dataset.kind as "eligibility" | "participants" | "spins" | "audit",
+        target.dataset.kind as "participants" | "spins" | "audit",
         Number(target.dataset.page),
       );
       return;
@@ -1075,12 +984,6 @@ function syncDraftFromDom() {
         break;
       case "displayAssetKey":
         segment.displayAssetKey = element.value;
-        break;
-      case "rewardType":
-        segment.rewardType = element.value || null;
-        break;
-      case "rewardValue":
-        segment.rewardValue = element.value || null;
         break;
       default:
         break;
@@ -1204,16 +1107,17 @@ async function saveDraft() {
   render();
 
   try {
+    const saveTarget = getSaveTarget(state.draft, state.activeSection);
     await request<AdminEventEditorResponse>(
-      `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}?locale=${encodeURIComponent(state.locale)}`,
+      `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}${saveTarget.pathname}?locale=${encodeURIComponent(state.locale)}`,
       {
         method: "PATCH",
-        body: JSON.stringify(buildUpsertRequest(state.draft)),
+        body: JSON.stringify(saveTarget.body),
       },
     );
     state.toast = {
       tone: "success",
-      message: "Event saved.",
+      message: saveTarget.successMessage,
     };
     await loadOverview(false);
     await loadEventWorkspace(state.selectedEventId);
@@ -1260,7 +1164,7 @@ async function runEventAction(action: "publish" | "cancel") {
 }
 
 async function loadPagedResource(
-  kind: "eligibility" | "participants" | "spins" | "audit",
+  kind: "participants" | "spins" | "audit",
   page: number,
 ) {
   if (!state.selectedEventId) {
@@ -1268,16 +1172,13 @@ async function loadPagedResource(
   }
 
   const pageSize =
-    kind === "eligibility"
-      ? state.eligibility?.pageSize ?? 12
-      : kind === "participants"
+    kind === "participants"
       ? state.participants?.pageSize ?? 12
       : kind === "spins"
         ? state.spins?.pageSize ?? 12
         : state.audit?.pageSize ?? 12;
 
   const response = await request<
-    | AdminEligibilityRecordsResponse
     | AdminParticipantsResponse
     | AdminSpinRecordsResponse
     | AdminAuditLogResponse
@@ -1285,9 +1186,7 @@ async function loadPagedResource(
     `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/${kind}?page=${page}&pageSize=${pageSize}`,
   );
 
-  if (kind === "eligibility") {
-    state.eligibility = response as AdminEligibilityRecordsResponse;
-  } else if (kind === "participants") {
+  if (kind === "participants") {
     state.participants = response as AdminParticipantsResponse;
   } else if (kind === "spins") {
     state.spins = response as AdminSpinRecordsResponse;
@@ -1380,8 +1279,6 @@ function buildFallbackDraft(): AdminEventConfigDto {
       scoreOperand: index === 0 ? 40 : 0,
       weightPercent: index < 4 ? 20 : 10,
       displayAssetKey: `draft-segment-${index}`,
-      rewardType: "score",
-      rewardValue: 0,
       localizations: SUPPORTED_LOCALES.map((locale) => ({
         locale,
         label: "",
@@ -1444,8 +1341,6 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       scoreOperand: entry.scoreOperand,
       weightPercent: entry.weightPercent,
       displayAssetKey: entry.displayAssetKey,
-      rewardType: entry.rewardType ?? null,
-      rewardValue: entry.rewardValue ?? null,
       localizations: clone(entry.localizations),
     })),
     prizes: draft.prizes.map((entry) => ({
@@ -1462,6 +1357,48 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       localizations: clone(entry.localizations),
     })),
   };
+}
+
+function buildTermsUpdateRequest(draft: AdminEventConfigDto): AdminEventTermsUpdateRequest {
+  return {
+    localizations: clone(draft.localizations),
+  };
+}
+
+function buildPlatformLinksUpdateRequest(
+  draft: AdminEventConfigDto,
+): AdminPlatformLinksUpdateRequest {
+  return {
+    platformLinks: draft.platformLinks.map((entry) => ({
+      type: entry.type,
+      url: entry.url,
+      displayOrder: entry.displayOrder,
+      localizations: clone(entry.localizations),
+    })),
+  };
+}
+
+function getSaveTarget(draft: AdminEventConfigDto, section: AdminSection) {
+  switch (section) {
+    case "terms":
+      return {
+        pathname: "/terms",
+        body: buildTermsUpdateRequest(draft),
+        successMessage: "Terms & rules saved.",
+      };
+    case "links":
+      return {
+        pathname: "/platform-links",
+        body: buildPlatformLinksUpdateRequest(draft),
+        successMessage: "Platform links saved.",
+      };
+    default:
+      return {
+        pathname: "",
+        body: buildUpsertRequest(draft),
+        successMessage: "Event saved.",
+      };
+  }
 }
 
 async function request<T>(pathname: string, init?: RequestInit): Promise<T> {
@@ -1520,8 +1457,6 @@ function formatSectionLabel(section: AdminSection) {
       return "Terms & Rules";
     case "links":
       return "Platform Links";
-    case "eligibility":
-      return "Eligibility";
     case "participants":
       return "Participants";
     case "spins":
@@ -1533,35 +1468,6 @@ function formatSectionLabel(section: AdminSection) {
 
 function formatLinkType(type: PlatformLinkType) {
   return type === PlatformLinkType.Deposit ? "Deposit" : "Customer Service";
-}
-
-function formatEligibilityStatus(status: string) {
-  switch (status) {
-    case "PLAYABLE_NOW":
-      return "Playable";
-    case "ALREADY_SPIN":
-      return "Used Today";
-    case "GO_TO_DEPOSIT":
-      return "Deposit Required";
-    case "EVENT_ENDED":
-      return "Locked";
-    default:
-      return status;
-  }
-}
-
-function formatEligibilityTone(status: string) {
-  switch (status) {
-    case "PLAYABLE_NOW":
-      return "live";
-    case "ALREADY_SPIN":
-      return "draft";
-    case "GO_TO_DEPOSIT":
-      return "scheduled";
-    case "EVENT_ENDED":
-    default:
-      return "finalized";
-  }
 }
 
 function formatSourceLabel(source: string) {

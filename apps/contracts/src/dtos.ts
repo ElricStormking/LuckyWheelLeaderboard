@@ -349,8 +349,6 @@ export interface AdminWheelSegmentConfigDto {
   scoreOperand: number;
   weightPercent: number;
   displayAssetKey: string;
-  rewardType?: string | null;
-  rewardValue?: string | number | null;
   localizations: AdminWheelSegmentLocalizationDto[];
 }
 
@@ -413,6 +411,14 @@ export interface AdminEventUpsertRequest {
   localizations: AdminEventLocalizationDto[];
   wheelSegments: Omit<AdminWheelSegmentConfigDto, "id">[];
   prizes: Omit<AdminPrizeConfigDto, "id">[];
+  platformLinks: Omit<AdminPlatformLinkConfigDto, "id">[];
+}
+
+export interface AdminEventTermsUpdateRequest {
+  localizations: AdminEventLocalizationDto[];
+}
+
+export interface AdminPlatformLinksUpdateRequest {
   platformLinks: Omit<AdminPlatformLinkConfigDto, "id">[];
 }
 
