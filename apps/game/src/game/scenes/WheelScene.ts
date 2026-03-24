@@ -8,6 +8,10 @@ import { COLORS, FONTS, SCENE_KEYS } from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
 import { prototypeState } from "../state/prototype-state";
 
+const WHEEL_CENTER_X = 540;
+const WHEEL_CENTER_Y = 1160;
+const WHEEL_SCALE = 1.2;
+
 export class WheelScene extends Phaser.Scene {
   private wheelRoot?: Phaser.GameObjects.Container;
   private wheelRotation = 0;
@@ -27,40 +31,10 @@ export class WheelScene extends Phaser.Scene {
   }
 
   create() {
-    this.wheelRoot = this.add.container(540, 1120);
+    this.wheelRoot = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
+    this.wheelRoot.setScale(WHEEL_SCALE);
     this.drawWheel([]);
-    this.button = addTextButton(
-      this,
-      540,
-      1120,
-      260,
-      260,
-      "SPIN NOW",
-      () => {
-        const snapshot = prototypeState.getSnapshot();
-        const eligibility = snapshot.eligibility?.eligibilityStatus;
-
-        if (!eligibility || this.spinning) {
-          return;
-        }
-
-        if (eligibility === EligibilityStatus.GoToDeposit) {
-          openExternalLink(snapshot.eligibility?.depositUrl);
-          return;
-        }
-
-        if (eligibility !== EligibilityStatus.PlayableNow) {
-          return;
-        }
-
-        void prototypeState.spin();
-      },
-      { shape: "circle" },
-    );
-
-    this.button.label.setFontSize("34px");
-    this.button.label.setWordWrapWidth(180, true);
-    this.button.label.setAlign("center");
+    this.button = this.createWheelCenterButton();
 
     this.testSpinButton = addTextButton(
       this,
@@ -372,10 +346,10 @@ export class WheelScene extends Phaser.Scene {
   }
 
   private getRandomFireworkPoint() {
-    const centerX = 540;
-    const centerY = 1120;
+    const centerX = WHEEL_CENTER_X;
+    const centerY = WHEEL_CENTER_Y;
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const radius = Phaser.Math.Between(250, 520);
+    const radius = Phaser.Math.Between(280, 580);
     const x = Phaser.Math.Clamp(
       centerX + Math.cos(angle) * radius + Phaser.Math.Between(-40, 40),
       90,
@@ -399,31 +373,32 @@ export class WheelScene extends Phaser.Scene {
 
   private createFireworkBurst(x: number, y: number, scale = 1) {
     const colors = [
-      0xff4d6d,
-      0xff7b00,
-      0xffd60a,
-      0x9ef01a,
-      0x2dd4bf,
-      0x14b8ff,
-      0x7c4dff,
-      0xff66c4,
+      0xff304f,
+      0xff8a00,
+      0xffd400,
+      0x8be000,
+      0x16cf6a,
+      0x00cfff,
+      0x2d7cff,
+      0x7c3cff,
+      0xff4ed8,
     ];
+    const burstBaseColor = colors[Phaser.Math.Between(0, colors.length - 1)];
+    const accentColor = colors[Phaser.Math.Between(0, colors.length - 1)];
+    const tertiaryColor = colors[Phaser.Math.Between(0, colors.length - 1)];
 
-    const flash = this.add
-      .circle(x, y, 22 * scale, 0xffffff, 0.48)
-      .setBlendMode(Phaser.BlendModes.ADD);
+    const flash = this.add.circle(x, y, 20 * scale, burstBaseColor, 0.5);
     this.tweens.add({
       targets: flash,
-      scale: 5.6,
+      scale: 3.9,
       alpha: 0,
-      duration: 420,
+      duration: 360,
       ease: "Quad.easeOut",
       onComplete: () => flash.destroy(),
     });
 
     const ring = this.add.circle(x, y, 30 * scale);
-    ring.setStrokeStyle(8 * scale, colors[Phaser.Math.Between(0, colors.length - 1)], 0.9);
-    ring.setBlendMode(Phaser.BlendModes.ADD);
+    ring.setStrokeStyle(8 * scale, burstBaseColor, 0.96);
     this.tweens.add({
       targets: ring,
       scale: 4.6,
@@ -433,14 +408,25 @@ export class WheelScene extends Phaser.Scene {
       onComplete: () => ring.destroy(),
     });
 
-    const cloud = this.add.container(x, y).setBlendMode(Phaser.BlendModes.ADD);
+    const secondaryRing = this.add.circle(x, y, 18 * scale);
+    secondaryRing.setStrokeStyle(6 * scale, accentColor, 0.92);
+    this.tweens.add({
+      targets: secondaryRing,
+      scale: 5.4,
+      alpha: 0,
+      duration: 1040,
+      ease: "Quart.easeOut",
+      onComplete: () => secondaryRing.destroy(),
+    });
+
+    const cloud = this.add.container(x, y);
     Array.from({ length: 6 }).forEach((_, index) => {
       const puff = this.add.circle(
         Phaser.Math.Between(-34, 34) * scale,
         Phaser.Math.Between(-30, 30) * scale,
         Phaser.Math.Between(12, 24) * scale,
-        colors[(index + Phaser.Math.Between(0, colors.length - 1)) % colors.length],
-        0.34,
+        colors[(index * 2 + Phaser.Math.Between(0, colors.length - 1)) % colors.length],
+        0.5,
       );
       cloud.add(puff);
     });
@@ -453,16 +439,33 @@ export class WheelScene extends Phaser.Scene {
       onComplete: () => cloud.destroy(),
     });
 
-    const spokes = this.add.graphics({ x, y }).setBlendMode(Phaser.BlendModes.ADD);
+    const spokes = this.add.graphics({ x, y });
     for (let index = 0; index < 12; index += 1) {
       const angle = (Math.PI * 2 * index) / 12 + Phaser.Math.FloatBetween(-0.08, 0.08);
       const inner = 18 * scale;
       const outer = Phaser.Math.Between(90, 160) * scale;
-      spokes.lineStyle(7 * scale, colors[index % colors.length], 0.95);
+      const spokeColor = colors[(index + Phaser.Math.Between(0, 3)) % colors.length];
+      spokes.lineStyle(7 * scale, spokeColor, 0.95);
       spokes.beginPath();
       spokes.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
       spokes.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
       spokes.strokePath();
+
+      const tip = this.add.circle(
+        x + Math.cos(angle) * outer,
+        y + Math.sin(angle) * outer,
+        Phaser.Math.Between(5, 10) * scale,
+        spokeColor,
+        0.95,
+      );
+      this.tweens.add({
+        targets: tip,
+        scale: 0.2,
+        alpha: 0,
+        duration: 900,
+        ease: "Quad.easeOut",
+        onComplete: () => tip.destroy(),
+      });
     }
     this.tweens.add({
       targets: spokes,
@@ -479,15 +482,16 @@ export class WheelScene extends Phaser.Scene {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
       const distance = Phaser.Math.Between(150, 260) * scale;
       const size = Phaser.Math.Between(6, 14) * scale;
+      const particleColor =
+        colors[(index + Phaser.Math.Between(0, colors.length - 1)) % colors.length];
       const particle = this.add
         .circle(
           x,
           y,
           size,
-          colors[index % colors.length],
-          Phaser.Math.FloatBetween(0.78, 1),
-        )
-        .setBlendMode(Phaser.BlendModes.ADD);
+          particleColor,
+          Phaser.Math.FloatBetween(0.86, 1),
+        );
 
       this.tweens.add({
         targets: particle,
@@ -500,13 +504,140 @@ export class WheelScene extends Phaser.Scene {
         onComplete: () => particle.destroy(),
       });
     }
+
+    const confettiCount = Phaser.Math.Between(12, 18);
+    for (let index = 0; index < confettiCount; index += 1) {
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const distance = Phaser.Math.Between(90, 210) * scale;
+      const width = Phaser.Math.Between(8, 14) * scale;
+      const height = Phaser.Math.Between(3, 6) * scale;
+      const confetti = this.add.rectangle(
+        x,
+        y,
+        width,
+        height,
+        index % 2 === 0 ? accentColor : tertiaryColor,
+        0.95,
+      );
+      confetti.setRotation(Phaser.Math.FloatBetween(0, Math.PI));
+      this.tweens.add({
+        targets: confetti,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        angle: Phaser.Math.Between(180, 540),
+        alpha: 0,
+        duration: Phaser.Math.Between(900, 1500),
+        ease: "Cubic.easeOut",
+        onComplete: () => confetti.destroy(),
+      });
+    }
   }
 
   private drawPointer() {
     const pointer = this.add.graphics();
     pointer.fillStyle(COLORS.danger, 1);
-    pointer.fillTriangle(540, 830, 508, 760, 572, 760);
+    pointer.fillTriangle(
+      WHEEL_CENTER_X,
+      WHEEL_CENTER_Y - 360,
+      WHEEL_CENTER_X - 32,
+      WHEEL_CENTER_Y - 430,
+      WHEEL_CENTER_X + 32,
+      WHEEL_CENTER_Y - 430,
+    );
     pointer.lineStyle(4, COLORS.accentSoft, 0.95);
-    pointer.strokeTriangle(540, 830, 508, 760, 572, 760);
+    pointer.strokeTriangle(
+      WHEEL_CENTER_X,
+      WHEEL_CENTER_Y - 360,
+      WHEEL_CENTER_X - 32,
+      WHEEL_CENTER_Y - 430,
+      WHEEL_CENTER_X + 32,
+      WHEEL_CENTER_Y - 430,
+    );
+  }
+
+  private createWheelCenterButton() {
+    const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
+    const shadow = this.add.circle(6, 10, 124, 0x8f4b75, 0.24);
+    const ring = this.add.circle(0, 0, 126, 0xfdfdff, 0.98);
+    ring.setStrokeStyle(5, 0xffffff, 0.95);
+
+    const face = this.add.graphics();
+    const innerShine = this.add.ellipse(0, -34, 132, 48, 0xffffff, 0.16);
+    const label = this.add
+      .text(0, 10, "SPIN NOW", {
+        fontFamily: FONTS.display,
+        fontSize: "40px",
+        color: "#ffffff",
+        fontStyle: "700",
+        align: "center",
+      })
+      .setOrigin(0.5);
+    label.setWordWrapWidth(210, true);
+
+    const drawFace = (color: number) => {
+      const mainColor = color;
+      const lowerColor =
+        color === COLORS.accent ? 0xe3a335 : color === COLORS.disabled ? 0x97aebb : 0xd94b89;
+
+      face.clear();
+      face.fillStyle(mainColor, 1);
+      face.fillCircle(0, 0, 108);
+      face.fillStyle(lowerColor, 0.96);
+      face.fillCircle(0, 14, 94);
+      face.fillStyle(0xff93c5, color === COLORS.accent || color === COLORS.disabled ? 0.08 : 0.22);
+      face.fillEllipse(0, -18, 156, 72);
+      face.lineStyle(5, 0xffffff, 0.94);
+      face.strokeCircle(0, 0, 86);
+    };
+
+    drawFace(COLORS.primary);
+
+    container.add([shadow, ring, face, innerShine, label]);
+    container.setSize(312, 312);
+    container.setInteractive(new Phaser.Geom.Circle(0, 0, 126), Phaser.Geom.Circle.Contains);
+    container.on("pointerup", () => {
+      const snapshot = prototypeState.getSnapshot();
+      const eligibility = snapshot.eligibility?.eligibilityStatus;
+
+      if (!eligibility || this.spinning) {
+        return;
+      }
+
+      if (eligibility === EligibilityStatus.GoToDeposit) {
+        openExternalLink(snapshot.eligibility?.depositUrl);
+        return;
+      }
+
+      if (eligibility !== EligibilityStatus.PlayableNow) {
+        return;
+      }
+
+      void prototypeState.spin();
+    });
+    container.on("pointerover", () => {
+      container.setScale(1.02);
+    });
+    container.on("pointerout", () => {
+      container.setScale(1);
+    });
+
+    return {
+      container,
+      label,
+      setLabel(nextLabel: string) {
+        label.setText(nextLabel);
+      },
+      setBackground(color: number) {
+        drawFace(color === COLORS.primary ? 0xe15693 : color);
+      },
+      setEnabled(enabled: boolean) {
+        container.disableInteractive();
+        if (enabled) {
+          container.setInteractive(new Phaser.Geom.Circle(0, 0, 126), Phaser.Geom.Circle.Contains);
+        }
+
+        container.setAlpha(enabled ? 1 : 0.78);
+      },
+    };
   }
 }

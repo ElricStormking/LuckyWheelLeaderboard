@@ -2,9 +2,9 @@ export const STAGE_WIDTH = 1080;
 export const STAGE_HEIGHT = 1920;
 
 export const COLORS = {
-  pageTop: 0x071f34,
-  pageBottom: 0x0d4e78,
-  stageMist: 0x84d8ff,
+  pageTop: 0xfefefe,
+  pageBottom: 0xcff3ff,
+  stageMist: 0x79dcff,
   panel: 0xf7fbff,
   panelSoft: 0xe8f6ff,
   line: 0x97ddff,

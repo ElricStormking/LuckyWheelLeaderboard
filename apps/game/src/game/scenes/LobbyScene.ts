@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { EventStatus, type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
+import { type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
 import { prototypeState } from "../state/prototype-state";
 import {
   COLORS,
@@ -15,7 +15,6 @@ import {
   addRoundedPanel,
   addTextButton,
   drawCircleIcon,
-  formatTime,
   formatNumber,
   openExternalLink,
 } from "../helpers";
@@ -27,6 +26,14 @@ type MarqueeCard = {
   speed: number;
 };
 
+type BottomMenuAction = {
+  label: string;
+  onClick: () => void;
+};
+
+const HERO_TITLE = "IBET LUCKY WHEEL";
+const HERO_SUBTITLE = "Spin Daily & Climb The Leaderboard For Cash Rewards!";
+
 export class LobbyScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
   private titleText?: Phaser.GameObjects.Text;
@@ -35,14 +42,15 @@ export class LobbyScene extends Phaser.Scene {
   private periodPill?: Phaser.GameObjects.Text;
   private totalPointsText?: Phaser.GameObjects.Text;
   private eligibilityText?: Phaser.GameObjects.Text;
-  private myRankText?: Phaser.GameObjects.Text;
-  private syncText?: Phaser.GameObjects.Text;
   private devControls: Array<{
     container: Phaser.GameObjects.Container;
     label: Phaser.GameObjects.Text;
     value?: EligibilityStatus;
   }> = [];
   private marqueeCards: MarqueeCard[] = [];
+  private bottomMenuActions: BottomMenuAction[] = [];
+  private bottomMenuIndex = 0;
+  private bottomMenuLabel?: Phaser.GameObjects.Text;
 
   constructor() {
     super(SCENE_KEYS.Lobby);
@@ -149,18 +157,16 @@ export class LobbyScene extends Phaser.Scene {
       Phaser.Geom.Circle.Contains,
     );
     localeBubble.on("pointerup", () => this.toggleOverlay(SCENE_KEYS.LocaleOverlay));
-    localeBubble.add(
-      this.add
-        .text(0, 20, snapshot.locale.toUpperCase(), {
-          fontFamily: FONTS.body,
-          fontSize: "13px",
-          fontStyle: "700",
-          color: "#0a2942",
-        })
-        .setOrigin(0.5),
-    );
 
-    drawCircleIcon(this, 980, 110, "icon-menu");
+    const supportBubble = drawCircleIcon(this, 980, 110, "icon-menu");
+    supportBubble.setSize(84, 84);
+    supportBubble.setInteractive(
+      new Phaser.Geom.Circle(0, 0, 42),
+      Phaser.Geom.Circle.Contains,
+    );
+    supportBubble.on("pointerup", () => {
+      openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.CustomerService));
+    });
   }
 
   private drawHero() {
@@ -174,7 +180,7 @@ export class LobbyScene extends Phaser.Scene {
     };
 
     this.titleText = this.add
-      .text(540, 250, prototypeState.t("lobby.heroFallbackTitle"), {
+      .text(540, 250, HERO_TITLE, {
         fontFamily: FONTS.display,
         fontSize: "86px",
         fontStyle: "700",
@@ -183,11 +189,11 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.subtitleText = this.add
-      .text(540, 322, prototypeState.t("lobby.heroFallbackSubtitle"), {
+      .text(540, 322, HERO_SUBTITLE, {
         fontFamily: FONTS.body,
         fontSize: "30px",
         fontStyle: "700",
-        color: "#d7f6ff",
+        color: "#1697dd",
         align: "center",
         wordWrap: { width: 860, useAdvancedWrap: true },
       })
@@ -220,7 +226,7 @@ export class LobbyScene extends Phaser.Scene {
       .text(540, 612, prototypeState.t("lobby.checkingEligibility"), {
         fontFamily: FONTS.body,
         fontSize: "26px",
-        color: "#d7f4ff",
+        color: "#9a9fa6",
         align: "center",
         wordWrap: { width: 820, useAdvancedWrap: true },
       })
@@ -284,29 +290,19 @@ export class LobbyScene extends Phaser.Scene {
     steps.forEach((step, index) => {
       const centerX = left + segmentWidth * (index + 0.5);
       const badge = this.add.container(centerX, top + 18);
-      const badgeGlow = this.add.circle(0, 0, 44, 0xc3f0ff, 0.26);
-      const badgeCircle = this.add.circle(0, 0, 38, COLORS.primary, 1);
-      badgeCircle.setStrokeStyle(4, 0xb9efff, 0.98);
-      const badgeIcon = this.add.image(0, -2, step.icon).setScale(0.62).setTint(0xffffff);
-      badge.add([badgeGlow, badgeCircle, badgeIcon]);
+      const badgeGlow = this.add.circle(0, 2, 40, 0xa7e6ff, 0.22);
+      const badgeShadow = this.add.circle(2, 10, 34, 0x5f9bc7, 0.18);
+      const badgeIcon = this.add.image(0, 0, step.icon).setScale(0.84);
+      badge.add([badgeGlow, badgeShadow, badgeIcon]);
 
       this.add
-        .text(centerX, top + 78, step.title, {
-          fontFamily: FONTS.display,
-          fontSize: "28px",
-          fontStyle: "700",
-          color: "#12324a",
-          align: "center",
-          wordWrap: { width: 210, useAdvancedWrap: true },
-        })
-        .setOrigin(0.5);
-
-      this.add
-        .text(centerX, top + 116, step.copy, {
+        .text(centerX, top + 98, `${step.title}\n${step.copy}`, {
           fontFamily: FONTS.body,
-          fontSize: "18px",
-          color: "#5f7e97",
+          fontSize: "24px",
+          fontStyle: "700",
+          color: "#119ae0",
           align: "center",
+          lineSpacing: 4,
           wordWrap: { width: 210, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
@@ -354,143 +350,111 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawSummaryArea() {
-    addRoundedPanel(this, 540, 1534, 908, 156, {
+    addRoundedPanel(this, 540, 1630, 634, 120, {
       fillColor: COLORS.panel,
-      radius: 36,
+      radius: 18,
     });
 
     this.add
-      .text(122, 1500, prototypeState.t("lobby.myTotalPoints"), {
+      .text(258, 1630, `${prototypeState.t("lobby.myTotalPoints")}:`, {
         fontFamily: FONTS.body,
-        fontSize: "30px",
+        fontSize: "52px",
         fontStyle: "700",
-        color: "#60809a",
+        color: "#15a8ee",
       })
       .setOrigin(0, 0.5);
 
     this.totalPointsText = this.add
-      .text(928, 1498, "0", {
+      .text(822, 1628, "0", {
         fontFamily: FONTS.display,
-        fontSize: "72px",
+        fontSize: "56px",
         fontStyle: "700",
         color: "#10a7eb",
-      })
-      .setOrigin(1, 0.5);
-
-    this.myRankText = this.add
-      .text(122, 1552, prototypeState.t("lobby.rankEmpty"), {
-        fontFamily: FONTS.body,
-        fontSize: "24px",
-        color: "#6787a0",
-      })
-      .setOrigin(0, 0.5);
-
-    this.syncText = this.add
-      .text(928, 1552, "Last sync -", {
-        fontFamily: FONTS.body,
-        fontSize: "24px",
-        color: "#6787a0",
       })
       .setOrigin(1, 0.5);
   }
 
   private drawBottomButtons() {
-    this.drawCenteredButtonRow(1668, 32, [
+    this.bottomMenuActions = [
+      {
+        label: prototypeState.t("lobby.history"),
+        onClick: () => this.toggleOverlay(SCENE_KEYS.HistoryOverlay),
+      },
       {
         label: prototypeState.t("lobby.leaderboard"),
-        width: 290,
         onClick: () => this.toggleOverlay(SCENE_KEYS.LeaderboardOverlay),
       },
       {
         label: prototypeState.t("lobby.prizes"),
-        width: 220,
         onClick: () => this.toggleOverlay(SCENE_KEYS.PrizeOverlay),
-        options: {
-          backgroundColor: COLORS.primaryDark,
-        },
       },
       {
         label: prototypeState.t("lobby.rules"),
-        width: 220,
         onClick: () => this.toggleOverlay(SCENE_KEYS.RulesOverlay),
-        options: {
-          backgroundColor: COLORS.primaryDark,
-        },
       },
-    ]);
+    ];
+    this.bottomMenuIndex = 0;
 
-    this.drawCenteredButtonRow(1790, 32, [
-      {
-        label: prototypeState.t("lobby.history"),
-        width: 320,
-        onClick: () => this.toggleOverlay(SCENE_KEYS.HistoryOverlay),
-        options: {
-          backgroundColor: 0xeef9ff,
-          labelColor: "#0a2942",
-        },
+    addTextButton(
+      this,
+      220,
+      1768,
+      250,
+      92,
+      prototypeState.t("lobby.deposit"),
+      () => {
+        openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.Deposit));
       },
       {
-        label: prototypeState.t("lobby.deposit"),
-        width: 250,
-        onClick: () => {
-          const depositUrl = prototypeState
-            .getSnapshot()
-            .currentEvent?.platformLinks.find(
-              (link) => link.type === PlatformLinkType.Deposit,
-            )?.url;
-          openExternalLink(depositUrl);
-        },
-        options: {
-          backgroundColor: COLORS.accent,
-          labelColor: "#0a2942",
-        },
+        backgroundColor: COLORS.primary,
+        labelColor: "#ffffff",
       },
-      {
-        label: prototypeState.t("lobby.support"),
-        width: 250,
-        onClick: () => {
-          const supportUrl = prototypeState
-            .getSnapshot()
-            .currentEvent?.platformLinks.find(
-              (link) => link.type === PlatformLinkType.CustomerService,
-            )?.url;
-          openExternalLink(supportUrl);
-        },
-        options: {
-          backgroundColor: 0xeef9ff,
-          labelColor: "#0a2942",
-        },
-      },
-    ]);
+    );
+
+    const bottomMenu = this.add.container(540, 1768);
+    const hitArea = this.add.rectangle(0, 0, 430, 102, 0xffffff, 0.001);
+    const arrowShadow = this.add.circle(148, 6, 36, 0x041a2c, 0.22);
+    const arrowBubble = this.add.circle(140, 0, 34, COLORS.white, 0.98);
+    arrowBubble.setStrokeStyle(2, COLORS.line, 0.7);
+
+    this.bottomMenuLabel = this.add
+      .text(-8, 0, this.bottomMenuActions[0].label, {
+        fontFamily: FONTS.display,
+        fontSize: "42px",
+        fontStyle: "700",
+        color: "#18aef5",
+      })
+      .setOrigin(0.5);
+
+    const arrowLabel = this.add
+      .text(140, 0, "›", {
+        fontFamily: FONTS.display,
+        fontSize: "58px",
+        fontStyle: "700",
+        color: "#18aef5",
+      })
+      .setOrigin(0.5, 0.54);
+
+    bottomMenu.add([hitArea, this.bottomMenuLabel, arrowShadow, arrowBubble, arrowLabel]);
+    bottomMenu.setSize(430, 102);
+    bottomMenu.setInteractive(
+      new Phaser.Geom.Rectangle(-215, -51, 430, 102),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    bottomMenu.on("pointerover", () => bottomMenu.setScale(1.03));
+    bottomMenu.on("pointerout", () => bottomMenu.setScale(1));
+    bottomMenu.on("pointerup", () => this.openNextBottomMenu());
   }
 
-  private drawCenteredButtonRow(
-    y: number,
-    gap: number,
-    buttons: Array<{
-      label: string;
-      width: number;
-      onClick: () => void;
-      options?: Parameters<typeof addTextButton>[7];
-    }>,
-  ) {
-    const totalWidth =
-      buttons.reduce((sum, button) => sum + button.width, 0) + gap * (buttons.length - 1);
-    let left = STAGE_WIDTH / 2 - totalWidth / 2;
+  private openNextBottomMenu() {
+    if (this.bottomMenuActions.length === 0) {
+      return;
+    }
 
-    buttons.forEach((button) => {
-      addTextButton(
-        this,
-        left + button.width / 2,
-        y,
-        button.width,
-        92,
-        button.label,
-        button.onClick,
-        button.options,
-      );
-      left += button.width + gap;
-    });
+    const currentAction = this.bottomMenuActions[this.bottomMenuIndex];
+    this.bottomMenuIndex = (this.bottomMenuIndex + 1) % this.bottomMenuActions.length;
+    this.bottomMenuLabel?.setText(this.bottomMenuActions[this.bottomMenuIndex].label);
+    currentAction.onClick();
   }
 
   private drawDevPanel() {
@@ -545,48 +509,17 @@ export class LobbyScene extends Phaser.Scene {
     this.periodPill?.setText(
       snapshot.currentEvent?.promotionPeriodLabel ?? prototypeState.t("lobby.loadingLiveEvent"),
     );
-    this.titleText?.setText(
-      snapshot.currentEvent?.title ?? prototypeState.t("lobby.heroFallbackTitle"),
-    );
-    this.subtitleText?.setText(
-      snapshot.currentEvent?.shortDescription ??
-        prototypeState.t("lobby.heroFallbackSubtitle"),
-    );
+    this.titleText?.setText(HERO_TITLE);
+    this.subtitleText?.setText(HERO_SUBTITLE);
     this.totalPointsText?.setText(
       formatNumber(snapshot.player?.totalScore ?? 0, snapshot.locale),
     );
-    this.myRankText?.setText(
-      snapshot.player && snapshot.player.resultsVisible && snapshot.player.rank
-        ? prototypeState.t("lobby.rankLine", {
-            rank: snapshot.player.rank,
-            prize: snapshot.player.prizeName ?? prototypeState.t("lobby.noPrizeYet"),
-          })
-        : prototypeState.t("lobby.rankEmpty"),
-    );
-    this.syncText?.setText(
-      snapshot.currentEvent?.status === EventStatus.Live
-        ? `${this.getRealtimeLabel(snapshot.realtimeStatus)}${
-            snapshot.leaderboard?.lastSyncedAt
-              ? ` - ${formatTime(snapshot.leaderboard.lastSyncedAt, snapshot.locale)}`
-              : ""
-          }`
-        : snapshot.player?.resultsVisible === false
-          ? prototypeState.t("lobby.resultsPending")
-        : prototypeState.t("lobby.archiveSnapshot"),
-    );
     this.eligibilityText?.setText(
-      snapshot.player?.resultsVisible === false && snapshot.player.pendingMessage
-        ? snapshot.player.pendingMessage
-        : snapshot.eligibility
-        ? prototypeState.t("lobby.eligibilityLine", {
-            buttonLabel: snapshot.eligibility.buttonLabel,
-            used: snapshot.eligibility.usedSpinCount,
-            remaining: snapshot.eligibility.remainingSpinCount,
-            granted: snapshot.eligibility.grantedSpinCount,
-          })
+      snapshot.currentEvent?.promotionPeriodLabel
+        ? `Promotion Period: ${snapshot.currentEvent.promotionPeriodLabel}`
         : snapshot.isBootstrapping
           ? prototypeState.t("lobby.loadingPayload")
-          : prototypeState.t("lobby.checkingEligibility"),
+          : prototypeState.t("lobby.loadingLiveEvent"),
     );
 
     if (snapshot.leaderboard?.leaderboard.length) {
@@ -675,6 +608,12 @@ export class LobbyScene extends Phaser.Scene {
     return lane + Phaser.Math.Between(-4, 4);
   }
 
+  private getPlatformLinkUrl(type: PlatformLinkType) {
+    return prototypeState
+      .getSnapshot()
+      .currentEvent?.platformLinks.find((link) => link.type === type)?.url;
+  }
+
   private toggleOverlay(key: string) {
     if (this.scene.isActive(key)) {
       this.scene.stop(key);
@@ -684,17 +623,4 @@ export class LobbyScene extends Phaser.Scene {
     this.scene.launch(key);
   }
 
-  private getRealtimeLabel(status: "idle" | "connecting" | "connected" | "error") {
-    switch (status) {
-      case "connected":
-        return prototypeState.t("lobby.feed.connected");
-      case "connecting":
-        return prototypeState.t("lobby.feed.connecting");
-      case "error":
-        return prototypeState.t("lobby.feed.error");
-      case "idle":
-      default:
-        return prototypeState.t("lobby.feed.idle");
-    }
-  }
 }

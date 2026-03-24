@@ -236,9 +236,10 @@ export function drawCircleIcon(
   backgroundColor = COLORS.panel,
 ) {
   const bubble = scene.add.container(x, y);
-  const bg = scene.add.circle(0, 0, 42, backgroundColor, 1);
-  bg.setStrokeStyle(2, COLORS.line, 0.85);
-  const icon = scene.add.image(0, 0, iconKey).setScale(0.7);
-  bubble.add([bg, icon]);
+  const shadow = scene.add.circle(4, 8, 42, 0x5fa8c9, 0.18);
+  const bg = scene.add.circle(0, 0, 42, backgroundColor, 0.98);
+  bg.setStrokeStyle(2, 0xe6f7ff, 0.95);
+  const icon = scene.add.image(0, 0, iconKey).setScale(0.82);
+  bubble.add([shadow, bg, icon]);
   return bubble;
 }

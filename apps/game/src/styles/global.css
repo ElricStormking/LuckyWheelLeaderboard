@@ -1,13 +1,14 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Segoe UI", "Trebuchet MS", sans-serif;
   --safe-top: max(12px, env(safe-area-inset-top, 0px));
   --safe-right: max(12px, env(safe-area-inset-right, 0px));
   --safe-bottom: max(12px, env(safe-area-inset-bottom, 0px));
   --safe-left: max(12px, env(safe-area-inset-left, 0px));
   background:
-    radial-gradient(circle at top, rgba(21, 118, 168, 0.28), transparent 28%),
-    linear-gradient(180deg, #031423 0%, #072b46 48%, #031423 100%);
+    radial-gradient(circle at top left, rgba(116, 225, 255, 0.22), transparent 26%),
+    radial-gradient(circle at 82% 85%, rgba(79, 206, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f5fdff 34%, #daf5ff 72%, #c4f0ff 100%);
 }
 
 * {
@@ -62,8 +63,8 @@ body {
   border-radius: 32px;
   overflow: hidden;
   box-shadow:
-    0 48px 120px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(158, 222, 255, 0.15);
+    0 28px 72px rgba(80, 174, 214, 0.22),
+    0 0 0 1px rgba(126, 218, 255, 0.4);
 }
 
 #game-root canvas {
