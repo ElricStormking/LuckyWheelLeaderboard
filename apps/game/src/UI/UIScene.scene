@@ -1,0 +1,530 @@
+{
+    "id": "614725ba-a2f2-46d8-b197-185d52072f6f",
+    "sceneType": "SCENE",
+    "settings": {
+        "exportClass": true,
+        "autoImport": true,
+        "importFileExtension": true,
+        "preloadPackFiles": [],
+        "createMethodName": "editorCreate",
+        "sceneKey": "UIScene",
+        "borderWidth": 750,
+        "borderHeight": 6470
+    },
+    "displayList": [
+        {
+            "type": "Image",
+            "id": "38f7db2e-787c-42bf-9746-7ad516ccc3c9",
+            "label": "iBET_375_Wheel",
+            "texture": {
+                "key": "iBET_375_Wheel"
+            },
+            "x": 375,
+            "y": 3235,
+            "alpha": 0.2,
+            "alphaTopLeft": 0.2,
+            "alphaTopRight": 0.2,
+            "alphaBottomLeft": 0.2,
+            "alphaBottomRight": 0.2
+        },
+        {
+            "type": "Image",
+            "id": "4dcef232-c407-4912-b1d3-3c97e124923c",
+            "label": "button_iBET",
+            "texture": {
+                "key": "Button_iBET"
+            },
+            "x": 83,
+            "y": 84,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "fe841ace-d4bd-4203-9a6b-73f2e3a3fe24",
+            "label": "button_Language",
+            "texture": {
+                "key": "Button_Language"
+            },
+            "x": 547,
+            "y": 85,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "f160c0f8-fd0d-4ff8-a284-49ce86f64b4f",
+            "label": "gameTutorial",
+            "texture": {
+                "key": "GameTutorial"
+            },
+            "x": 377,
+            "y": 394,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "e0e5eaef-53de-423a-b1f7-175c69b0565a",
+            "label": "button_Support",
+            "texture": {
+                "key": "Button_Support"
+            },
+            "x": 666,
+            "y": 84,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "d386e681-0af6-4775-95e2-ed6df1f3d9aa",
+            "label": "frame_time_01",
+            "texture": {
+                "key": "Frame_time_01"
+            },
+            "x": 333,
+            "y": 85,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "4591d276-4f86-4f14-bff6-77ad3fe7e033",
+            "label": "frame_MyTotalPoint",
+            "texture": {
+                "key": "Frame_MyTotalPoint"
+            },
+            "x": 375,
+            "y": 1565,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "ffc03cc8-a51f-4339-8e4e-360b954eb914",
+            "label": "roulette",
+            "texture": {
+                "key": "Roulette"
+            },
+            "x": 376,
+            "y": 1128,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "8edb64ce-cba9-43c9-a197-042d00af829c",
+            "label": "spin_Red",
+            "texture": {
+                "key": "Spin_Red"
+            },
+            "x": 372,
+            "y": 1127,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "f7958a6f-e236-4730-b1a6-3f43ad05ac66",
+            "label": "rouletteArrow",
+            "texture": {
+                "key": "RouletteArrow"
+            },
+            "x": 377,
+            "y": 810,
+            "scaleX": 0.5,
+            "scaleY": 0.5
+        },
+        {
+            "type": "Image",
+            "id": "387174b3-bdc2-423e-9709-674bd16b7c46",
+            "label": "arrow_Page_Right",
+            "texture": {
+                "key": "Arrow_Page_Right"
+            },
+            "x": 472,
+            "y": 1687,
+            "scaleX": 0.67,
+            "scaleY": 0.67
+        },
+        {
+            "type": "Image",
+            "id": "e7fe7a9d-2d8c-450b-a4a2-d314a63ff7bb",
+            "label": "title_01",
+            "texture": {
+                "key": "Title_01"
+            },
+            "x": 375,
+            "y": 237,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "5d79649f-0362-4d95-ab34-2306b8b27532",
+            "label": "title_Ranking",
+            "texture": {
+                "key": "Title_Ranking"
+            },
+            "x": 379,
+            "y": 1901,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "be3a3abf-6b8c-42fa-a99d-d07cf7ebd3e3",
+            "label": "button_Page",
+            "texture": {
+                "key": "Button_Page"
+            },
+            "x": 260,
+            "y": 3540,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "e3782a25-6c4c-43ad-95ca-eabae811db1b",
+            "label": "button_Page_1",
+            "texture": {
+                "key": "Button_Page_1"
+            },
+            "x": 340,
+            "y": 3540,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "2fa7053f-8793-4c5f-8182-eebecb383d61",
+            "label": "button_Page_2",
+            "texture": {
+                "key": "Button_Page_2"
+            },
+            "x": 420,
+            "y": 3540,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "35f2584c-af3e-4dd5-92e2-8cff22f50744",
+            "label": "button_Page_3",
+            "texture": {
+                "key": "Button_Page_3"
+            },
+            "x": 500,
+            "y": 3540,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "a97945ce-75d8-4f16-b634-fd8e2c2db14d",
+            "label": "rankingPlate_01",
+            "texture": {
+                "key": "RankingPlate_01"
+            },
+            "x": 370,
+            "y": 2240,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "912e2c6a-f51f-4f56-b18d-3bb6876f5ba2",
+            "label": "rankingPlate_02",
+            "texture": {
+                "key": "RankingPlate_02"
+            },
+            "x": 370,
+            "y": 2370,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "9695bb21-65a0-4c3c-ba8b-f395587ba91e",
+            "label": "rankingPlate_03",
+            "texture": {
+                "key": "RankingPlate_03"
+            },
+            "x": 370,
+            "y": 2490,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "27ac3740-5303-4afb-9660-47eabaa9f09e",
+            "label": "rankingPlate_04",
+            "texture": {
+                "key": "RankingPlate_04"
+            },
+            "x": 370,
+            "y": 2610,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "d7978c91-e92b-4022-9fa6-19ce7347b0ed",
+            "label": "rankingPlate_05",
+            "texture": {
+                "key": "RankingPlate_05"
+            },
+            "x": 370,
+            "y": 2735,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "274c4172-92b3-4a11-bca7-c00dc661a39e",
+            "label": "rankingPlate_06",
+            "texture": {
+                "key": "RankingPlate_06"
+            },
+            "x": 370,
+            "y": 2860,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "4caf2735-0658-4cf4-8363-d692b3e3159b",
+            "label": "rankingPlate_07",
+            "texture": {
+                "key": "RankingPlate_07"
+            },
+            "x": 370,
+            "y": 2983,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "93bdd973-5cda-477b-9aa1-dfab2cf9c851",
+            "label": "rankingPlate_08",
+            "texture": {
+                "key": "RankingPlate_08"
+            },
+            "x": 370,
+            "y": 3109,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "70337c80-a7b9-412b-9cae-d60f7d92169c",
+            "label": "rankingPlate_09",
+            "texture": {
+                "key": "RankingPlate_09"
+            },
+            "x": 370,
+            "y": 3231,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "4df6bcb2-33aa-4d34-b7ae-4da7e837d3c1",
+            "label": "rankingPlate_10",
+            "texture": {
+                "key": "RankingPlate_10"
+            },
+            "x": 370,
+            "y": 3358,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "c28ae0df-952d-43f7-b58a-0d8368a1c217",
+            "label": "divider",
+            "texture": {
+                "key": "Divider"
+            },
+            "x": 378,
+            "y": 2144,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "aa18d1ae-cf74-479f-9c59-33f6e5186d44",
+            "label": "divider_1",
+            "texture": {
+                "key": "Divider"
+            },
+            "x": 374,
+            "y": 3598,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "8126a85a-5a50-425f-8013-4530c06d02d2",
+            "label": "title_PrizeArea",
+            "texture": {
+                "key": "Title_PrizeArea"
+            },
+            "x": 378,
+            "y": 3976,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "837d64a6-054b-4cef-9b2a-e0b464e021fe",
+            "label": "prize_Ranking_01",
+            "texture": {
+                "key": "Prize_Ranking_01"
+            },
+            "x": 160,
+            "y": 4221,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "482657be-d3d5-4bb3-9aa3-c260bef34aa6",
+            "label": "prize_Ranking_02",
+            "texture": {
+                "key": "Prize_Ranking_02"
+            },
+            "x": 590,
+            "y": 4437,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "94c2c16a-ddd2-49f8-aacb-503fbb3cf4c0",
+            "label": "prize_Ranking_03",
+            "texture": {
+                "key": "Prize_Ranking_03"
+            },
+            "x": 160,
+            "y": 4650,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "200d50f0-ecbb-4cc4-8528-d3c3e324c2c4",
+            "label": "prize_Ranking_04",
+            "texture": {
+                "key": "Prize_Ranking_04"
+            },
+            "x": 590,
+            "y": 4861,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "f7f54c25-08f0-41e0-a5da-eefce57cd428",
+            "label": "prize_Ranking_05",
+            "texture": {
+                "key": "Prize_Ranking_05"
+            },
+            "x": 160,
+            "y": 5075,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "0c67ec11-404a-42a7-82b2-8bb8a1274da3",
+            "label": "prize_RewardZone",
+            "texture": {
+                "key": "Prize_RewardZone"
+            },
+            "x": 480,
+            "y": 4220,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "da79c182-6b18-4fdf-89e6-4937282eed8d",
+            "label": "prize_RewardZone_1",
+            "texture": {
+                "key": "Prize_RewardZone"
+            },
+            "x": 270,
+            "y": 4435,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "78afacec-85a3-492c-997c-943b985425ca",
+            "label": "prize_RewardZone_2",
+            "texture": {
+                "key": "Prize_RewardZone"
+            },
+            "x": 480,
+            "y": 4650,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "6415e4ee-2055-455c-9c5c-d3bc91a7283f",
+            "label": "prize_RewardZone_3",
+            "texture": {
+                "key": "Prize_RewardZone"
+            },
+            "x": 270,
+            "y": 4860,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "8bcf02f3-c7d5-478f-8a2f-43c08831184b",
+            "label": "prize_RewardZone_4",
+            "texture": {
+                "key": "Prize_RewardZone"
+            },
+            "x": 480,
+            "y": 5075,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "2b220345-7a88-47e0-a2cb-5d7f1e705554",
+            "label": "reminder",
+            "texture": {
+                "key": "Reminder"
+            },
+            "x": 380,
+            "y": 6325,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "3a87f20b-2848-4863-b09e-a2ebcf90c9af",
+            "label": "spinArrow",
+            "texture": {
+                "key": "SpinArrow"
+            },
+            "x": 374,
+            "y": 1127,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        }
+    ],
+    "plainObjects": [],
+    "meta": {
+        "app": "Phaser Editor - Scene Editor",
+        "url": "https://phaser.io/editor",
+        "contentType": "phasereditor2d.core.scene.SceneContentType",
+        "version": 5
+    }
+}

@@ -1,9 +1,14 @@
 import Phaser from "phaser";
 import { COLORS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
+import { preloadEditorUiAssets } from "../editorUiAssets";
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super(SCENE_KEYS.Preload);
+  }
+
+  preload() {
+    preloadEditorUiAssets(this);
   }
 
   create() {
@@ -18,7 +23,7 @@ export class PreloadScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 24, "Building placeholder assets", {
+      .text(STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 24, "Loading game UI", {
         fontFamily: "Segoe UI",
         fontSize: "28px",
         color: "#5b88a0",

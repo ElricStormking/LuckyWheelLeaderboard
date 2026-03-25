@@ -24,19 +24,28 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
     const isPending =
       snapshot.currentEvent?.status === "ended" &&
       snapshot.leaderboard?.resultsVisible === false;
-    const frame = this.createFrame(
-      isPending
-        ? prototypeState.t("leaderboard.pendingTitle")
-        : snapshot.currentEvent?.status === "live"
-        ? prototypeState.t("leaderboard.liveTitle")
-        : prototypeState.t("leaderboard.archiveTitle"),
-      isPending
-        ? prototypeState.t("leaderboard.pendingSubtitle")
-        : snapshot.currentEvent?.status === "live"
+    const subtitle = isPending
+      ? prototypeState.t("leaderboard.pendingSubtitle")
+      : snapshot.currentEvent?.status === "live"
         ? prototypeState.t("leaderboard.liveSubtitle")
-        : prototypeState.t("leaderboard.archiveSubtitle"),
+        : prototypeState.t("leaderboard.archiveSubtitle");
+    const frame = this.createFrame(
+      "",
+      undefined,
       1360,
     );
+
+    this.add.image(540, frame.top - 92, "Title_Ranking").setScale(0.78);
+    this.add
+      .text(540, frame.top - 18, subtitle, {
+        fontFamily: FONTS.body,
+        fontSize: "22px",
+        color: "#62839b",
+        align: "center",
+        wordWrap: { width: 760, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
+    this.add.image(540, frame.top + 58, "Divider").setScale(0.84);
 
     if (isPending) {
       addRoundedPanel(this, 540, (frame.top + frame.bottom) / 2, 820, 220, {
@@ -57,8 +66,8 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
     }
 
     const rows = snapshot.leaderboard?.leaderboard.slice(0, 30) ?? [];
-    const headerY = frame.top + 38;
-    const scrollViewportTop = frame.top + 110;
+    const headerY = frame.top + 92;
+    const scrollViewportTop = frame.top + 164;
     const scrollViewportHeight = 736;
     const rowSpacing = 92;
     const rowHeight = 76;

@@ -10,10 +10,22 @@ export class HistoryOverlayScene extends BaseOverlayScene {
 
   create() {
     const snapshot = prototypeState.getSnapshot();
-    const frame = this.createFrame(prototypeState.t("history.title"), undefined, 1500);
+    const frame = this.createFrame("", undefined, 1500);
+    this.add
+      .image(540, frame.top - 84, "Frame_time_01")
+      .setScale(0.54)
+      .setTint(0xffffff);
+    this.add
+      .text(540, frame.top - 84, prototypeState.t("history.title"), {
+        fontFamily: FONTS.display,
+        fontSize: "34px",
+        fontStyle: "700",
+        color: "#18aef5",
+      })
+      .setOrigin(0.5);
     const spinHistory = snapshot.spinHistory;
 
-    const headerY = frame.top + 22;
+    const headerY = frame.top + 78;
     this.add
       .text(frame.left + 72, headerY, prototypeState.t("history.date"), {
         fontFamily: FONTS.body,

@@ -1,7 +1,14 @@
 import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
-import { addRoundedPanel } from "../helpers";
-import { COLORS, FONTS, SCENE_KEYS } from "../constants";
+import { FONTS, SCENE_KEYS } from "../constants";
+
+const PRIZE_BADGE_KEYS = [
+  "Prize_Ranking_01",
+  "Prize_Ranking_02",
+  "Prize_Ranking_03",
+  "Prize_Ranking_04",
+  "Prize_Ranking_05",
+] as const;
 
 export class PrizeOverlayScene extends BaseOverlayScene {
   constructor() {
@@ -9,64 +16,41 @@ export class PrizeOverlayScene extends BaseOverlayScene {
   }
 
   create() {
-    const event = prototypeState.getSnapshot().currentEvent;
-    const frame = this.createFrame(
-      prototypeState.t("prize.title"),
-      event?.status === "live"
-        ? prototypeState.t("prize.liveSubtitle")
-        : prototypeState.t("prize.archiveSubtitle"),
-      1260,
-    );
+    const frame = this.createFrame("", undefined, 1260);
+    this.add.image(540, frame.top - 88, "Title_PrizeArea").setScale(1);
 
     const prizes = prototypeState.getSnapshot().prizes;
+    const rewardXs = [700, 380, 700, 380, 700];
+    const badgeXs = [250, 830, 250, 830, 250];
 
     prizes.forEach((prize, index) => {
-      const y = frame.top + 94 + index * 184;
-      addRoundedPanel(this, 540, y, 860, 144, {
-        fillColor: index % 2 === 0 ? COLORS.white : 0xeef9ff,
-        radius: 34,
-      });
+      const y = frame.top + 74 + index * 184;
+      this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(0.92);
+      this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(0.88);
+      const isRightAligned = index % 2 === 1;
+      const textX = rewardXs[index] + (isRightAligned ? 156 : -156);
+      const origin = isRightAligned ? 1 : 0;
 
       this.add
-        .text(
-          frame.left + 18,
-          y - 16,
-          `${prize.rankFrom}${prize.rankTo > prize.rankFrom ? ` - ${prize.rankTo}` : ""}`,
-          {
-            fontFamily: FONTS.display,
-            fontSize: "58px",
-            fontStyle: "700",
-            color: "#10a7eb",
-          },
-        )
-        .setOrigin(0, 0.5);
-
-      this.add
-        .text(frame.left + 18, y + 30, prize.accentLabel ?? prototypeState.t("prize.defaultAccent"), {
-          fontFamily: FONTS.body,
-          fontSize: "24px",
-          color: "#61819b",
-        })
-        .setOrigin(0, 0.5);
-
-      this.add
-        .text(820, y - 12, prize.prizeLabel, {
+        .text(textX, y - 20, prize.prizeLabel, {
           fontFamily: FONTS.display,
-          fontSize: "40px",
+          fontSize: "30px",
+          fontStyle: "700",
+          color: "#ffffff",
+          align: isRightAligned ? "right" : "left",
+        })
+        .setOrigin(origin, 0.5);
+
+      this.add
+        .text(textX, y + 22, prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"), {
+          fontFamily: FONTS.body,
+          fontSize: "18px",
           fontStyle: "700",
           color: "#0a2942",
+          align: isRightAligned ? "right" : "left",
+          wordWrap: { width: 260, useAdvancedWrap: true },
         })
-        .setOrigin(1, 0.5);
-
-      this.add
-        .text(820, y + 26, prize.prizeDescription, {
-          fontFamily: FONTS.body,
-          fontSize: "21px",
-          color: "#63839b",
-          align: "right",
-          wordWrap: { width: 360, useAdvancedWrap: true },
-        })
-        .setOrigin(1, 0.5);
+        .setOrigin(origin, 0.5);
     });
   }
 }

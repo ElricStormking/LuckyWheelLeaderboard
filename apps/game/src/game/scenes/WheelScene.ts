@@ -4,13 +4,13 @@ import {
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
-import { COLORS, FONTS, SCENE_KEYS } from "../constants";
+import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
 import { prototypeState } from "../state/prototype-state";
 
 const WHEEL_CENTER_X = 540;
 const WHEEL_CENTER_Y = 1160;
-const WHEEL_SCALE = 1.2;
+const WHEEL_SCALE = 1;
 
 export class WheelScene extends Phaser.Scene {
   private wheelRoot?: Phaser.GameObjects.Container;
@@ -35,26 +35,29 @@ export class WheelScene extends Phaser.Scene {
     this.wheelRoot.setScale(WHEEL_SCALE);
     this.drawWheel([]);
     this.button = this.createWheelCenterButton();
+    this.cameras.main.setScroll(0, Number(this.registry.get("mainScrollY") ?? 0));
 
-    this.testSpinButton = addTextButton(
-      this,
-      192,
-      786,
-      196,
-      64,
-      "Test_Spins",
-      () => {
-        this.runVisualTestSpin();
-      },
-      {
-        backgroundColor: 0xe9f7ff,
-        labelColor: "#0a2942",
-        radius: 28,
-      },
-    );
-    this.testSpinButton.label.setFontSize("22px");
-    this.testSpinButton.label.setWordWrapWidth(150, true);
-    this.testSpinButton.label.setAlign("center");
+    if (shouldShowDevEligibilitySwitch()) {
+      this.testSpinButton = addTextButton(
+        this,
+        192,
+        786,
+        196,
+        64,
+        "Test_Spins",
+        () => {
+          this.runVisualTestSpin();
+        },
+        {
+          backgroundColor: 0xe9f7ff,
+          labelColor: "#0a2942",
+          radius: 28,
+        },
+      );
+      this.testSpinButton.label.setFontSize("22px");
+      this.testSpinButton.label.setWordWrapWidth(150, true);
+      this.testSpinButton.label.setAlign("center");
+    }
 
     this.drawPointer();
     this.applyState();
@@ -74,6 +77,17 @@ export class WheelScene extends Phaser.Scene {
       ),
     );
 
+    const syncScroll = (
+      _parent: Phaser.Data.DataManager,
+      key: string,
+      value: number,
+    ) => {
+      if (key === "mainScrollY") {
+        this.cameras.main.setScroll(0, value);
+      }
+    };
+    this.registry.events.on("changedata", syncScroll);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.highlightTween?.stop();
       this.highlightGraphic?.destroy();
@@ -81,6 +95,7 @@ export class WheelScene extends Phaser.Scene {
       this.clearCelebrationBursts();
       this.cleanup.forEach((cleanup) => cleanup());
       this.cleanup = [];
+      this.registry.events.off("changedata", syncScroll);
     });
   }
 
@@ -152,7 +167,7 @@ export class WheelScene extends Phaser.Scene {
     });
   }
 
-  private runVisualTestSpin() {
+  public runVisualTestSpin() {
     const segments = prototypeState.getSnapshot().currentEvent?.wheelSegments ?? [];
     if (this.spinning || segments.length === 0) {
       return;
@@ -191,45 +206,21 @@ export class WheelScene extends Phaser.Scene {
     }
 
     this.wheelRoot.removeAll(true);
-
-    const wheelBackdrop = this.add.circle(0, 0, 310, 0xf0faff, 0.96);
-    wheelBackdrop.setStrokeStyle(18, 0x9ee0ff, 0.92);
+    const wheelBackdrop = this.add.image(0, 0, "Roulette");
+    wheelBackdrop.setScale(0.86);
     this.wheelRoot.add(wheelBackdrop);
 
     if (segments.length === 0) {
       return;
     }
 
-    const navySegmentColor = 0x179fe8;
-    const cyanSegmentColor = 0xaeefff;
-    const segmentColors = [
-      navySegmentColor,
-      cyanSegmentColor,
-      navySegmentColor,
-      cyanSegmentColor,
-      navySegmentColor,
-      cyanSegmentColor,
-    ];
-
     segments.forEach((segment, index) => {
-      const graphics = this.add.graphics();
-      const startAngle = Phaser.Math.DegToRad(-120 + index * 60);
-      const endAngle = Phaser.Math.DegToRad(-60 + index * 60);
       const isLightSegment = index % 2 === 1;
-      const fillColor =
-        this.currentEligibility === EligibilityStatus.EventEnded ? 0xbdd3df : segmentColors[index];
       const labelColor = isLightSegment ? "#0a2942" : "#ffffff";
       const metaColor = isLightSegment ? "#214d6b" : "#eafaff";
 
-      graphics.fillStyle(fillColor, 1);
-      graphics.slice(0, 0, 280, startAngle, endAngle, false);
-      graphics.fillPath();
-      graphics.lineStyle(4, 0xf0fbff, 1);
-      graphics.slice(0, 0, 280, startAngle, endAngle, false);
-      graphics.strokePath();
-
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
-      const labelRadius = 198;
+      const labelRadius = 244;
       const labelContainer = this.add.container(
         Math.cos(centerAngle) * labelRadius,
         Math.sin(centerAngle) * labelRadius,
@@ -238,7 +229,7 @@ export class WheelScene extends Phaser.Scene {
       const label = this.add
         .text(0, -20, segment.label, {
           fontFamily: FONTS.display,
-          fontSize: "54px",
+          fontSize: "58px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -247,7 +238,7 @@ export class WheelScene extends Phaser.Scene {
       const unit = this.add
         .text(0, 24, "points", {
           fontFamily: FONTS.body,
-          fontSize: "18px",
+          fontSize: "22px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -259,12 +250,12 @@ export class WheelScene extends Phaser.Scene {
 
       const meta = this.add
         .text(
-          Math.cos(centerAngle) * 110,
-          Math.sin(centerAngle) * 110,
+          Math.cos(centerAngle) * 156,
+          Math.sin(centerAngle) * 156,
           `${segment.weightPercent}%`,
           {
             fontFamily: FONTS.body,
-            fontSize: "22px",
+            fontSize: "24px",
             color: metaColor,
           },
         )
@@ -272,12 +263,8 @@ export class WheelScene extends Phaser.Scene {
         .setAlpha(isLightSegment ? 0.9 : 0.82)
         .setRotation(centerAngle + Math.PI / 2);
 
-      this.wheelRoot?.add([graphics, labelContainer, meta]);
+      this.wheelRoot?.add([labelContainer, meta]);
     });
-
-    const centerRing = this.add.circle(0, 0, 114, 0xf8fdff, 1);
-    centerRing.setStrokeStyle(12, 0xffffff, 0.6);
-    this.wheelRoot.add(centerRing);
 
     if (this.highlightedSegmentIndex !== undefined) {
       this.attachWinningSegmentPulse(this.highlightedSegmentIndex);
@@ -296,10 +283,10 @@ export class WheelScene extends Phaser.Scene {
     const endAngle = Phaser.Math.DegToRad(-60 + segmentIndex * 60);
     const highlight = this.add.graphics();
     highlight.fillStyle(0xffffff, 0.18);
-    highlight.slice(0, 0, 282, startAngle, endAngle, false);
+    highlight.slice(0, 0, 420, startAngle, endAngle, false);
     highlight.fillPath();
     highlight.lineStyle(8, 0xfff7c2, 0.95);
-    highlight.slice(0, 0, 286, startAngle, endAngle, false);
+    highlight.slice(0, 0, 425, startAngle, endAngle, false);
     highlight.strokePath();
     highlight.setBlendMode(Phaser.BlendModes.ADD);
 
@@ -534,68 +521,47 @@ export class WheelScene extends Phaser.Scene {
   }
 
   private drawPointer() {
-    const pointer = this.add.graphics();
-    pointer.fillStyle(COLORS.danger, 1);
-    pointer.fillTriangle(
-      WHEEL_CENTER_X,
-      WHEEL_CENTER_Y - 360,
-      WHEEL_CENTER_X - 32,
-      WHEEL_CENTER_Y - 430,
-      WHEEL_CENTER_X + 32,
-      WHEEL_CENTER_Y - 430,
-    );
-    pointer.lineStyle(4, COLORS.accentSoft, 0.95);
-    pointer.strokeTriangle(
-      WHEEL_CENTER_X,
-      WHEEL_CENTER_Y - 360,
-      WHEEL_CENTER_X - 32,
-      WHEEL_CENTER_Y - 430,
-      WHEEL_CENTER_X + 32,
-      WHEEL_CENTER_Y - 430,
-    );
+    this.add.image(WHEEL_CENTER_X, WHEEL_CENTER_Y - 316, "RouletteArrow").setScale(0.58);
   }
 
   private createWheelCenterButton() {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
-    const shadow = this.add.circle(6, 10, 124, 0x8f4b75, 0.24);
-    const ring = this.add.circle(0, 0, 126, 0xfdfdff, 0.98);
-    ring.setStrokeStyle(5, 0xffffff, 0.95);
-
-    const face = this.add.graphics();
-    const innerShine = this.add.ellipse(0, -34, 132, 48, 0xffffff, 0.16);
+    const shadow = this.add.circle(6, 10, 108, 0x8f4b75, 0.18);
+    const face = this.add.image(0, 0, "Spin_Red").setScale(0.69);
+    const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.72);
     const label = this.add
       .text(0, 10, "SPIN NOW", {
         fontFamily: FONTS.display,
-        fontSize: "40px",
+        fontSize: "36px",
         color: "#ffffff",
         fontStyle: "700",
         align: "center",
       })
       .setOrigin(0.5);
-    label.setWordWrapWidth(210, true);
+    label.setWordWrapWidth(170, true);
 
     const drawFace = (color: number) => {
-      const mainColor = color;
-      const lowerColor =
-        color === COLORS.accent ? 0xe3a335 : color === COLORS.disabled ? 0x97aebb : 0xd94b89;
+      face.clearTint();
+      spinArrows.clearTint();
 
-      face.clear();
-      face.fillStyle(mainColor, 1);
-      face.fillCircle(0, 0, 108);
-      face.fillStyle(lowerColor, 0.96);
-      face.fillCircle(0, 14, 94);
-      face.fillStyle(0xff93c5, color === COLORS.accent || color === COLORS.disabled ? 0.08 : 0.22);
-      face.fillEllipse(0, -18, 156, 72);
-      face.lineStyle(5, 0xffffff, 0.94);
-      face.strokeCircle(0, 0, 86);
+      if (color === COLORS.accent) {
+        face.setTint(0xffd15a);
+        spinArrows.setTint(0xffffff);
+        return;
+      }
+
+      if (color === COLORS.disabled) {
+        face.setTint(0xb4bdc9);
+        spinArrows.setTint(0xf3f6fa);
+      }
     };
 
     drawFace(COLORS.primary);
 
-    container.add([shadow, ring, face, innerShine, label]);
-    container.setSize(312, 312);
-    container.setInteractive(new Phaser.Geom.Circle(0, 0, 126), Phaser.Geom.Circle.Contains);
-    container.on("pointerup", () => {
+    container.add([shadow, face, spinArrows, label]);
+    container.setSize(240, 240);
+    face.setInteractive({ useHandCursor: true });
+    face.on("pointerup", () => {
       const snapshot = prototypeState.getSnapshot();
       const eligibility = snapshot.eligibility?.eligibilityStatus;
 
@@ -614,10 +580,10 @@ export class WheelScene extends Phaser.Scene {
 
       void prototypeState.spin();
     });
-    container.on("pointerover", () => {
+    face.on("pointerover", () => {
       container.setScale(1.02);
     });
-    container.on("pointerout", () => {
+    face.on("pointerout", () => {
       container.setScale(1);
     });
 
@@ -631,9 +597,9 @@ export class WheelScene extends Phaser.Scene {
         drawFace(color === COLORS.primary ? 0xe15693 : color);
       },
       setEnabled(enabled: boolean) {
-        container.disableInteractive();
+        face.disableInteractive();
         if (enabled) {
-          container.setInteractive(new Phaser.Geom.Circle(0, 0, 126), Phaser.Geom.Circle.Contains);
+          face.setInteractive({ useHandCursor: true });
         }
 
         container.setAlpha(enabled ? 1 : 0.78);

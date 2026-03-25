@@ -1,0 +1,329 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/UI/Arrow_Page_Left.png.png",
+                "type": "image",
+                "key": "Arrow_Page_Left.png"
+            },
+            {
+                "url": "assets/UI/Arrow_Page_Right.png",
+                "type": "image",
+                "key": "Arrow_Page_Right"
+            },
+            {
+                "url": "assets/UI/Button_iBET.png",
+                "type": "image",
+                "key": "Button_iBET"
+            },
+            {
+                "url": "assets/UI/Button_Language.png",
+                "type": "image",
+                "key": "Button_Language"
+            },
+            {
+                "url": "assets/UI/Ranking/Button_Page_01.png",
+                "type": "image",
+                "key": "Button_Page"
+            },
+            {
+                "url": "assets/UI/Ranking/Button_Page_02.png",
+                "type": "image",
+                "key": "Button_Page_1"
+            },
+            {
+                "url": "assets/UI/Ranking/Button_Page_03.png",
+                "type": "image",
+                "key": "Button_Page_2"
+            },
+            {
+                "url": "assets/UI/Ranking/Button_Page_04.png",
+                "type": "image",
+                "key": "Button_Page_3"
+            },
+            {
+                "url": "assets/UI/Button_Support.png",
+                "type": "image",
+                "key": "Button_Support"
+            },
+            {
+                "url": "assets/dino.png",
+                "key": "dino",
+                "type": "image"
+            },
+            {
+                "url": "assets/UI/dino.png",
+                "type": "image",
+                "key": "dino_1"
+            },
+            {
+                "url": "assets/UI/Ranking/Divider.png",
+                "type": "image",
+                "key": "Divider"
+            },
+            {
+                "url": "assets/UI/Frame_MyTotalPoint.png",
+                "type": "image",
+                "key": "Frame_MyTotalPoint"
+            },
+            {
+                "url": "assets/UI/Frame_time_01.png",
+                "type": "image",
+                "key": "Frame_time_01"
+            },
+            {
+                "url": "assets/UI/GameTutorial.png",
+                "type": "image",
+                "key": "GameTutorial"
+            },
+            {
+                "url": "assets/UI/guapen.png",
+                "type": "image",
+                "key": "guapen"
+            },
+            {
+                "url": "assets/UI/iBET_375_Wheel.png",
+                "type": "image",
+                "key": "iBET_375_Wheel"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_Ranking_01.png",
+                "type": "image",
+                "key": "Prize_Ranking_01"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_Ranking_02.png",
+                "type": "image",
+                "key": "Prize_Ranking_02"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_Ranking_03.png",
+                "type": "image",
+                "key": "Prize_Ranking_03"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_Ranking_04.png",
+                "type": "image",
+                "key": "Prize_Ranking_04"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_Ranking_05.png",
+                "type": "image",
+                "key": "Prize_Ranking_05"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Prize_RewardZone.png",
+                "type": "image",
+                "key": "Prize_RewardZone"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingArrow.png",
+                "type": "image",
+                "key": "RankingArrow"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_01.png",
+                "type": "image",
+                "key": "RankingPlate_01"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_02.png",
+                "type": "image",
+                "key": "RankingPlate_02"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_03.png",
+                "type": "image",
+                "key": "RankingPlate_03"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_04.png",
+                "type": "image",
+                "key": "RankingPlate_04"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_05.png",
+                "type": "image",
+                "key": "RankingPlate_05"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_06.png",
+                "type": "image",
+                "key": "RankingPlate_06"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_07.png",
+                "type": "image",
+                "key": "RankingPlate_07"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_08.png",
+                "type": "image",
+                "key": "RankingPlate_08"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_09.png",
+                "type": "image",
+                "key": "RankingPlate_09"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_10.png",
+                "type": "image",
+                "key": "RankingPlate_10"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_11.png",
+                "type": "image",
+                "key": "RankingPlate_11"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_12.png",
+                "type": "image",
+                "key": "RankingPlate_12"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_13.png",
+                "type": "image",
+                "key": "RankingPlate_13"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_14.png",
+                "type": "image",
+                "key": "RankingPlate_14"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_15.png",
+                "type": "image",
+                "key": "RankingPlate_15"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_16.png",
+                "type": "image",
+                "key": "RankingPlate_16"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_17.png",
+                "type": "image",
+                "key": "RankingPlate_17"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_18.png",
+                "type": "image",
+                "key": "RankingPlate_18"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_19.png",
+                "type": "image",
+                "key": "RankingPlate_19"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_20.png",
+                "type": "image",
+                "key": "RankingPlate_20"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_21.png",
+                "type": "image",
+                "key": "RankingPlate_21"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_22.png",
+                "type": "image",
+                "key": "RankingPlate_22"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_23.png",
+                "type": "image",
+                "key": "RankingPlate_23"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_24.png",
+                "type": "image",
+                "key": "RankingPlate_24"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_25.png",
+                "type": "image",
+                "key": "RankingPlate_25"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_26.png",
+                "type": "image",
+                "key": "RankingPlate_26"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_27.png",
+                "type": "image",
+                "key": "RankingPlate_27"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_28.png",
+                "type": "image",
+                "key": "RankingPlate_28"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_29.png",
+                "type": "image",
+                "key": "RankingPlate_29"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_30.png",
+                "type": "image",
+                "key": "RankingPlate_30"
+            },
+            {
+                "url": "assets/UI/Ranking/RankingPlate_Notl.png",
+                "type": "image",
+                "key": "RankingPlate_Notl"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Reminder.png",
+                "type": "image",
+                "key": "Reminder"
+            },
+            {
+                "url": "assets/UI/Roulette.png",
+                "type": "image",
+                "key": "Roulette"
+            },
+            {
+                "url": "assets/UI/RouletteArrow.png",
+                "type": "image",
+                "key": "RouletteArrow"
+            },
+            {
+                "url": "assets/UI/Spin_Red.png",
+                "type": "image",
+                "key": "Spin_Red"
+            },
+            {
+                "url": "assets/UI/SpinArrow.png",
+                "type": "image",
+                "key": "SpinArrow"
+            },
+            {
+                "url": "assets/UI/Title_01.png",
+                "type": "image",
+                "key": "Title_01"
+            },
+            {
+                "url": "assets/UI/PrizeArea/Title_PrizeArea.png",
+                "type": "image",
+                "key": "Title_PrizeArea"
+            },
+            {
+                "url": "assets/UI/Title_Ranking.png",
+                "type": "image",
+                "key": "Title_Ranking"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}
