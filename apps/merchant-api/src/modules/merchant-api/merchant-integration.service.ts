@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import {
   MerchantIntegrationLaunchRequestDto,
@@ -8,9 +8,8 @@ import { LuckyWheelPlatformClientService } from "./lucky-wheel-platform.client";
 import { MerchantRegistryRecord, MerchantRegistryService } from "./merchant-registry.service";
 
 const SUCCESS_CODE = 0;
-const INVALID_SIGNATURE_CODE = 1001;
+const INVALID_INTEGRATION_GUID_CODE = 1001;
 const TIMESTAMP_EXPIRED_CODE = 1002;
-const MERCHANT_NOT_FOUND_CODE = 1003;
 const MERCHANT_INACTIVE_CODE = 1004;
 const IP_NOT_ALLOWED_CODE = 1005;
 const INVALID_REQUEST_CODE = 4000;
@@ -30,11 +29,18 @@ export class MerchantIntegrationService {
 
   async launchGame(
     request: MerchantIntegrationLaunchRequestDto,
+    integrationGuid: string | undefined,
     clientIp?: string,
   ): Promise<MerchantIntegrationLaunchResponseDto> {
-    const merchant = this.merchantRegistryService.getMerchant(request.merchantId);
+    const merchant = this.merchantRegistryService.getConfiguredMerchant();
     if (!merchant) {
-      return this.buildError(MERCHANT_NOT_FOUND_CODE, "Merchant ID not found.");
+      this.logger.error(
+        "Merchant API launch is misconfigured: MERCHANT_INTEGRATION_ID is missing or invalid.",
+      );
+      return this.buildError(
+        PLATFORM_LAUNCH_FAILED_CODE,
+        "Lucky Wheel launch failed.",
+      );
     }
 
     if (!merchant.active) {
@@ -45,7 +51,11 @@ export class MerchantIntegrationService {
       return this.buildError(IP_NOT_ALLOWED_CODE, "Client IP is not allowed.");
     }
 
-    const validationError = this.validateLaunchRequest(request, merchant);
+    const validationError = this.validateLaunchRequest(
+      request,
+      merchant,
+      integrationGuid,
+    );
     if (validationError) {
       return validationError;
     }
@@ -80,17 +90,16 @@ export class MerchantIntegrationService {
   private validateLaunchRequest(
     request: MerchantIntegrationLaunchRequestDto,
     merchant: MerchantRegistryRecord,
+    integrationGuid?: string,
   ) {
     if (
-      !request.merchantId?.trim() ||
       !request.playerId?.trim() ||
       !request.initialEligibility ||
-      typeof request.initialEligibility.depositQualified !== "boolean" ||
-      !request.hash?.trim()
+      typeof request.initialEligibility.depositQualified !== "boolean"
     ) {
       return this.buildError(
         INVALID_REQUEST_CODE,
-        "merchantId, playerId, initialEligibility, and hash are required.",
+        "playerId and initialEligibility are required.",
       );
     }
 
@@ -107,31 +116,23 @@ export class MerchantIntegrationService {
       );
     }
 
-    const expectedHash = this.generateLaunchHash(request, merchant.hashKey);
-    if (!this.hashEquals(expectedHash, request.hash)) {
-      return this.buildError(INVALID_SIGNATURE_CODE, "Signature verification failed.");
+    if (!this.guidEquals(merchant.integrationGuid, integrationGuid)) {
+      return this.buildError(
+        INVALID_INTEGRATION_GUID_CODE,
+        "Integration GUID is missing or invalid.",
+      );
     }
 
     return undefined;
   }
 
-  private generateLaunchHash(
-    request: MerchantIntegrationLaunchRequestDto,
-    hashKey: string,
-  ) {
-    const payload = [
-      request.merchantId.trim(),
-      request.playerId.trim(),
-      request.timestamp.toString(),
-      hashKey,
-    ].join("&");
+  private guidEquals(expectedGuid: string, actualGuid?: string) {
+    if (!actualGuid?.trim()) {
+      return false;
+    }
 
-    return createHash("sha256").update(payload).digest("hex");
-  }
-
-  private hashEquals(expectedHash: string, actualHash: string) {
-    const left = Buffer.from(expectedHash.toLowerCase(), "utf8");
-    const right = Buffer.from(actualHash.trim().toLowerCase(), "utf8");
+    const left = Buffer.from(expectedGuid.trim().toLowerCase(), "utf8");
+    const right = Buffer.from(actualGuid.trim().toLowerCase(), "utf8");
 
     if (left.length !== right.length) {
       return false;
@@ -154,6 +155,6 @@ export class MerchantIntegrationService {
 
   private parseTolerance(value?: string) {
     const parsed = Number(value);
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : 10;
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 300;
   }
 }

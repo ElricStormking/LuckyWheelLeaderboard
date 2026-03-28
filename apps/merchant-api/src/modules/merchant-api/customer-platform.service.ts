@@ -25,7 +25,6 @@ export class CustomerPlatformService {
       depositUrl: depositQualified
         ? undefined
         : `${this.depositUrl}?playerId=${encodeURIComponent(playerId)}&eventId=${encodeURIComponent(eventId)}`,
-      reasonCode: depositQualified ? "DEPOSIT_RULE_PASSED" : "DEPOSIT_REQUIRED",
       decisionId: `cp_decision_${playerId}_${eventId}`,
       evaluatedAt: evaluatedAt.toISOString(),
       expiresAt: expiresAt.toISOString(),

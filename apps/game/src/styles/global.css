@@ -1,6 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Rajdhani:wght@600;700&display=swap");
+
 :root {
   color-scheme: light;
-  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  font-family: "Rajdhani", "Oxanium", "Segoe UI", sans-serif;
   --safe-top: max(12px, env(safe-area-inset-top, 0px));
   --safe-right: max(12px, env(safe-area-inset-right, 0px));
   --safe-bottom: max(12px, env(safe-area-inset-bottom, 0px));

@@ -16,6 +16,7 @@ export class LocaleOverlayScene extends BaseOverlayScene {
       prototypeState.t("locale.subtitle"),
       980,
     );
+    let isChangingLocale = false;
 
     snapshot.supportedLocales.forEach((option, index) => {
       const y = frame.top + 110 + index * 190;
@@ -24,14 +25,49 @@ export class LocaleOverlayScene extends BaseOverlayScene {
         fillColor: isCurrent ? 0xe7f8ff : COLORS.white,
         radius: 34,
       });
-
-      card.setSize(860, 146);
-      card.setInteractive(
-        new Phaser.Geom.Rectangle(-430, -73, 860, 146),
+      const hitZone = this.add.zone(540, y, 908, 176);
+      hitZone.setInteractive(
+        new Phaser.Geom.Rectangle(-454, -88, 908, 176),
         Phaser.Geom.Rectangle.Contains,
       );
-      card.on("pointerup", () => {
-        void prototypeState.setLocale(option.code).then(() => this.closeOverlay());
+      hitZone.on("pointerdown", (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+      });
+      hitZone.on("pointerup", (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+
+        if (isChangingLocale) {
+          return;
+        }
+
+        isChangingLocale = true;
+        hitZone.disableInteractive();
+
+        void prototypeState.setLocale(option.code)
+          .then(() => this.closeOverlay())
+          .catch(() => {
+            isChangingLocale = false;
+            hitZone.setInteractive(
+              new Phaser.Geom.Rectangle(-454, -88, 908, 176),
+              Phaser.Geom.Rectangle.Contains,
+            );
+          });
+      });
+      hitZone.on("pointerover", () => {
+        card.setScale(1.01);
+      });
+      hitZone.on("pointerout", () => {
+        card.setScale(1);
       });
 
       this.add

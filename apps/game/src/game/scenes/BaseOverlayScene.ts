@@ -17,10 +17,27 @@ export class BaseOverlayScene extends Phaser.Scene {
 
     backdrop.on("pointerup", () => this.closeOverlay());
 
-    addRoundedPanel(this, STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 30, 970, height, {
+    const panel = addRoundedPanel(this, STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 30, 970, height, {
       fillColor: COLORS.panel,
       radius: 46,
     });
+    panel.setSize(970, height);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(-485, -height / 2, 970, height),
+      Phaser.Geom.Rectangle.Contains,
+    );
+
+    const swallowPanelTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    panel.on("pointerdown", swallowPanelTap);
+    panel.on("pointerup", swallowPanelTap);
 
     this.add
       .text(STAGE_WIDTH / 2, STAGE_HEIGHT / 2 - height / 2 + 90, title, {

@@ -4,19 +4,15 @@ export const DAILY_SPIN_LIMIT = 1;
 
 export type NormalizedDailySpinAllowance = SpinAllowanceDto & {
   canSpinToday: boolean;
-  reasonCode?: string;
 };
 
-export function createArchivedDailySpinAllowance(
-  reasonCode = "ARCHIVE_SNAPSHOT",
-): NormalizedDailySpinAllowance {
+export function createArchivedDailySpinAllowance(): NormalizedDailySpinAllowance {
   return {
     grantedSpinCount: 0,
     usedSpinCount: 0,
     remainingSpinCount: 0,
     spinAllowanceSource: "archive_snapshot",
     canSpinToday: false,
-    reasonCode,
   };
 }
 
@@ -42,7 +38,6 @@ export function createServerDailySpinAllowance(
     remainingSpinCount,
     spinAllowanceSource: "lucky_wheel_server",
     canSpinToday,
-    reasonCode: canSpinToday ? "DAILY_SPIN_GRANTED" : "DAILY_SPIN_ALREADY_USED",
   };
 }
 

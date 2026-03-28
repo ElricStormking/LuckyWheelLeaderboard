@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { COLORS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
+import { COLORS, FONTS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
 import { preloadEditorUiAssets } from "../editorUiAssets";
 
 export class PreloadScene extends Phaser.Scene {
@@ -11,21 +11,24 @@ export class PreloadScene extends Phaser.Scene {
     preloadEditorUiAssets(this);
   }
 
-  create() {
+  async create() {
+    await this.ensureFontsLoaded();
+
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.add
       .text(STAGE_WIDTH / 2, STAGE_HEIGHT / 2 - 60, "Lucky Wheel", {
-        fontFamily: "Trebuchet MS",
+        fontFamily: FONTS.display,
         fontSize: "72px",
-        fontStyle: "700",
+        fontStyle: "800",
         color: "#18acef",
       })
       .setOrigin(0.5);
 
     this.add
       .text(STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 24, "Loading game UI", {
-        fontFamily: "Segoe UI",
+        fontFamily: FONTS.body,
         fontSize: "28px",
+        fontStyle: "700",
         color: "#5b88a0",
       })
       .setOrigin(0.5);
@@ -55,9 +58,9 @@ export class PreloadScene extends Phaser.Scene {
 
     const label = this.add
       .text(-1000, -1000, glyph, {
-        fontFamily: "Trebuchet MS",
+        fontFamily: FONTS.display,
         fontSize: "34px",
-        fontStyle: "700",
+        fontStyle: "800",
         color: "#ffffff",
       })
       .setOrigin(0.5);
@@ -114,9 +117,9 @@ export class PreloadScene extends Phaser.Scene {
 
     const label = this.add
       .text(-1000, -1000, "SPIN", {
-        fontFamily: "Trebuchet MS",
-        fontSize: "28px",
-        fontStyle: "700",
+        fontFamily: FONTS.display,
+        fontSize: "30px",
+        fontStyle: "800",
         color: "#ffffff",
       })
       .setOrigin(0.5)
@@ -189,5 +192,16 @@ export class PreloadScene extends Phaser.Scene {
     graphics.fillCircle(36, 60, 3.5);
     graphics.generateTexture(key, 80, 80);
     graphics.destroy();
+  }
+
+  private async ensureFontsLoaded() {
+    if (typeof document === "undefined" || !("fonts" in document)) {
+      return;
+    }
+
+    await Promise.allSettled([
+      document.fonts.load(`800 72px "${FONTS.displayName}"`),
+      document.fonts.load(`700 32px "${FONTS.bodyName}"`),
+    ]);
   }
 }

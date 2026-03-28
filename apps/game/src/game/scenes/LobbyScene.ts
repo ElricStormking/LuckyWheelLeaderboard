@@ -98,6 +98,38 @@ const LEADERBOARD_PLATE_VISUAL_CENTER_OFFSETS: Partial<Record<number, number>> =
   29: 24,
   30: 24,
 };
+const LEADERBOARD_PLATE_VISUAL_CENTER_Y_OFFSETS: Partial<Record<number, number>> = {
+  1: -1.5,
+  2: -1,
+  3: -1,
+  4: 1.5,
+  5: 3.5,
+  6: 4.5,
+  7: 13.5,
+  8: 9,
+  9: 9.5,
+  10: -1.5,
+  11: 28.5,
+  12: 2.5,
+  13: -1,
+  14: 15,
+  15: 6.5,
+  16: -33.5,
+  17: 2,
+  18: 9.5,
+  19: 1.5,
+  20: 50.5,
+  21: 47.5,
+  22: 50.5,
+  23: 50.5,
+  24: 49,
+  25: 47,
+  26: 46.5,
+  27: 48,
+  28: 48,
+  29: 48,
+  30: 48,
+};
 const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_01",
   "Prize_Ranking_02",
@@ -252,9 +284,11 @@ export class LobbyScene extends Phaser.Scene {
       rankCopy: prototypeState.t("lobby.stepRankCopy"),
     };
 
+    const stepSectionOffsetY = 20;
     this.add.image(540, 286, "Title_01").setScale(0.86);
-    this.add.image(540, 454, "GameTutorial").setScale(0.86);
+    this.add.image(540, 454 + stepSectionOffsetY, "GameTutorial").setScale(0.86);
 
+    const stepTextY = 502 + stepSectionOffsetY;
     const textPositions = [this.fromEditorX(160), this.fromEditorX(375), this.fromEditorX(590)];
     const steps = [
       `${copy.depositTitle}\n${copy.depositCopy}`,
@@ -264,7 +298,7 @@ export class LobbyScene extends Phaser.Scene {
 
     textPositions.forEach((x, index) => {
       this.add
-        .text(x, 484, steps[index], {
+        .text(x, stepTextY, steps[index], {
           fontFamily: FONTS.body,
           fontSize: "24px",
           fontStyle: "700",
@@ -277,7 +311,7 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     this.eligibilityText = this.add
-      .text(540, 612, prototypeState.t("lobby.checkingEligibility"), {
+      .text(540, 612 + stepSectionOffsetY, prototypeState.t("lobby.checkingEligibility"), {
         fontFamily: FONTS.body,
         fontSize: "26px",
         color: "#9a9fa6",
@@ -405,7 +439,7 @@ export class LobbyScene extends Phaser.Scene {
       const prizeText = this.add
         .text(this.fromEditorX(112), this.getLeaderboardPrizeTextY(y, index + 1), "", {
           fontFamily: FONTS.body,
-          fontSize: "18px",
+          fontSize: "22px",
           fontStyle: "700",
           color: "#5d7d97",
         })
@@ -739,11 +773,16 @@ export class LobbyScene extends Phaser.Scene {
         return;
       }
 
+      const rowY = this.getLeaderboardRowY(LEADERBOARD_ROW_YS[index], entry.rank);
       const plateScaleX = entry.isSelf ? 0.39 : 0.36;
+      row.highlightArrow.setY(rowY - LEADERBOARD_ROW_YS[index]);
       row.plate.setTexture(this.getLeaderboardPlateKey(entry.rank));
+      row.plate.setY(rowY);
       row.plate.setScale(plateScaleX, 0.36);
       row.plate.setX(this.getLeaderboardPlateX(entry.rank, plateScaleX));
-      row.prizeText.setY(this.getLeaderboardPrizeTextY(LEADERBOARD_ROW_YS[index], entry.rank));
+      row.playerText.setY(rowY - 4);
+      row.scoreText.setY(rowY - 4);
+      row.prizeText.setY(this.getLeaderboardPrizeTextY(rowY, entry.rank));
       row.playerText.setText(entry.playerName);
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
       row.prizeText.setText(entry.prizeName ?? `Rank #${entry.rank}`);
@@ -908,16 +947,27 @@ export class LobbyScene extends Phaser.Scene {
     return baseX + (baselineVisualCenterOffset - visualCenterOffset) * scaleX;
   }
 
+  private getLeaderboardRowY(baseRowY: number, rank: number) {
+    const slotRank = ((rank - 1) % LEADERBOARD_PAGE_SIZE) + 1;
+    const targetVisualCenterOffset = LEADERBOARD_PLATE_VISUAL_CENTER_Y_OFFSETS[slotRank] ?? 0;
+    const visualCenterOffset =
+      LEADERBOARD_PLATE_VISUAL_CENTER_Y_OFFSETS[rank] ?? targetVisualCenterOffset;
+
+    // Normalize rank-plate PNGs with inconsistent transparent top/bottom padding
+    // so pages 2 and 3 align to the same row grid as page 1.
+    return baseRowY + (targetVisualCenterOffset - visualCenterOffset) * 0.36;
+  }
+
   private getLeaderboardPrizeTextY(rowY: number, rank: number) {
     if (rank >= 21) {
-      return rowY + 42;
+      return rowY + 48;
     }
 
     if (rank >= 11) {
-      return rowY + 36;
+      return rowY + 42;
     }
 
-    return rowY + 24;
+    return rowY + 30;
   }
 
   private createActionButton(

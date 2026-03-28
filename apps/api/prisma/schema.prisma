@@ -45,6 +45,8 @@ model EventCampaign {
   spinRequestRecords   SpinRequestRecord[]
   eventSummaries       PlayerEventSummary[]
   auditLogs            AdminAuditLog[]
+
+  @@index([status, startAt, endAt])
 }
 
 model WheelSegment {
@@ -146,6 +148,7 @@ model PlayerEventScore {
   updatedAt       DateTime      @updatedAt
 
   @@unique([eventCampaignId, playerId])
+  @@index([eventCampaignId, totalScore, updatedAt, playerId])
 }
 
 model SpinTransaction {
@@ -161,6 +164,8 @@ model SpinTransaction {
   rewardType        String
   rewardValue       String?
   createdAt         DateTime      @default(now())
+
+  @@index([eventCampaignId, playerId, createdAt])
 }
 
 model SpinRequestRecord {
@@ -196,6 +201,7 @@ model PlayerEventSummary {
   player          Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@unique([eventCampaignId, playerId])
+  @@index([playerId, endedAt])
 }
 
 model AdminAuditLog {

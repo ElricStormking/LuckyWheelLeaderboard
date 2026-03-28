@@ -573,7 +573,6 @@ export class AdminService {
           usedSpinCount: snapshot.usedSpinCount,
           remainingSpinCount: snapshot.remainingSpinCount,
           spinAllowanceSource: snapshot.spinAllowanceSource,
-          reasonCode: snapshot.reasonCode,
           updatedAt: entry.updatedAt.toISOString(),
         };
       }),
@@ -1108,7 +1107,6 @@ export class AdminService {
         usedSpinCount: archivedAllowance.usedSpinCount,
         remainingSpinCount: archivedAllowance.remainingSpinCount,
         spinAllowanceSource: archivedAllowance.spinAllowanceSource,
-        reasonCode: archivedAllowance.reasonCode,
       };
     }
 
@@ -1131,9 +1129,6 @@ export class AdminService {
         usedSpinCount: allowance.usedSpinCount,
         remainingSpinCount: allowance.remainingSpinCount,
         spinAllowanceSource: allowance.spinAllowanceSource,
-        reasonCode: merchantEligibility.depositQualified
-          ? allowance.reasonCode
-          : merchantEligibility.reasonCode ?? "DEPOSIT_REQUIRED",
       };
     } catch (error) {
       return {
@@ -1142,10 +1137,6 @@ export class AdminService {
         usedSpinCount: Math.max(0, usedSpinCount),
         remainingSpinCount: 0,
         spinAllowanceSource: "archive_snapshot" as const,
-        reasonCode:
-          error instanceof Error
-            ? `ELIGIBILITY_RESOLUTION_FAILED: ${error.message}`
-            : "ELIGIBILITY_RESOLUTION_FAILED",
       };
     }
   }

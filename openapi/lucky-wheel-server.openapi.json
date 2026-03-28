@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Lucky Wheel Server API",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "description": "Production integration contract for Lucky Wheel session launch, player APIs, spin execution, and realtime updates."
   },
   "servers": [
@@ -1367,11 +1367,10 @@
           "eligibilityStatus",
           "grantedSpinCount",
           "usedSpinCount",
-          "remainingSpinCount",
-          "spinAllowanceSource",
-          "messageKey",
-          "reasonCode"
-        ],
+            "remainingSpinCount",
+            "spinAllowanceSource",
+            "messageKey",
+          ],
         "properties": {
           "eventId": {
             "type": "string"
@@ -1410,15 +1409,12 @@
             "type": "string",
             "format": "uri",
             "nullable": true
-          },
-          "messageKey": {
-            "type": "string"
-          },
-          "reasonCode": {
-            "type": "string"
+            },
+            "messageKey": {
+              "type": "string"
+            }
           }
-        }
-      },
+        },
       "SpinRequest": {
         "type": "object",
         "required": [

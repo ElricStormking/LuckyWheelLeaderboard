@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Lucky Wheel Public Integration API",
-    "version": "1.1.0",
+    "version": "1.3.0",
     "description": "Customer-platform-facing Lucky Wheel launch API."
   },
   "servers": [
@@ -27,7 +27,12 @@
           "Public Integration"
         ],
         "summary": "Launch Lucky Wheel",
-        "description": "Creates a Lucky Wheel launch session for a customer-platform player and returns a game URL. Customer Platform also sends initialEligibility bootstrap data on launch, but Lucky Wheel still reloads authoritative eligibility after launch. Player locale is resolved in the Lucky Wheel client from browser or device settings. Lucky Wheel resolves the current live event from its own admin-managed event schedule, then reloads deposit eligibility through Merchant API and Customer Platform after launch.",
+        "description": "Creates a Lucky Wheel launch session for a customer-platform player and returns a game URL. The request uses a shared X-Integration-Guid header plus timestamp freshness validation. Merchant API resolves the single configured merchant from server config. Customer Platform also sends initialEligibility bootstrap data on launch, and Lucky Wheel reloads authoritative eligibility after launch.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XIntegrationGuid"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -54,20 +59,27 @@
     }
   },
   "components": {
+    "parameters": {
+      "XIntegrationGuid": {
+        "name": "X-Integration-Guid",
+        "in": "header",
+        "required": true,
+        "description": "Shared integration GUID assigned during onboarding for launch authentication.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
     "schemas": {
       "LaunchRequest": {
         "type": "object",
         "required": [
-          "merchantId",
           "playerId",
           "initialEligibility",
-          "timestamp",
-          "hash"
+          "timestamp"
         ],
         "properties": {
-          "merchantId": {
-            "type": "string"
-          },
           "playerId": {
             "type": "string"
           },
@@ -75,10 +87,8 @@
             "$ref": "#/components/schemas/InitialEligibilityBootstrap"
           },
           "timestamp": {
-            "type": "integer"
-          },
-          "hash": {
-            "type": "string"
+            "type": "integer",
+            "description": "Unix timestamp in seconds used for freshness validation."
           }
         }
       },
@@ -90,27 +100,9 @@
         "properties": {
           "depositQualified": {
             "type": "boolean"
-          },
-          "depositUrl": {
-            "type": "string",
-            "format": "uri",
-            "nullable": true
-          },
-          "reasonCode": {
-            "type": "string"
-          },
-          "decisionId": {
-            "type": "string"
-          },
-          "evaluatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
           }
         },
+        "additionalProperties": false,
         "description": "Customer-platform bootstrap eligibility data sent on launch. This object is not authoritative for Lucky Wheel gameplay."
       },
       "LaunchData": {

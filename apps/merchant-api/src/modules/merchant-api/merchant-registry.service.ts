@@ -3,7 +3,7 @@ import { AppLocale } from "@lucky-wheel/contracts";
 
 export interface MerchantRegistryRecord {
   merchantId: string;
-  hashKey: string;
+  integrationGuid: string;
   platformSecret: string;
   active: boolean;
   allowedIps: string[];
@@ -12,10 +12,10 @@ export interface MerchantRegistryRecord {
 @Injectable()
 export class MerchantRegistryService {
   private readonly merchant: MerchantRegistryRecord = {
-    merchantId: process.env.MERCHANT_INTEGRATION_ID ?? "MERCHANT001",
-    hashKey:
-      process.env.MERCHANT_INTEGRATION_HASH_KEY ??
-      "merchant-hash-key-dev-1234567890abcdef",
+    merchantId: process.env.MERCHANT_INTEGRATION_ID?.trim() ?? "",
+    integrationGuid:
+      process.env.MERCHANT_INTEGRATION_GUID ??
+      "11111111-1111-1111-1111-111111111111",
     platformSecret:
       process.env.LUCKY_WHEEL_PLATFORM_MERCHANT_SECRET ??
       "lucky-wheel-platform-secret-dev",
@@ -25,8 +25,8 @@ export class MerchantRegistryService {
     ),
   };
 
-  getMerchant(merchantId: string) {
-    return this.merchant.merchantId === merchantId ? this.merchant : undefined;
+  getConfiguredMerchant() {
+    return this.merchant.merchantId ? this.merchant : undefined;
   }
 
   resolveLocale(locale?: string): AppLocale {

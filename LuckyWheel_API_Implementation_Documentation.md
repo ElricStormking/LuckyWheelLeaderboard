@@ -1,12 +1,15 @@
 # Lucky Wheel Production Integration API Documentation
 
-**Version:** 2.2  
-**Last Updated:** March 23, 2026
+**Version:** 2.6  
+**Last Updated:** March 27, 2026
 
 **Change Highlights**
 - Upgrades the Lucky Wheel integration document from prototype guidance to a production target contract.
 - Adds production bearer authentication for player and admin endpoints.
 - Adds merchant HMAC signature authentication for merchant-to-Lucky-Wheel session launch requests.
+- Replaces public launch hash authentication with shared GUID header authentication plus timestamp freshness validation.
+- Removes `merchantId` from the public launch request and resolves the single merchant from `MERCHANT_INTEGRATION_ID`.
+- Simplifies public launch bootstrap eligibility to `initialEligibility.depositQualified`.
 - Defines a formal external response envelope and error-code contract.
 - Publishes OpenAPI artifacts for Lucky Wheel Server and Merchant API.
 - Adds observability, request tracing, auditability, and rate-limit requirements.
@@ -21,7 +24,7 @@
 3. Runtime Architecture
 4. Environments and Base URLs
 5. Security Model
-6. Merchant Signature Generation
+6. Merchant-to-Lucky-Wheel Signature Generation
 7. Common Request and Response Contract
 8. External Error Codes
 9. Lucky Wheel Server API
@@ -38,7 +41,7 @@
 
 ### Information Required from Merchant Before Production Activation
 
-- `merchantId`
+- internal merchant identifier used to configure `MERCHANT_INTEGRATION_ID`
 - merchant display name and operating brand
 - merchant callback contact and operational escalation contact
 - merchant public egress IP ranges for allow-listing
@@ -54,7 +57,8 @@
 ### Information Returned by Lucky Wheel Platform After Activation
 
 - production and sandbox base URLs
-- Merchant API launch integration path and signing rules
+- Merchant API launch integration path, required `X-Integration-Guid` header, timestamp tolerance, and public launch request shape
+- confirmation that public launch merchant resolution is server-configured from `MERCHANT_INTEGRATION_ID`
 - request-signing verification rules and timestamp tolerance
 - trace header and log-field conventions
 - OpenAPI publication locations
@@ -207,27 +211,30 @@ Lucky Wheel Server must call Merchant API using:
 
 ### 5.5 Customer Platform -> Merchant API Public Launch Authentication
 
-Customer Platform must call Merchant API public launch using the sample-style body signature model:
+Customer Platform must call Merchant API public launch using a shared integration GUID header plus request timestamp freshness validation.
 
-- request fields: `merchantId`, `playerId`, `timestamp`, `hash`
-- signature payload: `merchantId, playerId, timestamp`
+- required header: `X-Integration-Guid`
+- required body fields: `playerId`, `initialEligibility.depositQualified`, `timestamp`
+- `timestamp` uses Unix time in seconds
 - timestamp tolerance: `300` seconds maximum drift
-- hash verification failure returns `401`
+- future timestamps are rejected
+- missing `playerId` or invalid `initialEligibility.depositQualified` returns public launch error code `4000`
+- missing or invalid integration GUID returns public launch error code `1001`
+- missing, non-integer, or expired timestamp returns public launch error code `1002`
+- Merchant API resolves merchant identity from `MERCHANT_INTEGRATION_ID` server config; `merchantId` is not part of the public request contract
+- inactive configured merchant returns public launch error code `1004`
+- caller IP outside `MERCHANT_INTEGRATION_ALLOWED_IPS` returns public launch error code `1005`
+- missing or invalid `MERCHANT_INTEGRATION_ID` is treated as server misconfiguration and returns `7001`
 
-Mutual TLS or IP allow-listing is recommended for production customer-platform callers.
+Mutual TLS is recommended in addition to the caller IP allow-list enforced by Merchant API.
 
 ### 5.6 Merchant API -> Customer Platform Eligibility Authentication
 
-Merchant API must call Customer Platform deposit-eligibility endpoints using one of:
-
-- OAuth2 client credentials
-- signed service JWT
-
-Mutual TLS is recommended for production.
+The current prototype resolves Customer Platform eligibility through an in-process fixture service. When this is replaced by a real HTTP integration, Merchant API should use the same shared integration GUID plus timestamp freshness model for outbound Customer Platform calls, with mutual TLS recommended in production.
 
 ---
 
-## 6. Merchant Signature Generation
+## 6. Merchant-to-Lucky-Wheel Signature Generation
 
 ### 6.1 Canonical Request
 
@@ -500,8 +507,7 @@ Example success payload:
     "spinAllowanceSource": "lucky_wheel_server",
     "buttonLabel": "SPIN NOW",
     "wheelVisualState": "normal",
-    "messageKey": "eligibility.playableNow",
-    "reasonCode": "DAILY_SPIN_GRANTED"
+    "messageKey": "eligibility.playableNow"
   },
   "error": null,
   "meta": {
@@ -630,13 +636,11 @@ Merchant API also exposes a customer-platform-facing launch endpoint:
 
 `POST /merchant-api/integration/launch`
 
-This endpoint is intended for customer platform backend integration and follows the sample-style body signature model:
+This endpoint is intended for customer platform backend integration and uses shared GUID header authentication plus timestamp freshness validation:
 
-- `merchantId`
-- `playerId`
-- `initialEligibility`
-- `timestamp`
-- `hash`
+- required header: `X-Integration-Guid`
+- required request body fields: `playerId`, `initialEligibility.depositQualified`, `timestamp`
+- `merchantId` is not part of the public launch contract; Merchant API resolves the single merchant from `MERCHANT_INTEGRATION_ID`
 
 It returns:
 
@@ -646,6 +650,7 @@ It returns:
 
 `initialEligibility` in this flow is customer-platform-supplied bootstrap data only. Lucky Wheel accepts it for launch-time UX, but it is not authoritative for gameplay. Lucky Wheel still reloads and re-validates eligibility after launch.
 
+Legacy callers that still send an extra `merchantId` field are ignored by the current implementation.
 Player locale is not part of the customer-platform launch contract. Lucky Wheel resolves locale client-side from browser or device settings, with optional local client preference overrides.
 Customer Platform also does not need to send a separate player display name. Merchant API and Lucky Wheel use `playerId` as the player label for this launch flow.
 Customer Platform also does not send `eventId`. Merchant API and Lucky Wheel resolve the current live event from the Lucky Wheel Admin Tool configuration during launch.
@@ -691,7 +696,6 @@ Success payload:
     "playerId": "player_demo_001",
     "depositQualified": false,
     "depositUrl": "https://merchant.example.com/deposit?playerId=player_demo_001&eventId=evt_2026_march",
-    "reasonCode": "DEPOSIT_REQUIRED",
     "decisionId": "cp_decision_player_demo_001_evt_2026_march",
     "upstreamSource": "customer_platform",
     "evaluatedAt": "2026-03-21T09:29:58.000Z",
@@ -713,7 +717,6 @@ Required response fields:
 - `playerId`
 - `eventId`
 - `depositQualified`
-- `reasonCode`
 - `decisionId`
 - `evaluatedAt`
 - `expiresAt`
@@ -729,16 +732,21 @@ Purpose:
 
 Request payload:
 
+Required header:
+
+```text
+X-Integration-Guid: 11111111-1111-1111-1111-111111111111
+```
+
+The request body does not include `merchantId`. If a legacy caller still sends it, the current implementation ignores that extra field.
+
 ```json
 {
-  "merchantId": "MERCHANT001",
   "playerId": "merchant-player-789",
   "initialEligibility": {
-    "depositQualified": true,
-    "reasonCode": "DEPOSIT_RULE_PASSED"
+    "depositQualified": true
   },
-  "timestamp": 1761216000,
-  "hash": "a1b2c3d4e5f6..."
+  "timestamp": 1761216000
 }
 ```
 
@@ -750,20 +758,22 @@ Success payload:
   "errorCode": 0,
   "errorMessage": "",
   "data": {
-    "url": "https://merchant-api.luckywheel.example.com/?eventId=evt_2026_march&playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f",
+    "url": "https://merchant-api.luckywheel.example.com/?playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f",
     "sessionId": "lw_sess_8f6c4d8f",
     "expiresAt": "2026-03-23T10:15:00.000Z"
   }
 }
 ```
 
-Signature fields:
+Authentication notes:
 
-- `merchantId`
-- `playerId`
-- `timestamp`
-
-`initialEligibility` is not part of the launch signature. It is customer-platform bootstrap data only.
+- `X-Integration-Guid` is the shared launch credential
+- `timestamp` is validated only as a freshness check
+- Merchant API resolves merchant identity from `MERCHANT_INTEGRATION_ID` server config
+- `initialEligibility` is not part of launch authentication. Only `depositQualified` is required in the bootstrap object.
+- invalid `playerId` or invalid `initialEligibility.depositQualified` returns `4000`
+- missing or invalid `MERCHANT_INTEGRATION_ID` returns `7001`
+- `url` is an opaque launch URL; callers must not parse or construct internal Lucky Wheel query parameters
 
 Lucky Wheel resolves the current live `eventId` internally during launch. Customer Platform does not submit event configuration, but it may submit `initialEligibility` bootstrap data. That bootstrap data is not authoritative for gameplay.
 
@@ -772,6 +782,8 @@ Lucky Wheel resolves the current live `eventId` internally during launch. Custom
 ## 11. Customer Platform Upstream Contract
 
 Merchant API must resolve deposit-related eligibility from Customer Platform.
+
+The current codebase uses an in-process fixture service for this dependency. The HTTP contract below is the production target when that fixture is replaced.
 
 ### 11.1 Recommended Upstream Endpoint
 
@@ -785,7 +797,6 @@ Merchant API must resolve deposit-related eligibility from Customer Platform.
   "eventId": "evt_2026_march",
   "depositQualified": false,
   "depositUrl": "https://merchant.example.com/deposit?playerId=player_demo_001&eventId=evt_2026_march",
-  "reasonCode": "DEPOSIT_REQUIRED",
   "decisionId": "cp_decision_player_demo_001_evt_2026_march",
   "evaluatedAt": "2026-03-21T09:29:58.000Z",
   "expiresAt": "2026-03-21T15:59:59.000Z"
@@ -798,6 +809,7 @@ Merchant API must resolve deposit-related eligibility from Customer Platform.
 - max retries: `2` for retryable transport failures
 - exponential backoff with jitter
 - circuit breaker required
+- when implemented as HTTP, outbound auth must include the shared integration GUID plus a freshness timestamp
 - structured mapping from upstream errors to Merchant API external errors
 - trace context propagation required
 - response caching allowed only within the upstream decision TTL
@@ -860,7 +872,7 @@ Every request log should include:
 - upstream latency
 - rate-limit decision
 
-Sensitive secrets, tokens, and signatures must never be written to logs.
+Sensitive secrets, GUID credentials, tokens, and signatures must never be written to logs.
 
 ### 13.3 Metrics
 
@@ -869,7 +881,8 @@ Minimum metrics set:
 - request count by route, status, and caller type
 - p50, p95, and p99 latency by route
 - auth failure count
-- merchant signature rejection count
+- customer-platform GUID rejection count
+- merchant HMAC rejection count
 - Merchant API launch success, error, and timeout count
 - Merchant API deposit-eligibility success, error, and timeout count
 - player token refresh success and failure count
@@ -931,3 +944,4 @@ Compared with the current prototype runtime, the following changes are required 
 8. Resolve deposit-related eligibility and Customer Platform deposit URL through Merchant API while keeping Lucky Wheel-owned event scheduling and used-spin counting.
 9. Publish and validate OpenAPI specs in CI.
 10. Add tracing, structured logs, metrics, audit events, and rate limits.
+11. Standardize public launch on `X-Integration-Guid` plus Unix `timestamp`, resolve merchant identity from `MERCHANT_INTEGRATION_ID`, and keep public bootstrap eligibility limited to `initialEligibility.depositQualified`.

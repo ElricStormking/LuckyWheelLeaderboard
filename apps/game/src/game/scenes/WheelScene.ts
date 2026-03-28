@@ -9,8 +9,14 @@ import { addTextButton, openExternalLink } from "../helpers";
 import { prototypeState } from "../state/prototype-state";
 
 const WHEEL_CENTER_X = 540;
-const WHEEL_CENTER_Y = 1160;
-const WHEEL_SCALE = 1;
+const WHEEL_CENTER_Y = 1180;
+const WHEEL_SCALE = 0.85;
+const WHEEL_BACKDROP_SCALE = 0.86;
+const WHEEL_BACKDROP_SIZE = 972;
+const POINTER_SCALE = 0.58;
+const POINTER_GAP = 10 * WHEEL_SCALE;
+const POINTER_TIP_Y =
+  WHEEL_CENTER_Y - (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE * WHEEL_SCALE) / 2 - POINTER_GAP;
 
 export class WheelScene extends Phaser.Scene {
   private wheelRoot?: Phaser.GameObjects.Container;
@@ -207,7 +213,7 @@ export class WheelScene extends Phaser.Scene {
 
     this.wheelRoot.removeAll(true);
     const wheelBackdrop = this.add.image(0, 0, "Roulette");
-    wheelBackdrop.setScale(0.86);
+    wheelBackdrop.setScale(WHEEL_BACKDROP_SCALE);
     this.wheelRoot.add(wheelBackdrop);
 
     if (segments.length === 0) {
@@ -217,7 +223,6 @@ export class WheelScene extends Phaser.Scene {
     segments.forEach((segment, index) => {
       const isLightSegment = index % 2 === 1;
       const labelColor = isLightSegment ? "#0a2942" : "#ffffff";
-      const metaColor = isLightSegment ? "#214d6b" : "#eafaff";
 
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
       const labelRadius = 244;
@@ -229,16 +234,16 @@ export class WheelScene extends Phaser.Scene {
       const label = this.add
         .text(0, -20, segment.label, {
           fontFamily: FONTS.display,
-          fontSize: "58px",
-          fontStyle: "700",
+          fontSize: "64px",
+          fontStyle: "800",
           color: labelColor,
         })
         .setOrigin(0.5);
 
       const unit = this.add
-        .text(0, 24, "points", {
+        .text(0, 28, "points", {
           fontFamily: FONTS.body,
-          fontSize: "22px",
+          fontSize: "26px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -248,22 +253,7 @@ export class WheelScene extends Phaser.Scene {
       labelContainer.add([label, unit]);
       labelContainer.setRotation(centerAngle + Math.PI / 2);
 
-      const meta = this.add
-        .text(
-          Math.cos(centerAngle) * 156,
-          Math.sin(centerAngle) * 156,
-          `${segment.weightPercent}%`,
-          {
-            fontFamily: FONTS.body,
-            fontSize: "24px",
-            color: metaColor,
-          },
-        )
-        .setOrigin(0.5)
-        .setAlpha(isLightSegment ? 0.9 : 0.82)
-        .setRotation(centerAngle + Math.PI / 2);
-
-      this.wheelRoot?.add([labelContainer, meta]);
+      this.wheelRoot?.add(labelContainer);
     });
 
     if (this.highlightedSegmentIndex !== undefined) {
@@ -521,7 +511,10 @@ export class WheelScene extends Phaser.Scene {
   }
 
   private drawPointer() {
-    this.add.image(WHEEL_CENTER_X, WHEEL_CENTER_Y - 316, "RouletteArrow").setScale(0.58);
+    this.add
+      .image(WHEEL_CENTER_X, POINTER_TIP_Y, "RouletteArrow")
+      .setOrigin(0.5, 1)
+      .setScale(POINTER_SCALE * WHEEL_SCALE);
   }
 
   private createWheelCenterButton() {
@@ -532,13 +525,13 @@ export class WheelScene extends Phaser.Scene {
     const label = this.add
       .text(0, 10, "SPIN NOW", {
         fontFamily: FONTS.display,
-        fontSize: "36px",
+        fontSize: "42px",
         color: "#ffffff",
-        fontStyle: "700",
+        fontStyle: "800",
         align: "center",
       })
       .setOrigin(0.5);
-    label.setWordWrapWidth(170, true);
+    label.setWordWrapWidth(180, true);
 
     const drawFace = (color: number) => {
       face.clearTint();
@@ -560,6 +553,7 @@ export class WheelScene extends Phaser.Scene {
 
     container.add([shadow, face, spinArrows, label]);
     container.setSize(240, 240);
+    container.setScale(WHEEL_SCALE);
     face.setInteractive({ useHandCursor: true });
     face.on("pointerup", () => {
       const snapshot = prototypeState.getSnapshot();
@@ -581,10 +575,10 @@ export class WheelScene extends Phaser.Scene {
       void prototypeState.spin();
     });
     face.on("pointerover", () => {
-      container.setScale(1.02);
+      container.setScale(WHEEL_SCALE * 1.02);
     });
     face.on("pointerout", () => {
-      container.setScale(1);
+      container.setScale(WHEEL_SCALE);
     });
 
     return {

@@ -11,14 +11,29 @@ export class HistoryOverlayScene extends BaseOverlayScene {
   create() {
     const snapshot = prototypeState.getSnapshot();
     const frame = this.createFrame("", undefined, 1500);
+    const titleY = frame.top - 88;
+    const titleShadow = this.add.ellipse(540, titleY + 8, 350, 86, 0x72cfff, 0.14);
+
+    const titleFrame = this.add.graphics();
+    titleFrame.fillStyle(COLORS.white, 0.98);
+    titleFrame.fillRoundedRect(372, titleY - 34, 336, 68, 34);
+    titleFrame.lineStyle(3, 0x18aef5, 0.95);
+    titleFrame.strokeRoundedRect(372, titleY - 34, 336, 68, 34);
+    titleFrame.lineStyle(1.5, 0xbdeeff, 0.95);
+    titleFrame.strokeRoundedRect(382, titleY - 24, 316, 48, 24);
+
+    const titleDecor = this.add.graphics();
+    titleDecor.fillStyle(0x18aef5, 1);
+    titleDecor.fillCircle(418, titleY, 4);
+    titleDecor.fillCircle(662, titleY, 4);
+    titleDecor.lineStyle(2, 0x9fe2ff, 0.95);
+    titleDecor.lineBetween(428, titleY, 456, titleY);
+    titleDecor.lineBetween(624, titleY, 652, titleY);
+
     this.add
-      .image(540, frame.top - 84, "Frame_time_01")
-      .setScale(0.54)
-      .setTint(0xffffff);
-    this.add
-      .text(540, frame.top - 84, prototypeState.t("history.title"), {
+      .text(540, titleY, prototypeState.t("history.title"), {
         fontFamily: FONTS.display,
-        fontSize: "34px",
+        fontSize: "30px",
         fontStyle: "700",
         color: "#18aef5",
       })
@@ -26,6 +41,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
     const spinHistory = snapshot.spinHistory;
 
     const headerY = frame.top + 78;
+    const firstRowY = frame.top + 156;
     this.add
       .text(frame.left + 72, headerY, prototypeState.t("history.date"), {
         fontFamily: FONTS.body,
@@ -54,7 +70,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       .setOrigin(1, 0.5);
 
     spinHistory?.items.forEach((entry, index) => {
-      const y = frame.top + 118 + index * 118;
+      const y = firstRowY + index * 118;
       addRoundedPanel(this, 540, y, 860, 88, {
         fillColor: COLORS.white,
         fillAlpha: 0.98,

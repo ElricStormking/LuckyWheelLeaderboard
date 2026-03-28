@@ -19,8 +19,24 @@ export class MerchantIntegrationController {
   ) {
     return this.merchantIntegrationService.launchGame(
       request,
+      this.resolveIntegrationGuid(httpRequest),
       this.resolveClientIp(httpRequest),
     );
+  }
+
+  private resolveIntegrationGuid(httpRequest: {
+    headers?: Record<string, string | string[] | undefined>;
+  }) {
+    const headerValue = httpRequest.headers?.["x-integration-guid"];
+    if (typeof headerValue === "string" && headerValue.trim()) {
+      return headerValue;
+    }
+
+    if (Array.isArray(headerValue) && headerValue.length > 0) {
+      return headerValue[0];
+    }
+
+    return undefined;
   }
 
   private resolveClientIp(httpRequest: {

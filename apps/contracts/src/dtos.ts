@@ -102,7 +102,6 @@ export interface MerchantEligibilityResponseDto {
   playerId: string;
   depositQualified: boolean;
   depositUrl?: string;
-  reasonCode?: string;
   decisionId: string;
   evaluatedAt: string;
   expiresAt: string;
@@ -148,19 +147,12 @@ export interface IntegrationApiResponseDto<TData> {
 
 export interface InitialEligibilityBootstrapDto {
   depositQualified: boolean;
-  depositUrl?: string;
-  reasonCode?: string;
-  decisionId?: string;
-  evaluatedAt?: string;
-  expiresAt?: string;
 }
 
 export interface MerchantIntegrationLaunchRequestDto {
-  merchantId: string;
   playerId: string;
   initialEligibility: InitialEligibilityBootstrapDto;
   timestamp: number;
-  hash: string;
 }
 
 export interface MerchantIntegrationLaunchDataDto {
@@ -249,7 +241,6 @@ export interface EligibilityResponse extends SpinAllowanceDto {
   wheelVisualState: WheelVisualState;
   depositUrl?: string;
   messageKey?: string;
-  reasonCode?: string;
 }
 
 export interface SpinRequest {
@@ -494,7 +485,6 @@ export interface AdminEligibilityRecordDto {
   usedSpinCount: number;
   remainingSpinCount: number;
   spinAllowanceSource: SpinAllowanceSource;
-  reasonCode?: string;
   updatedAt: string;
 }
 

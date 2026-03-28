@@ -127,14 +127,31 @@ type NormalizedSpinAllowance = NormalizedDailySpinAllowance & {
   depositEligible: boolean;
   depositUrl?: string;
 };
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+type RealtimeStreamEntry = {
+  subject: Subject<MessageEvent>;
+  subscribers: number;
+};
+type RealtimePlayerState = Omit<PlayerScoreChangedEventDto, "eventId" | "emittedAt">;
+
+const EVENT_CACHE_TTL_MS = 15_000;
+const RANKED_SCORE_CACHE_TTL_MS = 2_000;
 
 @Injectable()
 export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
-  private readonly realtimeStreams = new Map<string, Subject<MessageEvent>>();
+  private readonly realtimeStreams = new Map<string, RealtimeStreamEntry>();
+  private readonly eventCache = new Map<string, CacheEntry<EventWithRelations>>();
+  private readonly rankedScoresCache = new Map<string, CacheEntry<RankedScoreRecord[]>>();
   private periodicSyncTimer?: NodeJS.Timeout;
+  private liveEventCache?: CacheEntry<EventWithRelations | null>;
   private readonly autoFinalizeGraceMinutes = resolveAutoFinalizeGraceMinutes(
     process.env.EVENT_AUTO_FINALIZE_GRACE_MINUTES,
   );
+  private demoPlayerReady = false;
+  private demoPlayerReadyPromise?: Promise<void>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -152,7 +169,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       clearInterval(this.periodicSyncTimer);
     }
 
-    this.realtimeStreams.forEach((stream) => stream.complete());
+    this.realtimeStreams.forEach(({ subject }) => subject.complete());
     this.realtimeStreams.clear();
   }
 
@@ -404,13 +421,14 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           ? spinAllowance.depositUrl
           : undefined,
       messageKey: this.getMessageKey(eligibilityStatus),
-      reasonCode: spinAllowance.reasonCode,
     };
   }
 
   getRealtimeStream(eventId: string, locale: AppLocale): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
       let isActive = true;
+      const stream = this.getOrCreateRealtimeStream(eventId, locale);
+      stream.subscribers += 1;
 
       void this.buildInitialRealtimeMessages(eventId, locale)
         .then((messages) => {
@@ -422,8 +440,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         })
         .catch((error) => subscriber.error(error));
 
-      const stream = this.getOrCreateRealtimeStream(eventId, locale);
-      const subscription = stream.subscribe({
+      const subscription = stream.subject.subscribe({
         next: (message) => subscriber.next(message),
         error: (error) => subscriber.error(error),
       });
@@ -431,6 +448,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       return () => {
         isActive = false;
         subscription.unsubscribe();
+        this.releaseRealtimeStream(eventId, locale);
       };
     });
   }
@@ -570,6 +588,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (transactionResult.shouldPublish && transactionResult.response.success) {
+        this.invalidateRankedScoresCache(event.id);
         await this.publishPostSpinRealtime(
           event.id,
           transactionResult.previousRank,
@@ -713,6 +732,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async getLiveEventOrThrow(): Promise<EventWithRelations> {
+    if (this.isCacheFresh(this.liveEventCache) && this.liveEventCache.value) {
+      return this.liveEventCache.value;
+    }
+
     const event = await this.prisma.eventCampaign.findFirst({
       where: {
         status: EventStatus.Live,
@@ -762,10 +785,17 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       this.validateWheelDefinition(event.wheelSegments);
     }
 
+    this.liveEventCache = this.createCacheEntry(event, EVENT_CACHE_TTL_MS);
+    this.eventCache.set(event.id, this.createCacheEntry(event, EVENT_CACHE_TTL_MS));
     return event;
   }
 
   private async getEventOrThrow(eventId: string): Promise<EventWithRelations> {
+    const cachedEvent = this.eventCache.get(eventId);
+    if (this.isCacheFresh(cachedEvent)) {
+      return cachedEvent.value;
+    }
+
     const event = await this.prisma.eventCampaign.findUnique({
       where: {
         id: eventId,
@@ -812,25 +842,27 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       this.validateWheelDefinition(event.wheelSegments);
     }
 
+    this.eventCache.set(event.id, this.createCacheEntry(event, EVENT_CACHE_TTL_MS));
     return event;
   }
 
   private async ensureDemoPlayer(client: DatabaseClient = this.prisma) {
-    return client.player.upsert({
-      where: {
-        id: DEMO_PLAYER_ID,
-      },
-      update: {
-        displayName: DEMO_PLAYER_NAME,
-        externalUserId: DEMO_PLAYER_ID,
-      },
-      create: {
-        id: DEMO_PLAYER_ID,
-        externalUserId: DEMO_PLAYER_ID,
-        displayName: DEMO_PLAYER_NAME,
-        status: "active",
-      },
-    });
+    if (this.demoPlayerReady) {
+      return;
+    }
+
+    if (client === this.prisma) {
+      if (!this.demoPlayerReadyPromise) {
+        this.demoPlayerReadyPromise = this.ensureDemoPlayerExists(client).finally(() => {
+          this.demoPlayerReadyPromise = undefined;
+        });
+      }
+
+      await this.demoPlayerReadyPromise;
+      return;
+    }
+
+    await this.ensureDemoPlayerExists(client);
   }
 
   private async getPlayerScoreRecord(
@@ -893,6 +925,13 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     client: DatabaseClient = this.prisma,
   ): Promise<RankedScoreRecord[]> {
+    if (client === this.prisma) {
+      const cachedScores = this.rankedScoresCache.get(eventId);
+      if (this.isCacheFresh(cachedScores)) {
+        return Promise.resolve(cachedScores.value);
+      }
+    }
+
     return client.playerEventScore.findMany({
       where: {
         eventCampaignId: eventId,
@@ -911,6 +950,15 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           playerId: "asc",
         },
       ],
+    }).then((scores) => {
+      if (client === this.prisma) {
+        this.rankedScoresCache.set(
+          eventId,
+          this.createCacheEntry(scores, RANKED_SCORE_CACHE_TTL_MS),
+        );
+      }
+
+      return scores;
     });
   }
 
@@ -1135,9 +1183,6 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       ...dailySpinAllowance,
       depositEligible: merchantEligibility.depositQualified,
       depositUrl: merchantEligibility.depositUrl,
-      reasonCode: merchantEligibility.depositQualified
-        ? dailySpinAllowance.reasonCode
-        : merchantEligibility.reasonCode ?? "DEPOSIT_REQUIRED",
     };
   }
 
@@ -1364,19 +1409,42 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     let stream = this.realtimeStreams.get(streamKey);
 
     if (!stream) {
-      stream = new Subject<MessageEvent>();
+      stream = {
+        subject: new Subject<MessageEvent>(),
+        subscribers: 0,
+      };
       this.realtimeStreams.set(streamKey, stream);
     }
 
     return stream;
   }
 
+  private releaseRealtimeStream(eventId: string, locale: AppLocale) {
+    const streamKey = this.toRealtimeStreamKey(eventId, locale);
+    const stream = this.realtimeStreams.get(streamKey);
+
+    if (!stream) {
+      return;
+    }
+
+    stream.subscribers = Math.max(0, stream.subscribers - 1);
+    if (stream.subscribers > 0) {
+      return;
+    }
+
+    stream.subject.complete();
+    this.realtimeStreams.delete(streamKey);
+  }
+
   private async buildInitialRealtimeMessages(eventId: string, locale: AppLocale) {
     const event = await this.getEventOrThrow(eventId);
     const prizes = this.toPrizeDtos(event.prizes, locale);
-    const player = await this.buildPlayerSummary(event, prizes, false, locale);
     const status = this.parseEnumValue(EventStatus, event.status, "event status");
     const emittedAt = new Date().toISOString();
+    const [leaderboard, player] = await Promise.all([
+      this.getLeaderboard(eventId, 30, locale),
+      this.buildRealtimePlayerState(event, status, prizes),
+    ]);
     const messages: MessageEvent[] = [
       this.createMessage<EventStatusChangedEventDto>("event:statusChanged", {
         eventId,
@@ -1386,19 +1454,12 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       this.createMessage<LeaderboardTop30EventDto>("leaderboard:top30", {
         eventId,
         emittedAt,
-        leaderboard: await this.getLeaderboard(eventId, 30, locale),
+        leaderboard,
       }),
       this.createMessage<PlayerScoreChangedEventDto>("player:scoreChanged", {
         eventId,
         emittedAt,
-        totalScore: player.totalScore,
-        rank: player.rank,
-        prizeName: player.prizeName,
-        hasSpun: player.hasSpun,
-        grantedSpinCount: player.grantedSpinCount,
-        usedSpinCount: player.usedSpinCount,
-        remainingSpinCount: player.remainingSpinCount,
-        spinAllowanceSource: player.spinAllowanceSource,
+        ...player,
       }),
     ];
 
@@ -1429,38 +1490,39 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     nextRank: number | null,
   ) {
     const event = await this.getEventOrThrow(eventId);
+    const status = this.parseEnumValue(EventStatus, event.status, "event status");
     const emittedAt = new Date().toISOString();
+    const playerStateByLocale = new Map<AppLocale, RealtimePlayerState>();
 
     for (const locale of this.getRealtimeLocalesForEvent(eventId)) {
       const prizes = this.toPrizeDtos(event.prizes, locale);
       const leaderboard = await this.getLeaderboard(eventId, 30, locale);
-      const player = await this.buildPlayerSummary(event, prizes, false, locale);
-      const stream = this.getOrCreateRealtimeStream(eventId, locale);
+      const player =
+        playerStateByLocale.get(locale) ??
+        (await this.buildRealtimePlayerState(event, status, prizes));
+      playerStateByLocale.set(locale, player);
+      const stream = this.realtimeStreams.get(this.toRealtimeStreamKey(eventId, locale));
+      if (!stream || stream.subscribers === 0) {
+        continue;
+      }
 
-      stream.next(
+      stream.subject.next(
         this.createMessage<LeaderboardTop30EventDto>("leaderboard:top30", {
           eventId,
           emittedAt,
           leaderboard,
         }),
       );
-      stream.next(
+      stream.subject.next(
         this.createMessage<PlayerScoreChangedEventDto>("player:scoreChanged", {
           eventId,
           emittedAt,
-          totalScore: player.totalScore,
-          rank: player.rank,
-          prizeName: player.prizeName,
-          hasSpun: player.hasSpun,
-          grantedSpinCount: player.grantedSpinCount,
-          usedSpinCount: player.usedSpinCount,
-          remainingSpinCount: player.remainingSpinCount,
-          spinAllowanceSource: player.spinAllowanceSource,
+          ...player,
         }),
       );
 
       if (previousRank !== nextRank) {
-        stream.next(
+        stream.subject.next(
           this.createMessage<PlayerRankChangedEventDto>("player:rankChanged", {
             eventId,
             emittedAt,
@@ -1484,11 +1546,11 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
 
     for (const locale of this.getRealtimeLocalesForEvent(liveEvent.id)) {
       const stream = this.realtimeStreams.get(this.toRealtimeStreamKey(liveEvent.id, locale));
-      if (!stream) {
+      if (!stream || stream.subscribers === 0) {
         continue;
       }
 
-      stream.next(
+      stream.subject.next(
         this.createMessage<CountdownSyncEventDto>("event:countdownSync", {
           eventId: liveEvent.id,
           emittedAt,
@@ -1496,7 +1558,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           serverNow: emittedAt,
         }),
       );
-      stream.next(
+      stream.subject.next(
         this.createMessage<LeaderboardTop30EventDto>("leaderboard:top30", {
           eventId: liveEvent.id,
           emittedAt,
@@ -1507,6 +1569,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async getLiveEventOrNull() {
+    if (this.isCacheFresh(this.liveEventCache)) {
+      return this.liveEventCache.value;
+    }
+
     return this.prisma.eventCampaign.findFirst({
       where: {
         status: EventStatus.Live,
@@ -1546,6 +1612,13 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       orderBy: {
         startAt: "desc",
       },
+    }).then((event) => {
+      this.liveEventCache = this.createCacheEntry(event, EVENT_CACHE_TTL_MS);
+      if (event) {
+        this.eventCache.set(event.id, this.createCacheEntry(event, EVENT_CACHE_TTL_MS));
+      }
+
+      return event;
     });
   }
 
@@ -1556,7 +1629,11 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   private getRealtimeLocalesForEvent(eventId: string) {
     const locales = new Set<AppLocale>();
 
-    this.realtimeStreams.forEach((_stream, key) => {
+    this.realtimeStreams.forEach((stream, key) => {
+      if (stream.subscribers === 0) {
+        return;
+      }
+
       const [streamEventId, locale] = key.split("::");
       if (streamEventId === eventId && SUPPORTED_LOCALES.includes(locale as AppLocale)) {
         locales.add(locale as AppLocale);
@@ -1582,5 +1659,102 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       default:
         return "eligibility.playableNow";
     }
+  }
+
+  private async ensureDemoPlayerExists(client: DatabaseClient) {
+    const existingPlayer = await client.player.findUnique({
+      where: {
+        id: DEMO_PLAYER_ID,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingPlayer) {
+      this.demoPlayerReady = true;
+      return;
+    }
+
+    try {
+      await client.player.create({
+        data: {
+          id: DEMO_PLAYER_ID,
+          externalUserId: DEMO_PLAYER_ID,
+          displayName: DEMO_PLAYER_NAME,
+          status: "active",
+        },
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2002"
+      ) {
+        throw error;
+      }
+    }
+
+    this.demoPlayerReady = true;
+  }
+
+  private async buildRealtimePlayerState(
+    event: EventWithRelations,
+    eventStatus: EventStatus,
+    prizes: EventPrizeDto[],
+  ): Promise<RealtimePlayerState> {
+    await this.ensureDemoPlayer();
+
+    const [player, playerScore, rankedScores, usedSpinCount] = await Promise.all([
+      this.prisma.player.findUnique({
+        where: {
+          id: DEMO_PLAYER_ID,
+        },
+      }),
+      this.getPlayerScoreRecord(event.id, eventStatus, this.prisma, false),
+      this.getRankedScores(event.id),
+      this.countUsedSpinsForCurrentDay(event.id, event.timezone),
+    ]);
+
+    if (!player) {
+      throw new NotFoundException(`Unknown player: ${DEMO_PLAYER_ID}`);
+    }
+
+    const spinAllowance = await this.resolveSpinAllowance(
+      event.id,
+      eventStatus,
+      usedSpinCount,
+    );
+    const rank = this.findPlayerRank(rankedScores, DEMO_PLAYER_ID);
+
+    return {
+      totalScore: playerScore?.totalScore ?? 0,
+      rank,
+      prizeName: rank ? this.resolvePrizeName(rank, prizes) : null,
+      hasSpun: playerScore?.hasSpun ?? usedSpinCount > 0,
+      grantedSpinCount: spinAllowance.grantedSpinCount,
+      usedSpinCount: spinAllowance.usedSpinCount,
+      remainingSpinCount: spinAllowance.remainingSpinCount,
+      spinAllowanceSource: spinAllowance.spinAllowanceSource,
+    };
+  }
+
+  private createCacheEntry<T>(value: T, ttlMs: number): CacheEntry<T> {
+    return {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    };
+  }
+
+  private isCacheFresh<T>(entry?: CacheEntry<T>): entry is CacheEntry<T> {
+    return Boolean(entry && entry.expiresAt > Date.now());
+  }
+
+  private invalidateRankedScoresCache(eventId?: string) {
+    if (eventId) {
+      this.rankedScoresCache.delete(eventId);
+      return;
+    }
+
+    this.rankedScoresCache.clear();
   }
 }

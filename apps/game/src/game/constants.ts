@@ -21,8 +21,10 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  display: "Trebuchet MS",
-  body: "Segoe UI",
+  display: '"Oxanium", "Trebuchet MS", sans-serif',
+  body: '"Rajdhani", "Segoe UI", sans-serif',
+  displayName: "Oxanium",
+  bodyName: "Rajdhani",
 };
 
 export const SCENE_KEYS = {

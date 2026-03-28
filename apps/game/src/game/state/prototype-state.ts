@@ -414,12 +414,18 @@ class PrototypeState {
         return;
       }
 
-      const [leaderboard, player, eligibility, spinHistory] = await Promise.all([
-        this.api.getLeaderboard(currentEvent.id),
-        this.api.getPlayerSummary(currentEvent.id),
+      const isRealtimeBackedLiveSpin =
+        currentEvent.status === "live" && this.snapshot.realtimeStatus === "connected";
+      const [eligibility, spinHistory] = await Promise.all([
         this.api.getEligibility(currentEvent.id, this.snapshot.eligibilityOverride),
         this.api.getPlayerSpinHistory(currentEvent.id, 1),
       ]);
+      const [leaderboard, player] = isRealtimeBackedLiveSpin
+        ? [this.snapshot.leaderboard, this.snapshot.player]
+        : await Promise.all([
+            this.api.getLeaderboard(currentEvent.id),
+            this.api.getPlayerSummary(currentEvent.id),
+          ]);
 
       if (currentEvent.id !== this.snapshot.currentEvent?.id) {
         return;
