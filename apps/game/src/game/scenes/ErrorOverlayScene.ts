@@ -9,8 +9,9 @@ export class ErrorOverlayScene extends BaseOverlayScene {
   }
 
   create() {
-    const message =
-      prototypeState.getSnapshot().errorMessage ?? prototypeState.t("error.unknown");
+    const snapshot = prototypeState.getSnapshot();
+    const message = snapshot.errorMessage ?? prototypeState.t("error.unknown");
+    const shouldRetryBootstrap = !snapshot.currentEvent;
     this.createFrame(
       prototypeState.t("error.title"),
       prototypeState.t("error.subtitle"),
@@ -32,9 +33,21 @@ export class ErrorOverlayScene extends BaseOverlayScene {
       })
       .setOrigin(0.5);
 
-    addTextButton(this, 540, 1140, 280, 84, prototypeState.t("error.dismiss"), () => {
-      prototypeState.clearError();
-      this.scene.stop();
-    });
+    addTextButton(
+      this,
+      540,
+      1140,
+      280,
+      84,
+      shouldRetryBootstrap ? "Retry" : prototypeState.t("error.dismiss"),
+      () => {
+        prototypeState.clearError();
+        this.scene.stop();
+
+        if (shouldRetryBootstrap) {
+          void prototypeState.bootstrap();
+        }
+      },
+    );
   }
 }

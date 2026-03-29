@@ -21,6 +21,14 @@ import type {
 } from "@lucky-wheel/contracts";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [350, 900, 1800];
+
+class HttpRequestError extends Error {
+  constructor(readonly status: number) {
+    super(`Request failed with status ${status}`);
+  }
+}
 
 export class LuckyWheelApi {
   private locale: AppLocale = "en";
@@ -105,6 +113,7 @@ export class LuckyWheelApi {
     options: RequestInit & {
       eligibilityOverride?: EligibilityStatus;
       skipLocale?: boolean;
+      retryable?: boolean;
     } = {},
   ): Promise<T> {
     const headers = new Headers(options.headers);
@@ -114,16 +123,40 @@ export class LuckyWheelApi {
       headers.set("x-lucky-eligibility-override", options.eligibilityOverride);
     }
 
-    const response = await fetch(`${API_BASE_URL}${this.withLocale(path, options.skipLocale)}`, {
-      ...options,
-      headers,
-    });
+    const method = (options.method ?? "GET").toUpperCase();
+    const canRetry = options.retryable ?? (method === "GET" || method === "HEAD");
+    const requestUrl = `${API_BASE_URL}${this.withLocale(path, options.skipLocale)}`;
+    const maxAttempts = canRetry ? RETRY_DELAYS_MS.length + 1 : 1;
 
-    if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status}`);
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const response = await fetch(requestUrl, {
+          ...options,
+          headers,
+        });
+
+        if (!response.ok) {
+          throw new HttpRequestError(response.status);
+        }
+
+        return (await response.json()) as T;
+      } catch (error) {
+        const shouldRetry =
+          canRetry &&
+          attempt < maxAttempts - 1 &&
+          this.isRetryableRequestError(error);
+
+        if (!shouldRetry) {
+          throw error instanceof Error ? error : new Error("Request failed.");
+        }
+
+        await this.delay(
+          RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1],
+        );
+      }
     }
 
-    return (await response.json()) as T;
+    throw new Error("Request failed.");
   }
 
   private withLocale(path: string, skipLocale = false) {
@@ -133,6 +166,24 @@ export class LuckyWheelApi {
 
     const separator = path.includes("?") ? "&" : "?";
     return `${path}${separator}locale=${encodeURIComponent(this.locale)}`;
+  }
+
+  private isRetryableRequestError(error: unknown) {
+    if (error instanceof HttpRequestError) {
+      return RETRYABLE_STATUS_CODES.has(error.status);
+    }
+
+    if (error instanceof DOMException) {
+      return error.name !== "AbortError";
+    }
+
+    return error instanceof TypeError || error instanceof Error;
+  }
+
+  private delay(ms: number) {
+    return new Promise<void>((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
   }
 }
 

@@ -41,6 +41,13 @@ type PrizeSectionRow = {
   prizeDescription: Phaser.GameObjects.Text;
 };
 
+type SectionBand = {
+  container: Phaser.GameObjects.Container;
+  top: number;
+  bottom: number;
+  overscan: number;
+};
+
 const CONTENT_HEIGHT = 7100;
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_ROW_YS = [2240, 2370, 2490, 2610, 2735, 2860, 2983, 3109, 3231, 3358];
@@ -141,6 +148,7 @@ const PAGE_BUTTON_KEYS = ["Button_Page", "Button_Page_1", "Button_Page_2"] as co
 
 export class LobbyScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
+  private sectionBands: SectionBand[] = [];
   private periodPanel?: Phaser.GameObjects.Image;
   private periodPill?: Phaser.GameObjects.Text;
   private totalPointsText?: Phaser.GameObjects.Text;
@@ -152,6 +160,7 @@ export class LobbyScene extends Phaser.Scene {
   private myRankSummaryText?: Phaser.GameObjects.Text;
   private devControls: DevControl[] = [];
   private marqueeCards: MarqueeCard[] = [];
+  private marqueeSection?: Phaser.GameObjects.Container;
   private inlineLeaderboardRows: InlineLeaderboardRow[] = [];
   private inlinePrizeRows: PrizeSectionRow[] = [];
   private pageButtons: Phaser.GameObjects.Image[] = [];
@@ -174,15 +183,17 @@ export class LobbyScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
     this.drawBackground();
-    this.drawHeader();
-    this.drawHero();
-    this.drawActionRow();
-    this.drawSummaryArea();
-    this.drawQuickActions();
-    this.drawInlineLeaderboardSection();
-    this.drawInlinePrizeSection();
-    this.drawInlineRulesSection();
-    this.drawDevPanel();
+    this.captureSection(0, 180, () => this.drawHeader());
+    this.captureSection(220, 720, () => this.drawHero());
+    this.marqueeSection = this.captureSection(640, 780, () => this.drawActionRow(), 180);
+    this.captureSection(1600, 1920, () => {
+      this.drawSummaryArea();
+      this.drawQuickActions();
+      this.drawDevPanel();
+    });
+    this.captureSection(2000, 3825, () => this.drawInlineLeaderboardSection(), 260);
+    this.captureSection(3976, 5660, () => this.drawInlinePrizeSection(), 260);
+    this.captureSection(5790, CONTENT_HEIGHT, () => this.drawInlineRulesSection(), 260);
     this.setupScrollControls();
     this.refreshDynamicContent();
 
@@ -201,9 +212,11 @@ export class LobbyScene extends Phaser.Scene {
       this.cleanup.forEach((cleanup) => cleanup());
       this.cleanup = [];
       this.marqueeCards = [];
+      this.marqueeSection = undefined;
       this.inlineLeaderboardRows = [];
       this.inlinePrizeRows = [];
       this.pageButtons = [];
+      this.sectionBands = [];
     });
 
     this.setScrollY(Number(this.registry.get("mainScrollY") ?? 0));
@@ -324,9 +337,9 @@ export class LobbyScene extends Phaser.Scene {
   private drawActionRow() {
     const itemWidth = 320;
     const itemHeight = 56;
-    const marqueeCount = 8;
-    const laneSpacing = 190;
-    const initialX = -220;
+    const marqueeCount = 5;
+    const laneSpacing = 240;
+    const initialX = -260;
 
     this.marqueeCards = Array.from({ length: marqueeCount }, (_, index) => {
       const y = this.getRandomMarqueeY();
@@ -351,7 +364,7 @@ export class LobbyScene extends Phaser.Scene {
         container: pill.container,
         text: pill.text,
         width: itemWidth,
-        speed: Phaser.Math.FloatBetween(0.08, 0.13),
+        speed: Phaser.Math.FloatBetween(0.06, 0.1),
       };
 
       this.assignMarqueeMessage(card);
@@ -857,7 +870,7 @@ export class LobbyScene extends Phaser.Scene {
   private updateMarquee(_time: number, delta: number) {
     this.applyScrollMomentum(delta);
 
-    if (this.marqueeCards.length === 0) {
+    if (this.marqueeCards.length === 0 || !this.marqueeSection?.visible) {
       return;
     }
 
@@ -873,7 +886,7 @@ export class LobbyScene extends Phaser.Scene {
       const leftmostX = Math.min(...this.marqueeCards.map((entry) => entry.container.x));
       card.container.x = leftmostX - (card.width + Phaser.Math.Between(80, 150));
       card.container.y = this.getRandomMarqueeY();
-      card.speed = Phaser.Math.FloatBetween(0.08, 0.13);
+      card.speed = Phaser.Math.FloatBetween(0.06, 0.1);
       card.container.setAlpha(Phaser.Math.FloatBetween(0.88, 0.98));
       card.container.setScale(Phaser.Math.FloatBetween(0.94, 1.02));
       this.assignMarqueeMessage(card);
@@ -934,6 +947,52 @@ export class LobbyScene extends Phaser.Scene {
     const lanes = [672, 698, 724];
     const lane = lanes[Math.floor(Math.random() * lanes.length)];
     return lane + Phaser.Math.Between(-4, 4);
+  }
+
+  private captureSection(top: number, bottom: number, draw: () => void, overscan = 220) {
+    const startIndex = this.children.list.length;
+    draw();
+
+    const getDepth = (child: Phaser.GameObjects.GameObject) => {
+      const depth = (child as Phaser.GameObjects.GameObject & { depth?: number }).depth;
+      return typeof depth === "number" ? depth : 0;
+    };
+    const createdChildren = (this.children.list.slice(startIndex) as Phaser.GameObjects.GameObject[])
+      .map((child, index) => ({ child, index }))
+      .sort((left, right) =>
+        getDepth(left.child) === getDepth(right.child)
+          ? left.index - right.index
+          : getDepth(left.child) - getDepth(right.child),
+      )
+      .map((entry) => entry.child);
+    const container = this.add.container(0, 0);
+    if (createdChildren.length > 0) {
+      container.add(createdChildren);
+    }
+
+    this.sectionBands.push({
+      container,
+      top,
+      bottom,
+      overscan,
+    });
+
+    return container;
+  }
+
+  private refreshSectionVisibility() {
+    const viewTop = this.cameras.main.scrollY;
+    const viewBottom = viewTop + STAGE_HEIGHT;
+
+    this.sectionBands.forEach((section) => {
+      const visible =
+        section.bottom >= viewTop - section.overscan &&
+        section.top <= viewBottom + section.overscan;
+
+      if (section.container.visible !== visible) {
+        section.container.setVisible(visible);
+      }
+    });
   }
 
   private getLeaderboardPlateKey(rank: number) {
@@ -1013,6 +1072,7 @@ export class LobbyScene extends Phaser.Scene {
     const clamped = Phaser.Math.Clamp(scrollY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
     this.cameras.main.setScroll(0, clamped);
     this.registry.set("mainScrollY", clamped);
+    this.refreshSectionVisibility();
   }
 
   private runTapAction(action: () => void) {

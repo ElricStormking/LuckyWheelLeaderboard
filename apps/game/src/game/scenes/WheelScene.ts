@@ -21,6 +21,8 @@ const POINTER_TIP_Y =
 export class WheelScene extends Phaser.Scene {
   private wheelRoot?: Phaser.GameObjects.Container;
   private wheelRotation = 0;
+  private renderedWheelSignature = "";
+  private renderedHighlightIndex?: number;
   private button?: ReturnType<typeof addTextButton>;
   private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
@@ -119,7 +121,12 @@ export class WheelScene extends Phaser.Scene {
     }
 
     this.currentEligibility = snapshot.eligibility.eligibilityStatus;
-    this.drawWheel(snapshot.currentEvent.wheelSegments);
+    const wheelSignature = this.getWheelSignature(snapshot.currentEvent.wheelSegments);
+    if (wheelSignature !== this.renderedWheelSignature) {
+      this.drawWheel(snapshot.currentEvent.wheelSegments);
+    } else {
+      this.syncWinningSegmentHighlight();
+    }
 
     this.button.setLabel(snapshot.eligibility.buttonLabel);
     this.button.setBackground(
@@ -211,10 +218,15 @@ export class WheelScene extends Phaser.Scene {
       return;
     }
 
+    this.highlightTween?.stop();
+    this.highlightTween = undefined;
+    this.highlightGraphic = undefined;
+    this.renderedHighlightIndex = undefined;
     this.wheelRoot.removeAll(true);
     const wheelBackdrop = this.add.image(0, 0, "Roulette");
     wheelBackdrop.setScale(WHEEL_BACKDROP_SCALE);
     this.wheelRoot.add(wheelBackdrop);
+    this.renderedWheelSignature = this.getWheelSignature(segments);
 
     if (segments.length === 0) {
       return;
@@ -256,9 +268,7 @@ export class WheelScene extends Phaser.Scene {
       this.wheelRoot?.add(labelContainer);
     });
 
-    if (this.highlightedSegmentIndex !== undefined) {
-      this.attachWinningSegmentPulse(this.highlightedSegmentIndex);
-    }
+    this.syncWinningSegmentHighlight();
   }
 
   private attachWinningSegmentPulse(segmentIndex: number) {
@@ -293,23 +303,50 @@ export class WheelScene extends Phaser.Scene {
     });
   }
 
+  private syncWinningSegmentHighlight() {
+    if (this.highlightedSegmentIndex === this.renderedHighlightIndex) {
+      return;
+    }
+
+    if (this.highlightedSegmentIndex === undefined) {
+      this.highlightTween?.stop();
+      this.highlightTween = undefined;
+      this.highlightGraphic?.destroy();
+      this.highlightGraphic = undefined;
+      this.renderedHighlightIndex = undefined;
+      return;
+    }
+
+    this.attachWinningSegmentPulse(this.highlightedSegmentIndex);
+    this.renderedHighlightIndex = this.highlightedSegmentIndex;
+  }
+
+  private getWheelSignature(segments: WheelSegmentDto[]) {
+    return segments
+      .map((segment) =>
+        [
+          segment.segmentIndex,
+          segment.label,
+          segment.scoreOperator,
+          segment.scoreOperand,
+          segment.weightPercent,
+        ].join(":"),
+      )
+      .join("|");
+  }
+
   private launchCelebrationFireworks() {
     this.clearCelebrationBursts();
 
-    const burstCount = 34;
+    const burstCount = 10;
     for (let index = 0; index < burstCount; index += 1) {
-      const timer = this.time.delayedCall(index * 110, () => {
+      const timer = this.time.delayedCall(index * 220, () => {
         const point = this.getRandomFireworkPoint();
-        this.createFireworkBurst(point.x, point.y, Phaser.Math.FloatBetween(0.9, 1.15));
+        this.createFireworkBurst(point.x, point.y, Phaser.Math.FloatBetween(0.92, 1.1));
 
-        if (Math.random() < 0.62) {
+        if (Math.random() < 0.25) {
           const echo = this.getNearbyFireworkPoint(point);
-          this.createFireworkBurst(echo.x, echo.y, Phaser.Math.FloatBetween(0.58, 0.9));
-        }
-
-        if (Math.random() < 0.28) {
-          const extra = this.getRandomFireworkPoint();
-          this.createFireworkBurst(extra.x, extra.y, Phaser.Math.FloatBetween(0.7, 1));
+          this.createFireworkBurst(echo.x, echo.y, Phaser.Math.FloatBetween(0.58, 0.78));
         }
       });
 
@@ -361,8 +398,6 @@ export class WheelScene extends Phaser.Scene {
       0xff4ed8,
     ];
     const burstBaseColor = colors[Phaser.Math.Between(0, colors.length - 1)];
-    const accentColor = colors[Phaser.Math.Between(0, colors.length - 1)];
-    const tertiaryColor = colors[Phaser.Math.Between(0, colors.length - 1)];
 
     const flash = this.add.circle(x, y, 20 * scale, burstBaseColor, 0.5);
     this.tweens.add({
@@ -375,90 +410,43 @@ export class WheelScene extends Phaser.Scene {
     });
 
     const ring = this.add.circle(x, y, 30 * scale);
-    ring.setStrokeStyle(8 * scale, burstBaseColor, 0.96);
+    ring.setStrokeStyle(6 * scale, burstBaseColor, 0.92);
     this.tweens.add({
       targets: ring,
-      scale: 4.6,
+      scale: 4.2,
       alpha: 0,
-      duration: 920,
+      duration: 860,
       ease: "Cubic.easeOut",
       onComplete: () => ring.destroy(),
     });
 
-    const secondaryRing = this.add.circle(x, y, 18 * scale);
-    secondaryRing.setStrokeStyle(6 * scale, accentColor, 0.92);
-    this.tweens.add({
-      targets: secondaryRing,
-      scale: 5.4,
-      alpha: 0,
-      duration: 1040,
-      ease: "Quart.easeOut",
-      onComplete: () => secondaryRing.destroy(),
-    });
-
-    const cloud = this.add.container(x, y);
-    Array.from({ length: 6 }).forEach((_, index) => {
-      const puff = this.add.circle(
-        Phaser.Math.Between(-34, 34) * scale,
-        Phaser.Math.Between(-30, 30) * scale,
-        Phaser.Math.Between(12, 24) * scale,
-        colors[(index * 2 + Phaser.Math.Between(0, colors.length - 1)) % colors.length],
-        0.5,
-      );
-      cloud.add(puff);
-    });
-    this.tweens.add({
-      targets: cloud,
-      scale: 1.9,
-      alpha: 0,
-      duration: 760,
-      ease: "Cubic.easeOut",
-      onComplete: () => cloud.destroy(),
-    });
-
     const spokes = this.add.graphics({ x, y });
-    for (let index = 0; index < 12; index += 1) {
-      const angle = (Math.PI * 2 * index) / 12 + Phaser.Math.FloatBetween(-0.08, 0.08);
+    for (let index = 0; index < 6; index += 1) {
+      const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.12, 0.12);
       const inner = 18 * scale;
-      const outer = Phaser.Math.Between(90, 160) * scale;
+      const outer = Phaser.Math.Between(88, 130) * scale;
       const spokeColor = colors[(index + Phaser.Math.Between(0, 3)) % colors.length];
-      spokes.lineStyle(7 * scale, spokeColor, 0.95);
+      spokes.lineStyle(5 * scale, spokeColor, 0.92);
       spokes.beginPath();
       spokes.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
       spokes.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
       spokes.strokePath();
-
-      const tip = this.add.circle(
-        x + Math.cos(angle) * outer,
-        y + Math.sin(angle) * outer,
-        Phaser.Math.Between(5, 10) * scale,
-        spokeColor,
-        0.95,
-      );
-      this.tweens.add({
-        targets: tip,
-        scale: 0.2,
-        alpha: 0,
-        duration: 900,
-        ease: "Quad.easeOut",
-        onComplete: () => tip.destroy(),
-      });
     }
     this.tweens.add({
       targets: spokes,
-      scale: 1.28,
+      scale: 1.22,
       alpha: 0,
       angle: Phaser.Math.Between(-25, 25),
-      duration: 860,
+      duration: 760,
       ease: "Quart.easeOut",
       onComplete: () => spokes.destroy(),
     });
 
-    const particleCount = Phaser.Math.Between(22, 30);
+    const particleCount = Phaser.Math.Between(8, 12);
     for (let index = 0; index < particleCount; index += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(150, 260) * scale;
-      const size = Phaser.Math.Between(6, 14) * scale;
+      const distance = Phaser.Math.Between(120, 190) * scale;
+      const size = Phaser.Math.Between(5, 10) * scale;
       const particleColor =
         colors[(index + Phaser.Math.Between(0, colors.length - 1)) % colors.length];
       const particle = this.add
@@ -474,38 +462,11 @@ export class WheelScene extends Phaser.Scene {
         targets: particle,
         x: x + Math.cos(angle) * distance,
         y: y + Math.sin(angle) * distance + Phaser.Math.Between(-24, 34) * scale,
-        scale: 0.12,
+        scale: 0.18,
         alpha: 0,
-        duration: Phaser.Math.Between(1200, 1850),
+        duration: Phaser.Math.Between(760, 1180),
         ease: "Cubic.easeOut",
         onComplete: () => particle.destroy(),
-      });
-    }
-
-    const confettiCount = Phaser.Math.Between(12, 18);
-    for (let index = 0; index < confettiCount; index += 1) {
-      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(90, 210) * scale;
-      const width = Phaser.Math.Between(8, 14) * scale;
-      const height = Phaser.Math.Between(3, 6) * scale;
-      const confetti = this.add.rectangle(
-        x,
-        y,
-        width,
-        height,
-        index % 2 === 0 ? accentColor : tertiaryColor,
-        0.95,
-      );
-      confetti.setRotation(Phaser.Math.FloatBetween(0, Math.PI));
-      this.tweens.add({
-        targets: confetti,
-        x: x + Math.cos(angle) * distance,
-        y: y + Math.sin(angle) * distance,
-        angle: Phaser.Math.Between(180, 540),
-        alpha: 0,
-        duration: Phaser.Math.Between(900, 1500),
-        ease: "Cubic.easeOut",
-        onComplete: () => confetti.destroy(),
       });
     }
   }
