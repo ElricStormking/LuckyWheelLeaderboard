@@ -207,7 +207,7 @@ canvas {
 }
 
 .mobile-launch-rotate-arrow {
-  animation: rotate-arrow-sweep 2s ease-in-out infinite;
+  animation: none;
 }
 
 .mobile-launch-rotate-arrow-secondary {
