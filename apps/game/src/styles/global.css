@@ -3,14 +3,38 @@
 :root {
   color-scheme: light;
   font-family: "Rajdhani", "Oxanium", "Segoe UI", sans-serif;
-  --safe-top: max(12px, env(safe-area-inset-top, 0px));
-  --safe-right: max(12px, env(safe-area-inset-right, 0px));
-  --safe-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-  --safe-left: max(12px, env(safe-area-inset-left, 0px));
-  background:
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --shell-pad-top: max(12px, var(--safe-top));
+  --shell-pad-right: max(12px, var(--safe-right));
+  --shell-pad-bottom: max(12px, var(--safe-bottom));
+  --shell-pad-left: max(12px, var(--safe-left));
+  --shell-background:
     radial-gradient(circle at top left, rgba(116, 225, 255, 0.22), transparent 26%),
     radial-gradient(circle at 82% 85%, rgba(79, 206, 255, 0.14), transparent 30%),
     linear-gradient(180deg, #ffffff 0%, #f5fdff 34%, #daf5ff 72%, #c4f0ff 100%);
+  --game-radius: 32px;
+  --game-shadow:
+    0 28px 72px rgba(80, 174, 214, 0.22),
+    0 0 0 1px rgba(126, 218, 255, 0.4);
+  background: var(--shell-background);
+}
+
+html.mobile-immersive {
+  --shell-pad-top: var(--safe-top);
+  --shell-pad-right: var(--safe-right);
+  --shell-pad-bottom: var(--safe-bottom);
+  --shell-pad-left: var(--safe-left);
+  --shell-background: #020b11;
+  --game-radius: 0px;
+  --game-shadow: none;
+}
+
+html,
+body {
+  background: var(--shell-background);
 }
 
 * {
@@ -28,6 +52,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 #app-shell {
@@ -37,36 +62,38 @@ body {
   width: 100vw;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  padding: var(--shell-pad-top) var(--shell-pad-right) var(--shell-pad-bottom) var(--shell-pad-left);
+  position: relative;
+  overflow: hidden;
+  background: var(--shell-background);
 }
 
 #game-root {
   width: min(
-    calc(100vw - var(--safe-left) - var(--safe-right)),
-    calc((100vh - var(--safe-top) - var(--safe-bottom)) * 1080 / 1920)
+    calc(100vw - var(--shell-pad-left) - var(--shell-pad-right)),
+    calc((100vh - var(--shell-pad-top) - var(--shell-pad-bottom)) * 1080 / 1920)
   );
   width: min(
-    calc(100dvw - var(--safe-left) - var(--safe-right)),
-    calc((100dvh - var(--safe-top) - var(--safe-bottom)) * 1080 / 1920)
+    calc(100dvw - var(--shell-pad-left) - var(--shell-pad-right)),
+    calc((100dvh - var(--shell-pad-top) - var(--shell-pad-bottom)) * 1080 / 1920)
   );
   height: min(
-    calc(100vh - var(--safe-top) - var(--safe-bottom)),
-    calc((100vw - var(--safe-left) - var(--safe-right)) * 1920 / 1080)
+    calc(100vh - var(--shell-pad-top) - var(--shell-pad-bottom)),
+    calc((100vw - var(--shell-pad-left) - var(--shell-pad-right)) * 1920 / 1080)
   );
   height: min(
-    calc(100dvh - var(--safe-top) - var(--safe-bottom)),
-    calc((100dvw - var(--safe-left) - var(--safe-right)) * 1920 / 1080)
+    calc(100dvh - var(--shell-pad-top) - var(--shell-pad-bottom)),
+    calc((100dvw - var(--shell-pad-left) - var(--shell-pad-right)) * 1920 / 1080)
   );
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 1080 / 1920;
   margin: auto;
   position: relative;
-  border-radius: 32px;
+  border-radius: var(--game-radius);
   overflow: hidden;
-  box-shadow:
-    0 28px 72px rgba(80, 174, 214, 0.22),
-    0 0 0 1px rgba(126, 218, 255, 0.4);
+  box-shadow: var(--game-shadow);
+  background: #03111d;
 }
 
 #game-root canvas {
@@ -76,4 +103,246 @@ body {
 
 canvas {
   display: block;
+}
+
+#mobile-launch-overlay[hidden] {
+  display: none;
+}
+
+#mobile-launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top, 0px))
+    max(20px, env(safe-area-inset-right, 0px))
+    max(24px, env(safe-area-inset-bottom, 0px))
+    max(20px, env(safe-area-inset-left, 0px));
+  background:
+    linear-gradient(180deg, rgba(2, 11, 17, 0.8), rgba(2, 11, 17, 0.96)),
+    radial-gradient(circle at top, rgba(61, 188, 255, 0.14), transparent 44%);
+  backdrop-filter: blur(18px);
+}
+
+.mobile-launch-panel {
+  width: min(420px, 100%);
+  padding: 30px 24px 24px;
+  border-radius: 30px;
+  border: 1px solid rgba(126, 218, 255, 0.32);
+  background:
+    linear-gradient(180deg, rgba(241, 251, 255, 0.98), rgba(220, 244, 255, 0.96)),
+    radial-gradient(circle at top right, rgba(96, 208, 255, 0.18), transparent 40%);
+  box-shadow:
+    0 24px 50px rgba(1, 11, 20, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #0a2942;
+}
+
+.mobile-launch-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #179de7, #0a71cc);
+  color: #ffffff;
+  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.mobile-launch-kicker {
+  margin: 14px 0 6px;
+  color: #4b87aa;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mobile-launch-title {
+  margin: 0;
+  color: #119ae0;
+  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.05;
+}
+
+.mobile-launch-orientation {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(228, 245, 255, 0.84)),
+    radial-gradient(circle at top, rgba(108, 214, 255, 0.24), transparent 58%);
+  box-shadow:
+    inset 0 0 0 1px rgba(126, 218, 255, 0.38),
+    0 14px 30px rgba(87, 165, 205, 0.12);
+}
+
+.mobile-launch-orientation-icon {
+  width: min(210px, 68vw);
+  height: auto;
+  overflow: visible;
+}
+
+.mobile-launch-phone-landscape,
+.mobile-launch-phone-portrait,
+.mobile-launch-rotate-arrow {
+  transform-origin: center;
+}
+
+.mobile-launch-phone-landscape {
+  animation: none;
+}
+
+.mobile-launch-phone-portrait {
+  animation: none;
+}
+
+.mobile-launch-rotate-arrow {
+  animation: rotate-arrow-sweep 2s ease-in-out infinite;
+}
+
+.mobile-launch-rotate-arrow-secondary {
+  animation-delay: 140ms;
+}
+
+.mobile-launch-orientation-label {
+  margin: 0;
+  color: #17344c;
+  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.mobile-launch-note {
+  margin: 18px 0 0;
+  color: #234158;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.26;
+}
+
+.mobile-launch-note {
+  color: #4e7893;
+  font-size: 18px;
+}
+
+.mobile-launch-steps {
+  margin: 18px 0 0;
+  padding: 18px 18px 18px 42px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(126, 218, 255, 0.32);
+  color: #0a2942;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mobile-launch-steps li + li {
+  margin-top: 10px;
+}
+
+.mobile-launch-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.mobile-launch-button {
+  appearance: none;
+  border: 0;
+  border-radius: 18px;
+  padding: 16px 18px;
+  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+}
+
+.mobile-launch-button:hover,
+.mobile-launch-button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.mobile-launch-button-primary {
+  background: linear-gradient(135deg, #f46ea6, #e1448c);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(225, 68, 140, 0.28);
+}
+
+.mobile-launch-button-secondary {
+  background: rgba(9, 61, 96, 0.08);
+  color: #0a2942;
+  box-shadow: inset 0 0 0 1px rgba(9, 61, 96, 0.12);
+}
+
+#mobile-launch-overlay[data-mode="rotate"] .mobile-launch-panel {
+  max-width: 420px;
+}
+
+#mobile-launch-overlay[data-mode="rotate"] .mobile-launch-kicker {
+  color: #7bb5d6;
+}
+
+#mobile-launch-overlay[data-mode="rotate"] .mobile-launch-title {
+  text-align: center;
+}
+
+#mobile-launch-overlay[data-mode="rotate"] .mobile-launch-note {
+  text-align: center;
+}
+
+@keyframes rotate-landscape-phone {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translateX(-8px) rotate(-6deg);
+  }
+  50% {
+    opacity: 0.14;
+    transform: translateX(-14px) rotate(-16deg);
+  }
+}
+
+@keyframes rotate-portrait-phone {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(2deg);
+  }
+}
+
+@keyframes rotate-arrow-sweep {
+  0%,
+  100% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.62;
+    transform: scale(1.04);
+  }
+}
+
+@media (min-width: 760px) {
+  .mobile-launch-actions {
+    grid-template-columns: 1fr 1fr;
+  }
 }
