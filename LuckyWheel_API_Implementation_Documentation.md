@@ -1,7 +1,7 @@
 # Lucky Wheel Production Integration API Documentation
 
-**Version:** 2.6  
-**Last Updated:** March 27, 2026
+**Version:** 2.7  
+**Last Updated:** April 1, 2026
 
 **Change Highlights**
 - Upgrades the Lucky Wheel integration document from prototype guidance to a production target contract.
@@ -14,6 +14,8 @@
 - Publishes OpenAPI artifacts for Lucky Wheel Server and Merchant API.
 - Adds observability, request tracing, auditability, and rate-limit requirements.
 - Uses hybrid eligibility: Lucky Wheel Server enforces live-event and daily-spin usage, while Customer Platform provides deposit eligibility and deposit URL through Merchant API.
+- Starts wiring Merchant API to the live Customer Platform SOAP/WCF operation `LuckyWheel_Deposit_isEligible`.
+- Replaces the old placeholder REST upstream contract with the actual SOAP request, response, auth, and rollout plan.
 
 ---
 
@@ -119,7 +121,7 @@ Lucky Wheel Server calls Merchant API to retrieve Customer Platform deposit elig
 
 ### 3.4 Merchant API -> Customer Platform
 
-Merchant API resolves deposit eligibility through Customer Platform. Lucky Wheel still owns event scheduling, event-day boundaries, and used-spin counting.
+Merchant API resolves deposit eligibility through the Customer Platform SOAP/WCF service `iBetService.svc` using `LuckyWheel_Deposit_isEligible`. Lucky Wheel still owns event scheduling, event-day boundaries, and used-spin counting.
 
 ---
 
@@ -205,9 +207,15 @@ Required operator claims:
 
 Lucky Wheel Server must call Merchant API using:
 
-- service bearer token or signed service JWT
+- `Authorization: Bearer <service_token>`
 - mutual TLS in production
 - request tracing headers
+
+Current implementation notes:
+
+- the current codebase uses a shared internal bearer token configured by `MERCHANT_API_SERVICE_TOKEN`
+- local development falls back to a shared development token when `MERCHANT_API_SERVICE_TOKEN` is not set
+- signed service JWTs remain a future enhancement option, but are not the current implementation
 
 ### 5.5 Customer Platform -> Merchant API Public Launch Authentication
 
@@ -230,7 +238,22 @@ Mutual TLS is recommended in addition to the caller IP allow-list enforced by Me
 
 ### 5.6 Merchant API -> Customer Platform Eligibility Authentication
 
-The current prototype resolves Customer Platform eligibility through an in-process fixture service. When this is replaced by a real HTTP integration, Merchant API should use the same shared integration GUID plus timestamp freshness model for outbound Customer Platform calls, with mutual TLS recommended in production.
+Merchant API authenticates to Customer Platform using the Customer Platform SOAP/WCF credentials assigned during onboarding.
+
+Required Customer Platform integration inputs:
+
+- `CUSTOMER_PLATFORM_COMP_ACCESSKEY`
+- `CUSTOMER_PLATFORM_SITE_ID`
+- Customer Platform `iBetService.svc` endpoint URL
+- Merchant API egress IP allow-listing at Customer Platform
+
+Current upstream operation:
+
+- SOAP 1.1 action: `http://tempuri.org/IiBetService/LuckyWheel_Deposit_isEligible`
+- request fields: `CompAccesskey`, `SiteID`, `Account`, `RecordDate`
+- production transport requirement: mutual TLS or private network path when available, plus IP allow-listing
+
+`RecordDate` is date-sensitive business input, not an auth field. Merchant API must derive it from the Lucky Wheel event-day timezone and send the date in `YYYY-MM-DDT00:00:00` form.
 
 ---
 
@@ -696,10 +719,10 @@ Success payload:
     "playerId": "player_demo_001",
     "depositQualified": false,
     "depositUrl": "https://merchant.example.com/deposit?playerId=player_demo_001&eventId=evt_2026_march",
-    "decisionId": "cp_decision_player_demo_001_evt_2026_march",
+    "decisionId": "cp_live_player_demo_001_evt_2026_march_1761040798000",
     "upstreamSource": "customer_platform",
     "evaluatedAt": "2026-03-21T09:29:58.000Z",
-    "expiresAt": "2026-03-21T15:59:59.000Z",
+    "expiresAt": "2026-03-21T09:44:58.000Z",
     "updatedAt": "2026-03-21T09:30:00.000Z"
   },
   "error": null,
@@ -723,6 +746,13 @@ Required response fields:
 - `updatedAt`
 
 `depositUrl` is required when `depositQualified` is `false`.
+
+Implementation notes:
+
+- Merchant API maps `playerId` to Customer Platform `Account`
+- Merchant API currently derives `RecordDate` from `CUSTOMER_PLATFORM_RECORD_DATE_TIMEZONE`
+- Merchant API synthesizes `decisionId` and `expiresAt`; the upstream SOAP response does not provide either field
+- the live WSDL currently exposes `IsEligible` but does not expose `DepositUrl`, so Merchant API currently uses configured `CUSTOMER_PLATFORM_DEPOSIT_URL` when a deposit redirect is needed
 
 ### 10.3 `POST /merchant-api/integration/launch`
 
@@ -781,47 +811,103 @@ Lucky Wheel resolves the current live `eventId` internally during launch. Custom
 
 ## 11. Customer Platform Upstream Contract
 
-Merchant API must resolve deposit-related eligibility from Customer Platform.
+Merchant API resolves deposit-related eligibility from Customer Platform through the SOAP/WCF service documented by Customer Platform.
 
-The current codebase uses an in-process fixture service for this dependency. The HTTP contract below is the production target when that fixture is replaced.
+### 11.1 Upstream Service
 
-### 11.1 Recommended Upstream Endpoint
+- service endpoint: `http://<customer-platform-host>/iBetService.svc`
+- WSDL: `http://<customer-platform-host>/iBetService.svc?wsdl`
+- SOAP 1.1 action: `http://tempuri.org/IiBetService/LuckyWheel_Deposit_isEligible`
+- binding style: document/literal
 
-`GET /customer-platform/v1/lucky-wheel/players/{playerId}/deposit-eligibility?eventId={eventId}`
+### 11.2 Upstream Request Mapping
 
-### 11.2 Upstream Success Payload
+Merchant API keeps its internal REST contract for Lucky Wheel Server:
 
-```json
-{
-  "playerId": "player_demo_001",
-  "eventId": "evt_2026_march",
-  "depositQualified": false,
-  "depositUrl": "https://merchant.example.com/deposit?playerId=player_demo_001&eventId=evt_2026_march",
-  "decisionId": "cp_decision_player_demo_001_evt_2026_march",
-  "evaluatedAt": "2026-03-21T09:29:58.000Z",
-  "expiresAt": "2026-03-21T15:59:59.000Z"
-}
+`GET /merchant-api/v1/lucky-wheel/players/{playerId}/events/{eventId}/eligibility`
+
+It translates that request into the following SOAP call:
+
+| Merchant API / Lucky Wheel field | Customer Platform SOAP field | Notes |
+|---|---|---|
+| `playerId` | `Account` | direct mapping |
+| configured site | `SiteID` | supplied from `CUSTOMER_PLATFORM_SITE_ID` |
+| configured access key | `CompAccesskey` | supplied from `CUSTOMER_PLATFORM_COMP_ACCESSKEY` |
+| event-day date | `RecordDate` | date-only decision input; Merchant API sends `YYYY-MM-DDT00:00:00` |
+
+Representative SOAP body:
+
+```xml
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+               xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <LuckyWheel_Deposit_isEligible xmlns="http://tempuri.org/">
+      <CompAccesskey>customer-platform-access-key</CompAccesskey>
+      <SiteID>A</SiteID>
+      <Account>player_demo_001</Account>
+      <RecordDate>2026-04-01T00:00:00</RecordDate>
+    </LuckyWheel_Deposit_isEligible>
+  </soap:Body>
+</soap:Envelope>
 ```
 
-### 11.3 Upstream Client Requirements
+### 11.3 Upstream Response Mapping
+
+Representative success response shape:
+
+```xml
+<LuckyWheel_Deposit_isEligibleResponse xmlns="http://tempuri.org/">
+  <LuckyWheel_Deposit_isEligibleResult>
+    <Code></Code>
+    <ErrorMsg></ErrorMsg>
+    <Memo></Memo>
+    <Status>true</Status>
+  </LuckyWheel_Deposit_isEligibleResult>
+  <IsEligible>false</IsEligible>
+</LuckyWheel_Deposit_isEligibleResponse>
+```
+
+Relevant response fields:
+
+| SOAP field | Meaning | Merchant API handling |
+|---|---|---|
+| `Status` | service-level success or failure | must be checked first |
+| `IsEligible` | deposit-rule decision | used only when `Status=true` |
+| `Code` | upstream service code | log and surface in diagnostics |
+| `ErrorMsg` | upstream failure detail | log and map to `503`/`504` |
+| `Memo` | optional upstream memo | log for debugging only |
+
+Important note:
+
+- the current live WSDL and live dummy-response probe expose `Status` and `IsEligible`, but do not expose `DepositUrl`
+- because Lucky Wheel still needs a deposit redirect, Merchant API currently synthesizes `depositUrl` from configured `CUSTOMER_PLATFORM_DEPOSIT_URL`
+- if Customer Platform later publishes `DepositUrl` in the WSDL/response, Merchant API should switch to passing it through directly
+
+### 11.4 Upstream Client Requirements
 
 - per-request timeout: `2000ms`
-- max retries: `2` for retryable transport failures
-- exponential backoff with jitter
-- circuit breaker required
-- when implemented as HTTP, outbound auth must include the shared integration GUID plus a freshness timestamp
-- structured mapping from upstream errors to Merchant API external errors
+- initial implementation uses direct SOAP POST from Merchant API
+- retry policy should be limited to retryable transport failures only
 - trace context propagation required
-- response caching allowed only within the upstream decision TTL
+- circuit breaker is recommended before production scale rollout
+- response caching is controlled by Merchant API because the upstream SOAP response does not publish a TTL
 
-### 11.4 Required Upstream Failure Mapping
+### 11.5 Required Upstream Failure Mapping
 
 | Upstream Condition | Merchant API Result |
 |---|---|
-| Upstream `404` player not found | `404` with `LW-PLAYER-001` |
-| Upstream `422` deposit not qualified | `200` with `depositQualified=false` |
-| Upstream timeout | `504` with `LW-UPSTREAM-003` |
-| Upstream unavailable | `503` with `LW-UPSTREAM-002` |
+| `Status=true` and `IsEligible=true` | `200` with `depositQualified=true` |
+| `Status=true` and `IsEligible=false` | `200` with `depositQualified=false` and configured deposit URL |
+| `Status=false` | `503` Merchant API upstream failure |
+| SOAP fault or non-`200` HTTP status | `503` Merchant API upstream failure |
+| upstream timeout | `504` Merchant API upstream timeout |
+
+### 11.6 Current Implementation Status
+
+- Merchant API now includes a real SOAP client path for `LuckyWheel_Deposit_isEligible`
+- local development may still run with fixture-mode fallback unless `CUSTOMER_PLATFORM_SOAP_ENABLED=true` or a real `CUSTOMER_PLATFORM_COMP_ACCESSKEY` is configured
+- Lucky Wheel Server does not need a contract change; it continues calling Merchant API over the existing internal REST endpoint
 
 ---
 
@@ -931,6 +1017,22 @@ Audit records must be retained for:
 ---
 
 ## 15. Production Migration Notes
+
+### 15.1 Concrete Customer Platform SOAP Rollout Plan
+
+1. Provision sandbox Customer Platform SOAP credentials and confirm Merchant API egress IP allow-listing.
+2. Configure Merchant API with `CUSTOMER_PLATFORM_SOAP_URL`, `CUSTOMER_PLATFORM_COMP_ACCESSKEY`, `CUSTOMER_PLATFORM_SITE_ID`, `CUSTOMER_PLATFORM_TIMEOUT_MS`, `CUSTOMER_PLATFORM_RECORD_DATE_TIMEZONE`, `CUSTOMER_PLATFORM_DEPOSIT_URL`, and optional `CUSTOMER_PLATFORM_SOAP_ENABLED`.
+3. Enable the live SOAP path in sandbox first while retaining fixture fallback for local/offline development.
+4. Validate that Merchant API logs and metrics capture upstream `Code`, `ErrorMsg`, latency, timeout count, and `Status=false` rejection count.
+5. Confirm the business rule for `RecordDate` against the Lucky Wheel event timezone and document any timezone exceptions per merchant/site.
+6. Confirm whether Customer Platform will publish `DepositUrl` in a later WSDL revision; until then, keep the configured fallback deposit URL.
+7. After sandbox validation, remove or narrow fixture-mode usage in production deployments and enforce live SOAP credentials.
+
+### 15.2 Remaining Follow-up Items
+
+- add automated integration tests around SOAP success, timeout, SOAP fault, and `Status=false` cases
+- decide whether Merchant API should cache positive eligibility snapshots or always re-fetch
+- confirm the final production endpoint hostnames and transport hardening requirements
 
 Compared with the current prototype runtime, the following changes are required before go-live:
 

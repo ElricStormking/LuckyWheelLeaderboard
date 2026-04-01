@@ -1,5 +1,7 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import {
+  MERCHANT_API_SERVICE_TOKEN_DEFAULT,
+  MERCHANT_API_SERVICE_TOKEN_ENV_VAR,
   MerchantApiStatusDto,
   MerchantEligibilityResponseDto,
 } from "@lucky-wheel/contracts";
@@ -8,6 +10,9 @@ import {
 export class MerchantApiClientService {
   private readonly baseUrl =
     process.env.MERCHANT_API_BASE_URL ?? "http://localhost:4003/merchant-api";
+  private readonly serviceToken =
+    process.env[MERCHANT_API_SERVICE_TOKEN_ENV_VAR] ??
+    MERCHANT_API_SERVICE_TOKEN_DEFAULT;
 
   getBaseUrl() {
     return this.baseUrl;
@@ -34,9 +39,16 @@ export class MerchantApiClientService {
       const response = await fetch(`${this.baseUrl}${pathname}`, {
         headers: {
           Accept: "application/json",
+          Authorization: `Bearer ${this.serviceToken}`,
         },
         signal: controller.signal,
       });
+
+      if (response.status === 401) {
+        throw new ServiceUnavailableException(
+          "Merchant API rejected the internal service bearer token.",
+        );
+      }
 
       if (!response.ok) {
         throw new ServiceUnavailableException(

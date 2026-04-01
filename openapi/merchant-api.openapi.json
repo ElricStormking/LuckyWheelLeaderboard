@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Lucky Wheel Merchant API",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "description": "Production contract for customer-platform launch, deposit-eligibility resolution, and Merchant API operational health."
   },
   "servers": [
@@ -155,8 +155,8 @@
       "ServiceBearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Internal Lucky Wheel service token. Mutual TLS is also required in production."
+        "bearerFormat": "opaque",
+        "description": "Internal Lucky Wheel service bearer token shared between Lucky Wheel Server and Merchant API. Mutual TLS is also required in production."
       }
     },
     "parameters": {

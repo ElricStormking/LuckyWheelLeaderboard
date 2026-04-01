@@ -20,10 +20,10 @@ export class MerchantApiService {
     };
   }
 
-  getEligibilitySnapshot(
+  async getEligibilitySnapshot(
     playerId: string,
     eventId: string,
-  ): MerchantEligibilityResponseDto {
+  ): Promise<MerchantEligibilityResponseDto> {
     return this.customerPlatformService.getEligibilitySnapshot(playerId, eventId);
   }
 }
