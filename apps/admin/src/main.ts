@@ -18,7 +18,7 @@ import type {
 } from "@lucky-wheel/contracts";
 import "./styles.css";
 
-const API_BASE_URL = "http://localhost:4000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const SUPPORTED_LOCALES: AppLocale[] = ["en", "ms", "zh-CN"];
 const SECTION_ORDER = [
   "capital",

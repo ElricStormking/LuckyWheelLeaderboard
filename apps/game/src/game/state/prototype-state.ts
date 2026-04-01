@@ -16,6 +16,7 @@ import type {
   SpinSuccessResponse,
 } from "@lucky-wheel/contracts";
 import { FALLBACK_LOCALE, persistLocale, resolveLaunchLocale, translate } from "../i18n";
+import { createClientUuid } from "../helpers";
 import { LuckyWheelApi, type LuckyWheelRealtimeEventMap } from "../services/lucky-wheel-api";
 
 type RealtimeStatus = "idle" | "connecting" | "connected" | "error";
@@ -395,7 +396,7 @@ class PrototypeState {
       const response = await this.api.spin(
         {
           eventId: currentEvent.id,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: createClientUuid(),
         },
         this.snapshot.eligibilityOverride,
       );

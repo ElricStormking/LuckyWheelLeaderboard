@@ -1,0 +1,60 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    env_file:
+      - path: .env.production
+        required: false
+    environment:
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-file:/data/dev.db}
+      MERCHANT_API_BASE_URL: http://merchant-api:4003/merchant-api
+      LUCKY_WHEEL_CLIENT_BASE_URL: ${LUCKY_WHEEL_CLIENT_BASE_URL:-http://localhost:3000}
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+    volumes:
+      - luckywheel_api_data:/data
+
+  merchant-api:
+    build:
+      context: .
+      dockerfile: docker/merchant-api.Dockerfile
+    env_file:
+      - path: .env.production
+        required: false
+    environment:
+      PORT: 4003
+      LUCKY_WHEEL_PLATFORM_BASE_URL: http://api:4000
+    ports:
+      - "4003:4003"
+    restart: unless-stopped
+
+  game:
+    build:
+      context: .
+      dockerfile: docker/game.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    depends_on:
+      - api
+    ports:
+      - "4002:4002"
+    restart: unless-stopped
+
+volumes:
+  luckywheel_api_data:
+    name: luckywheelleaderboard_api-db

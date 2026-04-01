@@ -16,6 +16,17 @@ const WHEEL_BACKDROP_SCALE = 0.86;
 const WHEEL_BACKDROP_SIZE = 972;
 const POINTER_SCALE = 0.58;
 const POINTER_GAP = 10 * WHEEL_SCALE;
+const CELEBRATION_DURATION_MS = 6000;
+const FIREWORK_CADENCE_MS = 420;
+const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
+const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
+const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
+const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
+const SEGMENT_HIGHLIGHT_SHADOW = 0x8a4300;
+const SEGMENT_HIGHLIGHT_ORANGE = 0xff8b1f;
+const SEGMENT_HIGHLIGHT_GOLD = 0xffcb47;
+const SEGMENT_HIGHLIGHT_GOLD_SOFT = 0xffefad;
+const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
 const POINTER_TIP_Y =
   WHEEL_CENTER_Y - (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE * WHEEL_SCALE) / 2 - POINTER_GAP;
 
@@ -29,7 +40,7 @@ export class WheelScene extends Phaser.Scene {
   private currentEligibility?: EligibilityStatus;
   private spinning = false;
   private highlightedSegmentIndex?: number;
-  private highlightGraphic?: Phaser.GameObjects.Graphics;
+  private highlightGraphic?: Phaser.GameObjects.Container;
   private highlightTween?: Phaser.Tweens.Tween;
   private celebrationTimer?: Phaser.Time.TimerEvent;
   private celebrationBursts: Phaser.Time.TimerEvent[] = [];
@@ -202,7 +213,7 @@ export class WheelScene extends Phaser.Scene {
     this.launchCelebrationFireworks();
 
     this.celebrationTimer?.remove(false);
-    this.celebrationTimer = this.time.delayedCall(4000, () => {
+    this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
       this.clearCelebrationBursts();
       this.highlightedSegmentIndex = undefined;
       this.highlightTween?.stop();
@@ -283,25 +294,166 @@ export class WheelScene extends Phaser.Scene {
 
     const startAngle = Phaser.Math.DegToRad(-120 + segmentIndex * 60);
     const endAngle = Phaser.Math.DegToRad(-60 + segmentIndex * 60);
-    const highlight = this.add.graphics();
-    highlight.fillStyle(0xffffff, 0.18);
-    highlight.slice(0, 0, 420, startAngle, endAngle, false);
-    highlight.fillPath();
-    highlight.lineStyle(8, 0xfff7c2, 0.95);
-    highlight.slice(0, 0, 425, startAngle, endAngle, false);
-    highlight.strokePath();
-    highlight.setBlendMode(Phaser.BlendModes.ADD);
+    const midAngle = (startAngle + endAngle) / 2;
+    const startInnerX = Math.cos(startAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const startInnerY = Math.sin(startAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const endInnerX = Math.cos(endAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const endInnerY = Math.sin(endAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const highlight = this.add.container(0, 0);
+    const frame = this.add.graphics();
+
+    frame.fillStyle(SEGMENT_HIGHLIGHT_GOLD_SOFT, 0.12);
+    frame.beginPath();
+    frame.moveTo(startInnerX, startInnerY);
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.lineTo(endInnerX, endInnerY);
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_INNER_RADIUS, endAngle, startAngle, true);
+    frame.closePath();
+    frame.fillPath();
+
+    frame.lineStyle(32, SEGMENT_HIGHLIGHT_SHADOW, 0.34);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(18, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(8, SEGMENT_HIGHLIGHT_GOLD, 1);
+    frame.beginPath();
+    frame.arc(
+      0,
+      0,
+      SEGMENT_HIGHLIGHT_OUTER_RADIUS - 20,
+      startAngle + 0.012,
+      endAngle - 0.012,
+      false,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(12, SEGMENT_HIGHLIGHT_GOLD, 0.96);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_INNER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(6, SEGMENT_HIGHLIGHT_AMBER, 0.98);
+    frame.beginPath();
+    frame.arc(
+      0,
+      0,
+      SEGMENT_HIGHLIGHT_INNER_RADIUS + 16,
+      startAngle + 0.025,
+      endAngle - 0.025,
+      false,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(16, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    frame.beginPath();
+    frame.moveTo(startInnerX, startInnerY);
+    frame.lineTo(
+      Math.cos(startAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+      Math.sin(startAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+    );
+    frame.moveTo(endInnerX, endInnerY);
+    frame.lineTo(
+      Math.cos(endAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+      Math.sin(endAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(6, SEGMENT_HIGHLIGHT_GOLD, 0.98);
+    frame.beginPath();
+    frame.moveTo(
+      Math.cos(startAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+      Math.sin(startAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+    );
+    frame.lineTo(
+      Math.cos(startAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+      Math.sin(startAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+    );
+    frame.moveTo(
+      Math.cos(endAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+      Math.sin(endAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+    );
+    frame.lineTo(
+      Math.cos(endAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+      Math.sin(endAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+    );
+    frame.strokePath();
+
+    const crestOuterRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 4;
+    const crestInnerRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 34;
+    const crest = this.add.graphics();
+    crest.fillStyle(SEGMENT_HIGHLIGHT_GOLD, 1);
+    crest.beginPath();
+    crest.moveTo(
+      Math.cos(midAngle) * crestOuterRadius,
+      Math.sin(midAngle) * crestOuterRadius,
+    );
+    crest.lineTo(
+      Math.cos(midAngle - 0.09) * crestInnerRadius,
+      Math.sin(midAngle - 0.09) * crestInnerRadius,
+    );
+    crest.lineTo(
+      Math.cos(midAngle + 0.09) * crestInnerRadius,
+      Math.sin(midAngle + 0.09) * crestInnerRadius,
+    );
+    crest.closePath();
+    crest.fillPath();
+    crest.lineStyle(5, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    crest.strokePath();
+
+    const innerBadge = this.add.graphics();
+    innerBadge.fillStyle(SEGMENT_HIGHLIGHT_AMBER, 0.22);
+    const innerBadgeApexRadius = SEGMENT_HIGHLIGHT_INNER_RADIUS - 24;
+    innerBadge.beginPath();
+    innerBadge.moveTo(
+      Math.cos(midAngle - 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+      Math.sin(midAngle - 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+    );
+    innerBadge.lineTo(
+      Math.cos(midAngle) * innerBadgeApexRadius,
+      Math.sin(midAngle) * innerBadgeApexRadius,
+    );
+    innerBadge.lineTo(
+      Math.cos(midAngle + 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+      Math.sin(midAngle + 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+    );
+    innerBadge.closePath();
+    innerBadge.fillPath();
+    innerBadge.lineStyle(5, SEGMENT_HIGHLIGHT_GOLD, 0.94);
+    innerBadge.strokePath();
+
+    highlight.add([frame, crest, innerBadge]);
+
+    for (let index = 0; index < SEGMENT_HIGHLIGHT_DOT_COUNT; index += 1) {
+      const dotAngle = Phaser.Math.Linear(startAngle + 0.1, endAngle - 0.1, index / (SEGMENT_HIGHLIGHT_DOT_COUNT - 1));
+      const dotRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 8;
+      const dotX = Math.cos(dotAngle) * dotRadius;
+      const dotY = Math.sin(dotAngle) * dotRadius;
+      const dotShadow = this.add.circle(dotX, dotY + 4, 11, SEGMENT_HIGHLIGHT_SHADOW, 0.22);
+      const dotOuter = this.add.circle(dotX, dotY, 12, SEGMENT_HIGHLIGHT_ORANGE, 1);
+      const dotInner = this.add.circle(dotX, dotY, 6, SEGMENT_HIGHLIGHT_GOLD_SOFT, 1);
+      highlight.add([dotShadow, dotOuter, dotInner]);
+    }
+
+    highlight.setAlpha(0.72);
 
     this.wheelRoot.add(highlight);
     this.highlightGraphic = highlight;
 
     this.highlightTween = this.tweens.add({
       targets: highlight,
-      alpha: 0.18,
-      duration: 240,
-      ease: "Sine.easeInOut",
+      alpha: { from: 0.58, to: 1 },
+      scaleX: { from: 0.992, to: 1.028 },
+      scaleY: { from: 0.992, to: 1.028 },
+      duration: 280,
+      ease: "Quad.easeInOut",
       yoyo: true,
-      repeat: 7,
+      repeat: -1,
     });
   }
 
@@ -340,15 +492,23 @@ export class WheelScene extends Phaser.Scene {
   private launchCelebrationFireworks() {
     this.clearCelebrationBursts();
 
-    const burstCount = 10;
-    for (let index = 0; index < burstCount; index += 1) {
-      const timer = this.time.delayedCall(index * 220, () => {
+    for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
+      const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
         const point = this.getRandomFireworkPoint();
-        this.createFireworkBurst(point.x, point.y, Phaser.Math.FloatBetween(0.92, 1.1));
+        const isHeroBurst = index % 4 === 0;
+        this.createFireworkBurst(
+          point.x,
+          point.y,
+          Phaser.Math.FloatBetween(isHeroBurst ? 1.06 : 0.88, isHeroBurst ? 1.24 : 1.06),
+        );
 
-        if (Math.random() < 0.25) {
+        if (Math.random() < (isHeroBurst ? 0.55 : 0.32)) {
           const echo = this.getNearbyFireworkPoint(point);
-          this.createFireworkBurst(echo.x, echo.y, Phaser.Math.FloatBetween(0.58, 0.78));
+          this.createFireworkBurst(
+            echo.x,
+            echo.y,
+            Phaser.Math.FloatBetween(isHeroBurst ? 0.72 : 0.54, isHeroBurst ? 0.92 : 0.76),
+          );
         }
       });
 
@@ -406,7 +566,7 @@ export class WheelScene extends Phaser.Scene {
       targets: flash,
       scale: 3.9,
       alpha: 0,
-      duration: 360,
+      duration: 440,
       ease: "Quad.easeOut",
       onComplete: () => flash.destroy(),
     });
@@ -417,7 +577,7 @@ export class WheelScene extends Phaser.Scene {
       targets: ring,
       scale: 4.2,
       alpha: 0,
-      duration: 860,
+      duration: 980,
       ease: "Cubic.easeOut",
       onComplete: () => ring.destroy(),
     });
@@ -439,7 +599,7 @@ export class WheelScene extends Phaser.Scene {
       scale: 1.22,
       alpha: 0,
       angle: Phaser.Math.Between(-25, 25),
-      duration: 760,
+      duration: 940,
       ease: "Quart.easeOut",
       onComplete: () => spokes.destroy(),
     });
@@ -466,7 +626,7 @@ export class WheelScene extends Phaser.Scene {
         y: y + Math.sin(angle) * distance + Phaser.Math.Between(-24, 34) * scale,
         scale: 0.18,
         alpha: 0,
-        duration: Phaser.Math.Between(760, 1180),
+        duration: Phaser.Math.Between(900, 1450),
         ease: "Cubic.easeOut",
         onComplete: () => particle.destroy(),
       });

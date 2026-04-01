@@ -12,8 +12,8 @@ export const AUDIO_KEYS = {
 
 const BACKGROUND_MUSIC_FILE = "BGM_luckywheel.mp3";
 const WINNING_EFFECT_FILE = "lucky_win.mp3";
-const BACKGROUND_MUSIC_VOLUME = 0.28;
-const WINNING_EFFECT_VOLUME = 0.9;
+const BACKGROUND_MUSIC_VOLUME = 0.8;
+const WINNING_EFFECT_VOLUME = 0.62;
 
 function resolveAudioUrl(fileName: string) {
   const match = Object.entries(audioModules).find(([path]) =>
