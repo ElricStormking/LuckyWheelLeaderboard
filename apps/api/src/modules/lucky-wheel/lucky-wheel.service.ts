@@ -52,6 +52,7 @@ import {
   EVENT_PAGE_SIZE,
   HISTORY_PAGE_SIZE,
   LEADERBOARD_SYNC_INTERVAL_MS,
+  TEST_LEADERBOARD_PLAYER_NAMES,
 } from "./lucky-wheel.constants";
 import {
   getEligibilityButtonLabel,
@@ -139,12 +140,17 @@ type RealtimePlayerState = Omit<PlayerScoreChangedEventDto, "eventId" | "emitted
 
 const EVENT_CACHE_TTL_MS = 15_000;
 const RANKED_SCORE_CACHE_TTL_MS = 2_000;
+const TEST_LEADERBOARD_STARTING_SCORE = 6200;
+const TEST_LEADERBOARD_SCORE_STEP = 150;
 
 @Injectable()
 export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   private readonly realtimeStreams = new Map<string, RealtimeStreamEntry>();
   private readonly eventCache = new Map<string, CacheEntry<EventWithRelations>>();
   private readonly rankedScoresCache = new Map<string, CacheEntry<RankedScoreRecord[]>>();
+  private readonly fillTestLeaderboard =
+    (process.env.LUCKY_WHEEL_FILL_TEST_LEADERBOARD ?? "true").toLowerCase() !==
+    "false";
   private periodicSyncTimer?: NodeJS.Timeout;
   private liveEventCache?: CacheEntry<EventWithRelations | null>;
   private readonly autoFinalizeGraceMinutes = resolveAutoFinalizeGraceMinutes(
@@ -262,9 +268,16 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     const rankedScores = await this.getRankedScores(eventId);
     const prizes = this.toPrizeDtos(event.prizes, locale);
     const leaderboardLimit = Math.min(Math.max(limit, 1), 30);
-    const leaderboard = rankedScores
+    const realLeaderboard = rankedScores
       .slice(0, leaderboardLimit)
       .map((entry, index) => this.toLeaderboardEntry(entry, index + 1, prizes));
+    const leaderboard = this.applyExampleLeaderboardScores(
+      this.fillLeaderboardWithTesterPlayers(
+        realLeaderboard,
+        leaderboardLimit,
+        prizes,
+      ),
+    );
     const selfEntry = leaderboard.find((entry) => entry.isSelf) ?? null;
     const selfRank = rankedScores.findIndex((entry) => entry.playerId === DEMO_PLAYER_ID);
 
@@ -1065,6 +1078,78 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       prizeName: this.resolvePrizeName(rank, prizes),
       isSelf: score.playerId === DEMO_PLAYER_ID,
     };
+  }
+
+  private fillLeaderboardWithTesterPlayers(
+    leaderboard: LeaderboardEntryDto[],
+    limit: number,
+    prizes: EventPrizeDto[],
+  ) {
+    if (!this.fillTestLeaderboard || leaderboard.length >= limit) {
+      return leaderboard;
+    }
+
+    const usedNames = new Set(
+      leaderboard.map((entry) => entry.playerName.trim().toLowerCase()),
+    );
+    const filled = [...leaderboard];
+    let fallbackScore =
+      filled.length === 0
+        ? TEST_LEADERBOARD_STARTING_SCORE
+        : Math.max(
+            (filled[filled.length - 1]?.score ?? 0) - TEST_LEADERBOARD_SCORE_STEP,
+            0,
+          );
+
+    for (const playerName of TEST_LEADERBOARD_PLAYER_NAMES) {
+      if (filled.length >= limit) {
+        break;
+      }
+
+      if (usedNames.has(playerName.toLowerCase())) {
+        continue;
+      }
+
+      const rank = filled.length + 1;
+      const score =
+        leaderboard.length === 0
+          ? Math.max(
+              TEST_LEADERBOARD_STARTING_SCORE - (rank - 1) * TEST_LEADERBOARD_SCORE_STEP,
+              0,
+            )
+          : fallbackScore;
+
+      filled.push({
+        rank,
+        playerName,
+        score,
+        prizeName: this.resolvePrizeName(rank, prizes),
+        isSelf: false,
+      });
+      usedNames.add(playerName.toLowerCase());
+      fallbackScore = Math.max(score - TEST_LEADERBOARD_SCORE_STEP, 0);
+    }
+
+    return filled;
+  }
+
+  private applyExampleLeaderboardScores(leaderboard: LeaderboardEntryDto[]) {
+    if (!this.fillTestLeaderboard || leaderboard.length === 0) {
+      return leaderboard;
+    }
+
+    const shouldOverrideScores = leaderboard.every((entry) => entry.score <= 0);
+    if (!shouldOverrideScores) {
+      return leaderboard;
+    }
+
+    return leaderboard.map((entry, index) => ({
+      ...entry,
+      score: Math.max(
+        TEST_LEADERBOARD_STARTING_SCORE - index * TEST_LEADERBOARD_SCORE_STEP,
+        0,
+      ),
+    }));
   }
 
   private toSpinHistoryEntry(

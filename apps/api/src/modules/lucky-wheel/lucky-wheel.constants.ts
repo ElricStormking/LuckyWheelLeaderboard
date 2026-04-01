@@ -3,6 +3,38 @@ export const DEMO_PLAYER_NAME = "AceNova";
 export const EVENT_PAGE_SIZE = 6;
 export const HISTORY_PAGE_SIZE = 6;
 export const LEADERBOARD_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+export const TEST_LEADERBOARD_PLAYER_NAMES = [
+  "LunaRay",
+  "VoltKing",
+  "MintRush",
+  "EchoFox",
+  "DeltaAce",
+  "JadeSpin",
+  "CrimsonQ",
+  "NovaMint",
+  "TigerFlux",
+  "HaloJin",
+  "IvoryAce",
+  "Skylark7",
+  "RougeSpin",
+  "KiteNova",
+  "ZenVale",
+  "LuckyKai",
+  "BlueOrbit",
+  "CinderFox",
+  "MarbleJet",
+  "PixelTide",
+  "NobleLynx",
+  "SolarMint",
+  "KarmaDrift",
+  "TangoZero",
+  "AquaBloom",
+  "RookJet",
+  "VegaSpin",
+  "TurboLeaf",
+  "OpalDash",
+  "QuietStorm",
+] as const;
 
 export const HERO_STEPS = [
   {

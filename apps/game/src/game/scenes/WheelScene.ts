@@ -4,6 +4,7 @@ import {
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
+import { playWinningEffect } from "../audio";
 import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
 import { prototypeState } from "../state/prototype-state";
@@ -196,6 +197,7 @@ export class WheelScene extends Phaser.Scene {
 
   private playSpinCelebration(segmentIndex: number) {
     this.highlightedSegmentIndex = segmentIndex;
+    playWinningEffect(this);
     this.applyState();
     this.launchCelebrationFireworks();
 

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
+import { ensureBackgroundMusic } from "../audio";
 import { prototypeState } from "../state/prototype-state";
 import type { WheelScene } from "./WheelScene";
 import {
@@ -180,6 +181,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
+    ensureBackgroundMusic(this);
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
     this.drawBackground();

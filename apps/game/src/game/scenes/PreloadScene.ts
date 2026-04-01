@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { preloadGameAudio } from "../audio";
 import { COLORS, FONTS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
 import { preloadEditorUiAssets } from "../editorUiAssets";
 
@@ -9,6 +10,7 @@ export class PreloadScene extends Phaser.Scene {
 
   preload() {
     preloadEditorUiAssets(this);
+    preloadGameAudio(this);
   }
 
   async create() {
