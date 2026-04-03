@@ -202,8 +202,9 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     await Promise.allSettled([
-      document.fonts.load(`800 72px "${FONTS.displayName}"`),
+      document.fonts.load(`900 72px "${FONTS.displayName}"`),
       document.fonts.load(`700 32px "${FONTS.bodyName}"`),
+      document.fonts.load(`400 32px "${FONTS.bodyName}"`),
     ]);
   }
 }

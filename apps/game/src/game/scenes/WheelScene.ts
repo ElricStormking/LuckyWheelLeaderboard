@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   EligibilityStatus,
+  WheelVisualState,
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
@@ -27,6 +28,16 @@ const SEGMENT_HIGHLIGHT_ORANGE = 0xff8b1f;
 const SEGMENT_HIGHLIGHT_GOLD = 0xffcb47;
 const SEGMENT_HIGHLIGHT_GOLD_SOFT = 0xffefad;
 const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
+const ENDED_WHEEL_TINT = 0xe9edf1;
+const ENDED_WHEEL_SEGMENT_DARK = 0xd8dce1;
+const ENDED_WHEEL_SEGMENT_LIGHT = 0xfdfdfd;
+const ENDED_WHEEL_SEGMENT_DIVIDER = 0xe8edf2;
+const ENDED_WHEEL_RIM_SHADOW = 0xb9c0c7;
+const ENDED_WHEEL_RIM = 0xf7f9fb;
+const ENDED_WHEEL_RIM_INNER = 0xcfd5dc;
+const ENDED_WHEEL_TEXT_DARK = "#50555d";
+const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
+const ENDED_WHEEL_SEGMENT_RADIUS = 394;
 const POINTER_TIP_Y =
   WHEEL_CENTER_Y - (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE * WHEEL_SCALE) / 2 - POINTER_GAP;
 
@@ -38,7 +49,9 @@ export class WheelScene extends Phaser.Scene {
   private button?: ReturnType<typeof addTextButton>;
   private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
+  private currentWheelVisualState = WheelVisualState.Normal;
   private spinning = false;
+  private pointer?: Phaser.GameObjects.Image;
   private highlightedSegmentIndex?: number;
   private highlightGraphic?: Phaser.GameObjects.Container;
   private highlightTween?: Phaser.Tweens.Tween;
@@ -133,12 +146,17 @@ export class WheelScene extends Phaser.Scene {
     }
 
     this.currentEligibility = snapshot.eligibility.eligibilityStatus;
-    const wheelSignature = this.getWheelSignature(snapshot.currentEvent.wheelSegments);
+    this.currentWheelVisualState = snapshot.eligibility.wheelVisualState;
+    const wheelSignature = this.getWheelSignature(
+      snapshot.currentEvent.wheelSegments,
+      this.currentWheelVisualState,
+    );
     if (wheelSignature !== this.renderedWheelSignature) {
       this.drawWheel(snapshot.currentEvent.wheelSegments);
     } else {
       this.syncWinningSegmentHighlight();
     }
+    this.syncPointerVisualState();
 
     this.button.setLabel(snapshot.eligibility.buttonLabel);
     this.button.setBackground(
@@ -152,6 +170,13 @@ export class WheelScene extends Phaser.Scene {
       !this.spinning &&
         this.currentEligibility !== EligibilityStatus.AlreadySpin &&
         this.currentEligibility !== EligibilityStatus.EventEnded,
+    );
+    this.button.container.setAlpha(
+      this.currentEligibility === EligibilityStatus.EventEnded
+        ? 1
+        : !this.spinning && this.currentEligibility !== EligibilityStatus.AlreadySpin
+          ? 1
+          : 0.78,
     );
     this.button.label.setColor(
       this.currentEligibility === EligibilityStatus.GoToDeposit ? "#0a2942" : "#ffffff",
@@ -231,6 +256,8 @@ export class WheelScene extends Phaser.Scene {
       return;
     }
 
+    const isGreyedOut = this.currentWheelVisualState === WheelVisualState.GreyedOut;
+    const wheelRadius = (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE) / 2;
     this.highlightTween?.stop();
     this.highlightTween = undefined;
     this.highlightGraphic = undefined;
@@ -238,16 +265,61 @@ export class WheelScene extends Phaser.Scene {
     this.wheelRoot.removeAll(true);
     const wheelBackdrop = this.add.image(0, 0, "Roulette");
     wheelBackdrop.setScale(WHEEL_BACKDROP_SCALE);
+    if (isGreyedOut) {
+      wheelBackdrop.setTintFill(ENDED_WHEEL_TINT);
+      wheelBackdrop.setAlpha(0.16);
+    }
     this.wheelRoot.add(wheelBackdrop);
-    this.renderedWheelSignature = this.getWheelSignature(segments);
+    this.renderedWheelSignature = this.getWheelSignature(segments, this.currentWheelVisualState);
 
     if (segments.length === 0) {
       return;
     }
 
+    if (isGreyedOut) {
+      const endedSegments = this.add.graphics();
+
+      segments.forEach((_, index) => {
+        const startAngle = Phaser.Math.DegToRad(-120 + index * 60);
+        const endAngle = Phaser.Math.DegToRad(-60 + index * 60);
+        const segmentFill =
+          index % 2 === 0 ? ENDED_WHEEL_SEGMENT_DARK : ENDED_WHEEL_SEGMENT_LIGHT;
+
+        endedSegments.fillStyle(segmentFill, index % 2 === 0 ? 0.98 : 1);
+        endedSegments.beginPath();
+        endedSegments.moveTo(0, 0);
+        endedSegments.arc(0, 0, ENDED_WHEEL_SEGMENT_RADIUS, startAngle, endAngle, false);
+        endedSegments.closePath();
+        endedSegments.fillPath();
+
+        endedSegments.lineStyle(3, ENDED_WHEEL_SEGMENT_DIVIDER, 0.92);
+        endedSegments.beginPath();
+        endedSegments.moveTo(0, 0);
+        endedSegments.lineTo(
+          Math.cos(startAngle) * ENDED_WHEEL_SEGMENT_RADIUS,
+          Math.sin(startAngle) * ENDED_WHEEL_SEGMENT_RADIUS,
+        );
+        endedSegments.moveTo(0, 0);
+        endedSegments.lineTo(
+          Math.cos(endAngle) * ENDED_WHEEL_SEGMENT_RADIUS,
+          Math.sin(endAngle) * ENDED_WHEEL_SEGMENT_RADIUS,
+        );
+        endedSegments.strokePath();
+      });
+
+      const segmentGlow = this.add.circle(0, 0, ENDED_WHEEL_SEGMENT_RADIUS - 8, 0xffffff, 0.08);
+      this.wheelRoot.add([endedSegments, segmentGlow]);
+    }
+
     segments.forEach((segment, index) => {
       const isLightSegment = index % 2 === 1;
-      const labelColor = isLightSegment ? "#0a2942" : "#ffffff";
+      const labelColor = isGreyedOut
+        ? isLightSegment
+          ? ENDED_WHEEL_TEXT_DARK
+          : ENDED_WHEEL_TEXT_LIGHT
+        : isLightSegment
+          ? "#0a2942"
+          : "#ffffff";
 
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
       const labelRadius = 244;
@@ -273,13 +345,24 @@ export class WheelScene extends Phaser.Scene {
           color: labelColor,
         })
         .setOrigin(0.5)
-        .setAlpha(isLightSegment ? 0.92 : 0.88);
+        .setAlpha(isGreyedOut ? (isLightSegment ? 0.86 : 0.92) : isLightSegment ? 0.92 : 0.88);
 
       labelContainer.add([label, unit]);
       labelContainer.setRotation(centerAngle + Math.PI / 2);
 
       this.wheelRoot?.add(labelContainer);
     });
+
+    if (isGreyedOut) {
+      const rimShadow = this.add.circle(0, 0, wheelRadius - 5);
+      rimShadow.setStrokeStyle(14, ENDED_WHEEL_RIM_SHADOW, 0.5);
+      const rim = this.add.circle(0, 0, wheelRadius - 11);
+      rim.setStrokeStyle(9, ENDED_WHEEL_RIM, 0.96);
+      const innerRim = this.add.circle(0, 0, wheelRadius - 28);
+      innerRim.setStrokeStyle(4, ENDED_WHEEL_RIM_INNER, 0.72);
+      const faceBloom = this.add.circle(0, 0, wheelRadius - 42, 0xffffff, 0.08);
+      this.wheelRoot.add([faceBloom, rimShadow, rim, innerRim]);
+    }
 
     this.syncWinningSegmentHighlight();
   }
@@ -475,9 +558,13 @@ export class WheelScene extends Phaser.Scene {
     this.renderedHighlightIndex = this.highlightedSegmentIndex;
   }
 
-  private getWheelSignature(segments: WheelSegmentDto[]) {
-    return segments
-      .map((segment) =>
+  private getWheelSignature(
+    segments: WheelSegmentDto[],
+    wheelVisualState = WheelVisualState.Normal,
+  ) {
+    return [
+      wheelVisualState,
+      ...segments.map((segment) =>
         [
           segment.segmentIndex,
           segment.label,
@@ -485,8 +572,27 @@ export class WheelScene extends Phaser.Scene {
           segment.scoreOperand,
           segment.weightPercent,
         ].join(":"),
-      )
-      .join("|");
+      ),
+    ].join("|");
+  }
+
+  private syncPointerVisualState() {
+    if (!this.pointer) {
+      return;
+    }
+
+    if (this.currentWheelVisualState === WheelVisualState.GreyedOut) {
+      this.pointer.setTintFill(0xf8fafb);
+      this.pointer.setAlpha(0.82);
+      return;
+    }
+
+    this.pointer.clearTint();
+    this.pointer.setAlpha(1);
+  }
+
+  private isEventEndedButton(color: number) {
+    return color === COLORS.disabled;
   }
 
   private launchCelebrationFireworks() {
@@ -634,10 +740,11 @@ export class WheelScene extends Phaser.Scene {
   }
 
   private drawPointer() {
-    this.add
+    this.pointer = this.add
       .image(WHEEL_CENTER_X, POINTER_TIP_Y, "RouletteArrow")
       .setOrigin(0.5, 1)
       .setScale(POINTER_SCALE * WHEEL_SCALE);
+    this.syncPointerVisualState();
   }
 
   private createWheelCenterButton() {
@@ -659,6 +766,10 @@ export class WheelScene extends Phaser.Scene {
     const drawFace = (color: number) => {
       face.clearTint();
       spinArrows.clearTint();
+      face.setAlpha(1);
+      spinArrows.setAlpha(1);
+      shadow.setPosition(6, 10);
+      shadow.setFillStyle(0x8f4b75, 0.18);
 
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
@@ -666,9 +777,12 @@ export class WheelScene extends Phaser.Scene {
         return;
       }
 
-      if (color === COLORS.disabled) {
-        face.setTint(0xb4bdc9);
-        spinArrows.setTint(0xf3f6fa);
+      if (this.isEventEndedButton(color)) {
+        shadow.setPosition(0, 0);
+        face.setTintFill(0x9fa6af);
+        spinArrows.setTintFill(0xf0f3f6);
+        spinArrows.setAlpha(0.62);
+        shadow.setFillStyle(0x7b828a, 0.16);
       }
     };
 

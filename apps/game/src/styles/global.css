@@ -1,8 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Rajdhani:wght@600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap");
 
 :root {
   color-scheme: light;
-  font-family: "Rajdhani", "Oxanium", "Segoe UI", sans-serif;
+  font-family: "Roboto", "Segoe UI", sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -148,7 +148,7 @@ canvas {
   border-radius: 999px;
   background: linear-gradient(135deg, #179de7, #0a71cc);
   color: #ffffff;
-  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-family: "Roboto", "Segoe UI", sans-serif;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -166,7 +166,7 @@ canvas {
 .mobile-launch-title {
   margin: 0;
   color: #119ae0;
-  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-family: "Roboto", "Segoe UI", sans-serif;
   font-size: clamp(28px, 5vw, 38px);
   line-height: 1.05;
 }
@@ -217,7 +217,7 @@ canvas {
 .mobile-launch-orientation-label {
   margin: 0;
   color: #17344c;
-  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-family: "Roboto", "Segoe UI", sans-serif;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -264,7 +264,7 @@ canvas {
   border: 0;
   border-radius: 18px;
   padding: 16px 18px;
-  font-family: "Oxanium", "Trebuchet MS", sans-serif;
+  font-family: "Roboto", "Segoe UI", sans-serif;
   font-size: 20px;
   font-weight: 700;
   cursor: pointer;

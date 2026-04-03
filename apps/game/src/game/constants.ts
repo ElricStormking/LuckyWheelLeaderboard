@@ -21,10 +21,10 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  display: '"Oxanium", "Trebuchet MS", sans-serif',
-  body: '"Rajdhani", "Segoe UI", sans-serif',
-  displayName: "Oxanium",
-  bodyName: "Rajdhani",
+  display: '"Roboto", "Segoe UI", sans-serif',
+  body: '"Roboto", "Segoe UI", sans-serif',
+  displayName: "Roboto",
+  bodyName: "Roboto",
 };
 
 export const SCENE_KEYS = {
