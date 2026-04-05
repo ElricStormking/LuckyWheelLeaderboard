@@ -1,0 +1,204 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/RankingPage/Button_Page_01.png",
+                "type": "image",
+                "key": "Button_Page_01"
+            },
+            {
+                "url": "assets/RankingPage/Button_Page_02.png",
+                "type": "image",
+                "key": "Button_Page_02"
+            },
+            {
+                "url": "assets/RankingPage/Button_Page_03.png",
+                "type": "image",
+                "key": "Button_Page_03"
+            },
+            {
+                "url": "assets/RankingPage/Button_Page_04.png",
+                "type": "image",
+                "key": "Button_Page_04"
+            },
+            {
+                "url": "assets/RankingPage/Divider.png",
+                "type": "image",
+                "key": "Divider"
+            },
+            {
+                "url": "assets/RankingPage/RankingArrow.png",
+                "type": "image",
+                "key": "RankingArrow"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_01.png",
+                "type": "image",
+                "key": "RankingPlate_01"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_02.png",
+                "type": "image",
+                "key": "RankingPlate_02"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_03.png",
+                "type": "image",
+                "key": "RankingPlate_03"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_04.png",
+                "type": "image",
+                "key": "RankingPlate_04"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_05.png",
+                "type": "image",
+                "key": "RankingPlate_05"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_06.png",
+                "type": "image",
+                "key": "RankingPlate_06"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_07.png",
+                "type": "image",
+                "key": "RankingPlate_07"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_08.png",
+                "type": "image",
+                "key": "RankingPlate_08"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_09.png",
+                "type": "image",
+                "key": "RankingPlate_09"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_10.png",
+                "type": "image",
+                "key": "RankingPlate_10"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_11.png",
+                "type": "image",
+                "key": "RankingPlate_11"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_12.png",
+                "type": "image",
+                "key": "RankingPlate_12"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_13.png",
+                "type": "image",
+                "key": "RankingPlate_13"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_14.png",
+                "type": "image",
+                "key": "RankingPlate_14"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_15.png",
+                "type": "image",
+                "key": "RankingPlate_15"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_16.png",
+                "type": "image",
+                "key": "RankingPlate_16"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_17.png",
+                "type": "image",
+                "key": "RankingPlate_17"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_18.png",
+                "type": "image",
+                "key": "RankingPlate_18"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_19.png",
+                "type": "image",
+                "key": "RankingPlate_19"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_20.png",
+                "type": "image",
+                "key": "RankingPlate_20"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_21.png",
+                "type": "image",
+                "key": "RankingPlate_21"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_22.png",
+                "type": "image",
+                "key": "RankingPlate_22"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_23.png",
+                "type": "image",
+                "key": "RankingPlate_23"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_24.png",
+                "type": "image",
+                "key": "RankingPlate_24"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_25.png",
+                "type": "image",
+                "key": "RankingPlate_25"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_26.png",
+                "type": "image",
+                "key": "RankingPlate_26"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_27.png",
+                "type": "image",
+                "key": "RankingPlate_27"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_28.png",
+                "type": "image",
+                "key": "RankingPlate_28"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_29.png",
+                "type": "image",
+                "key": "RankingPlate_29"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_30.png",
+                "type": "image",
+                "key": "RankingPlate_30"
+            },
+            {
+                "url": "assets/RankingPage/RankingPlate_Notl.png",
+                "type": "image",
+                "key": "RankingPlate_Notl"
+            },
+            {
+                "url": "assets/RankingPage/Title_01.png",
+                "type": "image",
+                "key": "Title_01"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}

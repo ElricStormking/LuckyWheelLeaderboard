@@ -76,6 +76,8 @@ export class BaseOverlayScene extends Phaser.Scene {
     closeButton.label.setFontSize("30px");
 
     return {
+      centerX: STAGE_WIDTH / 2,
+      centerY: STAGE_HEIGHT / 2 + 30,
       left: STAGE_WIDTH / 2 - 430,
       right: STAGE_WIDTH / 2 + 430,
       top: STAGE_HEIGHT / 2 - height / 2 + 200,

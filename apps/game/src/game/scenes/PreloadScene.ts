@@ -1,6 +1,13 @@
 import Phaser from "phaser";
 import { preloadGameAudio } from "../audio";
-import { COLORS, FONTS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
+import {
+  COLORS,
+  FONTS,
+  SCENE_KEYS,
+  STAGE_HEIGHT,
+  STAGE_WIDTH,
+  isDesktopLayout,
+} from "../constants";
 import { preloadEditorUiAssets } from "../editorUiAssets";
 
 export class PreloadScene extends Phaser.Scene {
@@ -44,6 +51,11 @@ export class PreloadScene extends Phaser.Scene {
     this.createSupportTexture("icon-menu");
 
     this.time.delayedCall(220, () => {
+      if (isDesktopLayout()) {
+        this.scene.start(SCENE_KEYS.DesktopMain);
+        return;
+      }
+
       this.scene.start(SCENE_KEYS.Lobby);
       this.scene.launch(SCENE_KEYS.Wheel);
     });

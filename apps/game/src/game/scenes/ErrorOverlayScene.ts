@@ -12,19 +12,19 @@ export class ErrorOverlayScene extends BaseOverlayScene {
     const snapshot = prototypeState.getSnapshot();
     const message = snapshot.errorMessage ?? prototypeState.t("error.unknown");
     const shouldRetryBootstrap = !snapshot.currentEvent;
-    this.createFrame(
+    const frame = this.createFrame(
       prototypeState.t("error.title"),
       prototypeState.t("error.subtitle"),
       640,
     );
 
-    addRoundedPanel(this, 540, 1020, 760, 220, {
+    addRoundedPanel(this, frame.centerX, frame.centerY + 160, 760, 220, {
       fillColor: COLORS.white,
       radius: 38,
     });
 
     this.add
-      .text(540, 1000, message, {
+      .text(frame.centerX, frame.centerY + 140, message, {
         fontFamily: FONTS.body,
         fontSize: "28px",
         color: "#0a2942",
@@ -35,8 +35,8 @@ export class ErrorOverlayScene extends BaseOverlayScene {
 
     addTextButton(
       this,
-      540,
-      1140,
+      frame.centerX,
+      frame.centerY + 280,
       280,
       84,
       shouldRetryBootstrap ? "Retry" : prototypeState.t("error.dismiss"),

@@ -1,5 +1,19 @@
-export const STAGE_WIDTH = 1080;
-export const STAGE_HEIGHT = 1920;
+import type { GameLayout } from "../runtimeEnvironment";
+
+const STAGE_DIMENSIONS = {
+  mobile: {
+    width: 1080,
+    height: 1920,
+  },
+  desktop: {
+    width: 1920,
+    height: 1080,
+  },
+} as const;
+
+export let ACTIVE_GAME_LAYOUT: GameLayout = "mobile";
+export let STAGE_WIDTH: number = STAGE_DIMENSIONS.mobile.width;
+export let STAGE_HEIGHT: number = STAGE_DIMENSIONS.mobile.height;
 
 export const COLORS = {
   pageTop: 0xfefefe,
@@ -32,6 +46,10 @@ export const SCENE_KEYS = {
   Preload: "PreloadScene",
   Lobby: "LobbyScene",
   Wheel: "WheelScene",
+  DesktopMain: "DesktopMainScene",
+  DesktopRanking: "DesktopRankingScene",
+  DesktopPrize: "DesktopPrizeScene",
+  DesktopWheel: "DesktopWheelScene",
   LocaleOverlay: "LocaleOverlayScene",
   PeriodOverlay: "PeriodOverlayScene",
   LeaderboardOverlay: "LeaderboardOverlayScene",
@@ -52,4 +70,14 @@ export const DEV_ELIGIBILITY_OPTIONS = [
 
 export function shouldShowDevEligibilitySwitch() {
   return new URL(window.location.href).searchParams.get("dev") === "1";
+}
+
+export function configureStageLayout(layout: GameLayout) {
+  ACTIVE_GAME_LAYOUT = layout;
+  STAGE_WIDTH = STAGE_DIMENSIONS[layout].width;
+  STAGE_HEIGHT = STAGE_DIMENSIONS[layout].height;
+}
+
+export function isDesktopLayout() {
+  return ACTIVE_GAME_LAYOUT === "desktop";
 }

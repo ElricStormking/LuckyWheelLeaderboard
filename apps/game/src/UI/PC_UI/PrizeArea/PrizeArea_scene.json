@@ -1,0 +1,54 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/PrizeArea/Prize_Ranking_01.png",
+                "type": "image",
+                "key": "Prize_Ranking_01"
+            },
+            {
+                "url": "assets/PrizeArea/Prize_Ranking_02.png",
+                "type": "image",
+                "key": "Prize_Ranking_02"
+            },
+            {
+                "url": "assets/PrizeArea/Prize_Ranking_03.png",
+                "type": "image",
+                "key": "Prize_Ranking_03"
+            },
+            {
+                "url": "assets/PrizeArea/Prize_Ranking_04.png",
+                "type": "image",
+                "key": "Prize_Ranking_04"
+            },
+            {
+                "url": "assets/PrizeArea/Prize_Ranking_05.png",
+                "type": "image",
+                "key": "Prize_Ranking_05"
+            },
+            {
+                "url": "assets/PrizeArea/Prize_RewardZone.png",
+                "type": "image",
+                "key": "Prize_RewardZone"
+            },
+            {
+                "url": "assets/PrizeArea/Reminder.png",
+                "type": "image",
+                "key": "Reminder"
+            },
+            {
+                "url": "assets/PrizeArea/Title_PrizeArea.png",
+                "type": "image",
+                "key": "Title_PrizeArea"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}

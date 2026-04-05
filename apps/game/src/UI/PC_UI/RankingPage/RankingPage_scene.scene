@@ -1,0 +1,225 @@
+{
+    "id": "6c6e2be6-41b5-4cd2-a199-a54debcc8bbc",
+    "sceneType": "SCENE",
+    "settings": {
+        "exportClass": true,
+        "autoImport": true,
+        "importFileExtension": true,
+        "preloadPackFiles": [],
+        "createMethodName": "editorCreate",
+        "sceneKey": "RankingPage_scene",
+        "borderWidth": 1920,
+        "borderHeight": 1080
+    },
+    "displayList": [
+        {
+            "type": "Image",
+            "id": "dc4de507-22e5-43bf-8f37-f1af64b55942",
+            "label": "bg",
+            "texture": {
+                "key": "bg"
+            },
+            "x": 960,
+            "y": 540
+        },
+        {
+            "type": "Image",
+            "id": "e1209a62-462d-46fd-8f6b-ba2532f37dd2",
+            "label": "title_01",
+            "texture": {
+                "key": "Title_01"
+            },
+            "x": 947,
+            "y": 113,
+            "scaleX": 0.9,
+            "scaleY": 0.9
+        },
+        {
+            "type": "Image",
+            "id": "606e7792-da27-41e2-bc90-22c7b7375a23",
+            "label": "rankingPlate_01",
+            "texture": {
+                "key": "RankingPlate_01"
+            },
+            "x": 597,
+            "y": 262,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "66a3cfd8-be3f-4188-bc98-6cb8421ffc39",
+            "label": "rankingPlate_02",
+            "texture": {
+                "key": "RankingPlate_02"
+            },
+            "x": 597,
+            "y": 410,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "db9b5b8b-5023-4205-9abd-2f314e48faad",
+            "label": "rankingPlate_03",
+            "texture": {
+                "key": "RankingPlate_03"
+            },
+            "x": 597,
+            "y": 565,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "451a8044-b53e-41be-af74-f4fe00080242",
+            "label": "rankingPlate_04",
+            "texture": {
+                "key": "RankingPlate_04"
+            },
+            "x": 597,
+            "y": 717,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "87432145-b3a4-4f2d-9fc3-cb1705739d70",
+            "label": "rankingPlate_05",
+            "texture": {
+                "key": "RankingPlate_05"
+            },
+            "x": 597,
+            "y": 874,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "3d03bd75-886e-43ce-8450-9e926266fc5a",
+            "label": "rankingPlate_06",
+            "texture": {
+                "key": "RankingPlate_06"
+            },
+            "x": 1329,
+            "y": 262,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "86e1ff37-e6b3-4895-9a03-62dacbc88155",
+            "label": "rankingPlate_07",
+            "texture": {
+                "key": "RankingPlate_07"
+            },
+            "x": 1329,
+            "y": 410,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "5047d604-de8b-476a-b5fb-c110d95baab4",
+            "label": "rankingPlate_08",
+            "texture": {
+                "key": "RankingPlate_08"
+            },
+            "x": 1329,
+            "y": 565,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "33580650-9730-468a-96ab-4277d6936a46",
+            "label": "rankingPlate_09",
+            "texture": {
+                "key": "RankingPlate_09"
+            },
+            "x": 1329,
+            "y": 717,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "62c20492-c9cf-4af5-9a9f-8350e6636698",
+            "label": "rankingPlate_10",
+            "texture": {
+                "key": "RankingPlate_10"
+            },
+            "x": 1329,
+            "y": 874,
+            "scaleX": 0.25,
+            "scaleY": 0.25
+        },
+        {
+            "type": "Image",
+            "id": "3955ca54-39e6-4f02-8d3f-1a869b6a911a",
+            "label": "button_Page_01",
+            "texture": {
+                "key": "Button_Page_01"
+            },
+            "x": 778,
+            "y": 1011
+        },
+        {
+            "type": "Image",
+            "id": "5c79ebf2-bdd8-4fc1-9b39-8b6bd7abcff6",
+            "label": "button_Page_02",
+            "texture": {
+                "key": "Button_Page_02"
+            },
+            "x": 900,
+            "y": 1011
+        },
+        {
+            "type": "Image",
+            "id": "4b3d5a1a-9bbf-4b69-ae3d-65e85720d6a5",
+            "label": "button_Page_03",
+            "texture": {
+                "key": "Button_Page_03"
+            },
+            "x": 1024,
+            "y": 1011
+        },
+        {
+            "type": "Image",
+            "id": "aec4c085-c02a-4798-8042-a253d8a5d05b",
+            "label": "button_Page_04",
+            "texture": {
+                "key": "Button_Page_04"
+            },
+            "x": 1147,
+            "y": 1011
+        },
+        {
+            "type": "Image",
+            "id": "bc67082d-7536-4a47-8079-0410d1e6ff5b",
+            "label": "arrow_Page_Left_png",
+            "texture": {
+                "key": "Arrow_Page_Left.png"
+            },
+            "x": 90,
+            "y": 520
+        },
+        {
+            "type": "Image",
+            "id": "211260c4-5216-4a8e-a29d-0e6ec5dcb9d3",
+            "label": "arrow_Page_Right",
+            "texture": {
+                "key": "Arrow_Page_Right"
+            },
+            "x": 1840,
+            "y": 520
+        }
+    ],
+    "plainObjects": [],
+    "meta": {
+        "app": "Phaser Editor - Scene Editor",
+        "url": "https://phaser.io/editor",
+        "contentType": "phasereditor2d.core.scene.SceneContentType",
+        "version": 5
+    }
+}

@@ -1,0 +1,197 @@
+{
+    "id": "2f919b9b-6c56-4f95-ad6f-c3f375ba76db",
+    "sceneType": "SCENE",
+    "settings": {
+        "exportClass": true,
+        "autoImport": true,
+        "importFileExtension": true,
+        "preloadPackFiles": [],
+        "createMethodName": "editorCreate",
+        "sceneKey": "Main_Scene",
+        "borderWidth": 1920,
+        "borderHeight": 1080
+    },
+    "displayList": [
+        {
+            "type": "Image",
+            "id": "c46a913e-45f1-4ad9-b2e5-d275e8fee5b2",
+            "label": "bg",
+            "texture": {
+                "key": "bg"
+            },
+            "x": 960,
+            "y": 540
+        },
+        {
+            "type": "Image",
+            "id": "26a981d3-b170-4416-8369-47d6a56bde49",
+            "label": "roulette",
+            "texture": {
+                "key": "Roulette"
+            },
+            "x": 964,
+            "y": 561,
+            "scaleX": 0.85,
+            "scaleY": 0.85
+        },
+        {
+            "type": "Image",
+            "id": "e840f9e4-8856-41c1-8902-45ac6ee543e1",
+            "label": "spin_Blue",
+            "texture": {
+                "key": "Spin_Blue"
+            },
+            "x": 962,
+            "y": 556,
+            "scaleX": 0.85,
+            "scaleY": 0.85
+        },
+        {
+            "type": "Image",
+            "id": "f89179d2-a729-4b27-9010-305b78064bd1",
+            "label": "spin_Red",
+            "texture": {
+                "key": "Spin_Red"
+            },
+            "x": 962,
+            "y": 556,
+            "scaleX": 0.65,
+            "scaleY": 0.65
+        },
+        {
+            "type": "Image",
+            "id": "dfe67e0a-c7b1-41ce-9b8e-331f5d2978d3",
+            "label": "rouletteArrow",
+            "texture": {
+                "key": "RouletteArrow"
+            },
+            "x": 957,
+            "y": 80,
+            "scaleX": 0.8,
+            "scaleY": 0.8
+        },
+        {
+            "type": "Image",
+            "id": "e66cf1cf-0a1c-488a-948c-a9344780aefd",
+            "label": "gameTutorial",
+            "texture": {
+                "key": "GameTutorial"
+            },
+            "x": 380,
+            "y": 135,
+            "scaleX": 0.7,
+            "scaleY": 0.7
+        },
+        {
+            "type": "Image",
+            "id": "539ade8a-bf83-4633-9d07-77b43e3390da",
+            "label": "button_Language",
+            "texture": {
+                "key": "Button_Language"
+            },
+            "x": 1416,
+            "y": 130,
+            "scaleX": 1.2,
+            "scaleY": 1.2
+        },
+        {
+            "type": "Image",
+            "id": "36437cf4-3527-4383-8913-9519c65f5087",
+            "label": "button_Support",
+            "texture": {
+                "key": "Button_Support"
+            },
+            "x": 1604,
+            "y": 128,
+            "scaleX": 1.2,
+            "scaleY": 1.2
+        },
+        {
+            "type": "Image",
+            "id": "687b5e38-5bd2-4ab1-9042-bd36bbb0a0b4",
+            "label": "button_iBET",
+            "texture": {
+                "key": "Button_iBET"
+            },
+            "x": 1805,
+            "y": 124,
+            "scaleX": 1.2,
+            "scaleY": 1.2
+        },
+        {
+            "type": "Image",
+            "id": "2b66b730-76be-4caa-9d10-750050ba67df",
+            "label": "frame_time_01",
+            "texture": {
+                "key": "Frame_time_01"
+            },
+            "x": 334,
+            "y": 925,
+            "scaleX": 0.55,
+            "scaleY": 0.55
+        },
+        {
+            "type": "Image",
+            "id": "347a6ace-1328-4f7b-92d5-0cd4bca99572",
+            "label": "frame_MyTotalPoint",
+            "texture": {
+                "key": "Frame_MyTotalPoint"
+            },
+            "x": 1598,
+            "y": 867,
+            "scaleX": 0.65,
+            "scaleY": 0.65
+        },
+        {
+            "type": "Image",
+            "id": "69467025-1cda-4232-a1b9-93d3983e405a",
+            "label": "frame_MyTotalPoint_1",
+            "texture": {
+                "key": "Frame_MyTotalPoint"
+            },
+            "x": 1438,
+            "y": 986,
+            "scaleX": 0.3,
+            "scaleY": 0.5
+        },
+        {
+            "type": "Image",
+            "id": "edac8917-9f86-4659-b7bc-93b01cf3a586",
+            "label": "frame_MyTotalPoint_2",
+            "texture": {
+                "key": "Frame_MyTotalPoint"
+            },
+            "x": 1759,
+            "y": 986,
+            "scaleX": 0.3,
+            "scaleY": 0.5
+        },
+        {
+            "type": "Image",
+            "id": "1050db1a-6ea9-41fc-8c6d-46cacc3bc3f7",
+            "label": "arrow_Page_Right",
+            "texture": {
+                "key": "Arrow_Page_Right"
+            },
+            "x": 1840,
+            "y": 520
+        },
+        {
+            "type": "Image",
+            "id": "0d3350a0-f442-42d9-8b89-64f584b6b4b6",
+            "label": "arrow_Page_Left_png",
+            "texture": {
+                "key": "Arrow_Page_Left.png"
+            },
+            "x": 90,
+            "y": 520
+        }
+    ],
+    "plainObjects": [],
+    "meta": {
+        "app": "Phaser Editor - Scene Editor",
+        "url": "https://phaser.io/editor",
+        "contentType": "phasereditor2d.core.scene.SceneContentType",
+        "version": 5
+    }
+}

@@ -1,0 +1,124 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/Main/Arrow_Page_Left.png.png",
+                "type": "image",
+                "key": "Arrow_Page_Left.png"
+            },
+            {
+                "url": "assets/Main/Arrow_Page_Right.png",
+                "type": "image",
+                "key": "Arrow_Page_Right"
+            },
+            {
+                "url": "assets/Main/Background_01.png",
+                "type": "image",
+                "key": "Background_01"
+            },
+            {
+                "url": "assets/Main/bg.png",
+                "type": "image",
+                "key": "bg"
+            },
+            {
+                "url": "assets/Main/Button_iBET.png",
+                "type": "image",
+                "key": "Button_iBET"
+            },
+            {
+                "url": "assets/Main/Button_Language.png",
+                "type": "image",
+                "key": "Button_Language"
+            },
+            {
+                "url": "assets/Main/Button_Support.png",
+                "type": "image",
+                "key": "Button_Support"
+            },
+            {
+                "url": "assets/Main/Frame_MyTotalPoint.png",
+                "type": "image",
+                "key": "Frame_MyTotalPoint"
+            },
+            {
+                "url": "assets/Main/Frame_time_01.png",
+                "type": "image",
+                "key": "Frame_time_01"
+            },
+            {
+                "url": "assets/Main/GameTutorial.png",
+                "type": "image",
+                "key": "GameTutorial"
+            },
+            {
+                "url": "assets/Main/HUD_Frame.png",
+                "type": "image",
+                "key": "HUD_Frame"
+            },
+            {
+                "url": "assets/Main/Icon_Diamond.png",
+                "type": "image",
+                "key": "Icon_Diamond"
+            },
+            {
+                "url": "assets/Main/Icon_MyPoint.png",
+                "type": "image",
+                "key": "Icon_MyPoint"
+            },
+            {
+                "url": "assets/Main/LOGO_iBET.png",
+                "type": "image",
+                "key": "LOGO_iBET"
+            },
+            {
+                "url": "assets/Main/Roulette.png",
+                "type": "image",
+                "key": "Roulette"
+            },
+            {
+                "url": "assets/Main/Roulette_expired.png",
+                "type": "image",
+                "key": "Roulette_expired"
+            },
+            {
+                "url": "assets/Main/RouletteArrow.png",
+                "type": "image",
+                "key": "RouletteArrow"
+            },
+            {
+                "url": "assets/Main/Spin_Blue.png",
+                "type": "image",
+                "key": "Spin_Blue"
+            },
+            {
+                "url": "assets/Main/Spin_expired.png",
+                "type": "image",
+                "key": "Spin_expired"
+            },
+            {
+                "url": "assets/Main/Spin_Red.png",
+                "type": "image",
+                "key": "Spin_Red"
+            },
+            {
+                "url": "assets/Main/SpinArrow.png",
+                "type": "image",
+                "key": "SpinArrow"
+            },
+            {
+                "url": "assets/Main/Title_01.png",
+                "type": "image",
+                "key": "Title_01"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}

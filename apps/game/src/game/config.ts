@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { GameLayout } from "../runtimeEnvironment";
 import { BootScene } from "./scenes/BootScene";
 import { ErrorOverlayScene } from "./scenes/ErrorOverlayScene";
 import { HistoryOverlayScene } from "./scenes/HistoryOverlayScene";
@@ -11,9 +12,47 @@ import { PrizeOverlayScene } from "./scenes/PrizeOverlayScene";
 import { ResultPopupScene } from "./scenes/ResultPopupScene";
 import { RulesOverlayScene } from "./scenes/RulesOverlayScene";
 import { WheelScene } from "./scenes/WheelScene";
-import { COLORS, STAGE_HEIGHT, STAGE_WIDTH } from "./constants";
+import { DesktopMainScene } from "./scenes/desktop/DesktopMainScene";
+import { DesktopPrizeScene } from "./scenes/desktop/DesktopPrizeScene";
+import { DesktopRankingScene } from "./scenes/desktop/DesktopRankingScene";
+import { DesktopWheelScene } from "./scenes/desktop/DesktopWheelScene";
+import {
+  COLORS,
+  STAGE_HEIGHT,
+  STAGE_WIDTH,
+  configureStageLayout,
+} from "./constants";
 
-export function createLuckyWheelGame(parent: string) {
+export function createLuckyWheelGame(parent: string, layout: GameLayout = "mobile") {
+  configureStageLayout(layout);
+
+  const scenes =
+    layout === "desktop"
+      ? [
+          BootScene,
+          PreloadScene,
+          DesktopMainScene,
+          DesktopRankingScene,
+          DesktopPrizeScene,
+          DesktopWheelScene,
+          HistoryOverlayScene,
+          ErrorOverlayScene,
+        ]
+      : [
+          BootScene,
+          PreloadScene,
+          LobbyScene,
+          WheelScene,
+          LocaleOverlayScene,
+          PeriodOverlayScene,
+          LeaderboardOverlayScene,
+          PrizeOverlayScene,
+          RulesOverlayScene,
+          HistoryOverlayScene,
+          ResultPopupScene,
+          ErrorOverlayScene,
+        ];
+
   return new Phaser.Game({
     type: Phaser.WEBGL,
     parent,
@@ -24,20 +63,7 @@ export function createLuckyWheelGame(parent: string) {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [
-      BootScene,
-      PreloadScene,
-      LobbyScene,
-      WheelScene,
-      LocaleOverlayScene,
-      PeriodOverlayScene,
-      LeaderboardOverlayScene,
-      PrizeOverlayScene,
-      RulesOverlayScene,
-      HistoryOverlayScene,
-      ResultPopupScene,
-      ErrorOverlayScene,
-    ],
+    scene: scenes,
     render: {
       antialias: true,
       pixelArt: false,

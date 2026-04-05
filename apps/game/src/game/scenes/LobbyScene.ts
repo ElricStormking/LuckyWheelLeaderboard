@@ -14,11 +14,18 @@ import {
 } from "../constants";
 import { addPill, addRoundedPanel, formatNumber, openExternalLink } from "../helpers";
 
-type MarqueeCard = {
+type ActivityBubble = {
   container: Phaser.GameObjects.Container;
   text: Phaser.GameObjects.Text;
   width: number;
-  speed: number;
+  delayRemaining: number;
+  progress: number;
+  duration: number;
+  startX: number;
+  startY: number;
+  endY: number;
+  startScale: number;
+  endScale: number;
 };
 
 type DevControl = {
@@ -160,8 +167,8 @@ export class LobbyScene extends Phaser.Scene {
   private myRankSummaryPlate?: Phaser.GameObjects.Image;
   private myRankSummaryText?: Phaser.GameObjects.Text;
   private devControls: DevControl[] = [];
-  private marqueeCards: MarqueeCard[] = [];
-  private marqueeSection?: Phaser.GameObjects.Container;
+  private activityBubbles: ActivityBubble[] = [];
+  private activitySection?: Phaser.GameObjects.Container;
   private inlineLeaderboardRows: InlineLeaderboardRow[] = [];
   private inlinePrizeRows: PrizeSectionRow[] = [];
   private pageButtons: Phaser.GameObjects.Image[] = [];
@@ -187,7 +194,7 @@ export class LobbyScene extends Phaser.Scene {
     this.drawBackground();
     this.captureSection(0, 180, () => this.drawHeader());
     this.captureSection(220, 720, () => this.drawHero());
-    this.marqueeSection = this.captureSection(640, 780, () => this.drawActionRow(), 180);
+    this.activitySection = this.captureSection(620, 860, () => this.drawActionRow(), 220);
     this.captureSection(1600, 1920, () => {
       this.drawSummaryArea();
       this.drawQuickActions();
@@ -210,11 +217,11 @@ export class LobbyScene extends Phaser.Scene {
     );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.events.off(Phaser.Scenes.Events.UPDATE, this.updateMarquee, this);
+      this.events.off(Phaser.Scenes.Events.UPDATE, this.updateActivityBubbles, this);
       this.cleanup.forEach((cleanup) => cleanup());
       this.cleanup = [];
-      this.marqueeCards = [];
-      this.marqueeSection = undefined;
+      this.activityBubbles = [];
+      this.activitySection = undefined;
       this.inlineLeaderboardRows = [];
       this.inlinePrizeRows = [];
       this.pageButtons = [];
@@ -337,18 +344,15 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawActionRow() {
-    const itemWidth = 320;
-    const itemHeight = 56;
-    const marqueeCount = 5;
-    const laneSpacing = 240;
-    const initialX = -260;
+    const itemWidth = 340;
+    const itemHeight = 60;
+    const bubbleCount = 3;
 
-    this.marqueeCards = Array.from({ length: marqueeCount }, (_, index) => {
-      const y = this.getRandomMarqueeY();
+    this.activityBubbles = Array.from({ length: bubbleCount }, (_, index) => {
       const pill = addPill(
         this,
-        initialX + index * laneSpacing,
-        y,
+        STAGE_WIDTH / 2,
+        780,
         itemWidth,
         itemHeight,
         "",
@@ -357,23 +361,30 @@ export class LobbyScene extends Phaser.Scene {
       );
 
       pill.text.setFontSize("20px");
-      pill.text.setWordWrapWidth(276, true);
-      pill.text.setLineSpacing(-6);
-      pill.container.setAlpha(Phaser.Math.FloatBetween(0.88, 0.98));
-      pill.container.setScale(Phaser.Math.FloatBetween(0.94, 1.02));
+      pill.text.setWordWrapWidth(284, true);
+      pill.text.setAlign("center");
+      pill.container.setAlpha(0);
+      pill.container.setScale(0.82);
 
-      const card = {
+      const bubble = {
         container: pill.container,
         text: pill.text,
         width: itemWidth,
-        speed: Phaser.Math.FloatBetween(0.06, 0.1),
+        delayRemaining: 0,
+        progress: 0,
+        duration: 0,
+        startX: STAGE_WIDTH / 2,
+        startY: 780,
+        endY: 780,
+        startScale: 0.82,
+        endScale: 0.96,
       };
 
-      this.assignMarqueeMessage(card);
-      return card;
+      this.resetActivityBubble(bubble, index * 700 + Phaser.Math.Between(80, 260));
+      return bubble;
     });
 
-    this.events.on(Phaser.Scenes.Events.UPDATE, this.updateMarquee, this);
+    this.events.on(Phaser.Scenes.Events.UPDATE, this.updateActivityBubbles, this);
   }
 
   private drawSummaryArea() {
@@ -744,9 +755,9 @@ export class LobbyScene extends Phaser.Scene {
     );
 
     if (snapshot.leaderboard?.leaderboard.length) {
-      this.marqueeCards.forEach((card) => {
-        if (!card.text.text || card.text.text === "Loading top 30 activity...") {
-          this.assignMarqueeMessage(card);
+      this.activityBubbles.forEach((bubble) => {
+        if (!bubble.text.text || bubble.text.text === "Loading top 30 activity...") {
+          this.assignMarqueeMessage(bubble);
         }
       });
     }
@@ -869,29 +880,41 @@ export class LobbyScene extends Phaser.Scene {
     });
   }
 
-  private updateMarquee(_time: number, delta: number) {
+  private updateActivityBubbles(_time: number, delta: number) {
     this.applyScrollMomentum(delta);
 
-    if (this.marqueeCards.length === 0 || !this.marqueeSection?.visible) {
+    if (this.activityBubbles.length === 0 || !this.activitySection?.visible) {
       return;
     }
 
-    this.marqueeCards.forEach((card) => {
-      card.container.x += delta * card.speed;
-    });
-
-    this.marqueeCards.forEach((card) => {
-      if (card.container.x - card.width / 2 <= STAGE_WIDTH + 20) {
+    this.activityBubbles.forEach((bubble) => {
+      if (bubble.delayRemaining > 0) {
+        bubble.delayRemaining = Math.max(0, bubble.delayRemaining - delta);
         return;
       }
 
-      const leftmostX = Math.min(...this.marqueeCards.map((entry) => entry.container.x));
-      card.container.x = leftmostX - (card.width + Phaser.Math.Between(80, 150));
-      card.container.y = this.getRandomMarqueeY();
-      card.speed = Phaser.Math.FloatBetween(0.06, 0.1);
-      card.container.setAlpha(Phaser.Math.FloatBetween(0.88, 0.98));
-      card.container.setScale(Phaser.Math.FloatBetween(0.94, 1.02));
-      this.assignMarqueeMessage(card);
+      bubble.progress = Math.min(1, bubble.progress + delta / bubble.duration);
+      const easedProgress = Phaser.Math.Easing.Cubic.Out(bubble.progress);
+
+      bubble.container.setPosition(
+        bubble.startX,
+        Phaser.Math.Linear(bubble.startY, bubble.endY, easedProgress),
+      );
+      bubble.container.setScale(
+        Phaser.Math.Linear(bubble.startScale, bubble.endScale, easedProgress),
+      );
+
+      let alpha = 0.96;
+      if (bubble.progress < 0.2) {
+        alpha = 0.96 * (bubble.progress / 0.2);
+      } else if (bubble.progress > 0.72) {
+        alpha = 0.96 * (1 - (bubble.progress - 0.72) / 0.28);
+      }
+      bubble.container.setAlpha(Phaser.Math.Clamp(alpha, 0, 0.96));
+
+      if (bubble.progress >= 1) {
+        this.resetActivityBubble(bubble);
+      }
     });
   }
 
@@ -913,12 +936,30 @@ export class LobbyScene extends Phaser.Scene {
     }
   }
 
-  private assignMarqueeMessage(card: MarqueeCard) {
+  private resetActivityBubble(
+    bubble: ActivityBubble,
+    delayMs = Phaser.Math.Between(360, 1100),
+  ) {
+    bubble.delayRemaining = delayMs;
+    bubble.progress = 0;
+    bubble.duration = Phaser.Math.Between(2500, 3200);
+    bubble.startX = this.getRandomBubbleX(bubble.width / 2);
+    bubble.startY = Phaser.Math.Between(774, 818);
+    bubble.endY = Phaser.Math.Between(646, 676);
+    bubble.startScale = Phaser.Math.FloatBetween(0.78, 0.88);
+    bubble.endScale = bubble.startScale + Phaser.Math.FloatBetween(0.08, 0.15);
+    bubble.container.setPosition(bubble.startX, bubble.startY);
+    bubble.container.setAlpha(0);
+    bubble.container.setScale(bubble.startScale);
+    this.assignMarqueeMessage(bubble);
+  }
+
+  private assignMarqueeMessage(bubble: ActivityBubble) {
     const snapshot = prototypeState.getSnapshot();
     const entries = snapshot.leaderboard?.leaderboard ?? [];
 
     if (entries.length === 0) {
-      card.text.setText("Loading top 30 activity...");
+      bubble.text.setText("Loading top 30 activity...");
       return;
     }
 
@@ -926,7 +967,7 @@ export class LobbyScene extends Phaser.Scene {
     const playerId = this.formatMarqueePlayerId(entry.playerName);
     const points = this.getRandomMarqueePoints();
 
-    card.text.setText(`ID ${playerId} earned ${formatNumber(points, snapshot.locale)} points`);
+    bubble.text.setText(`ID ${playerId} earned ${formatNumber(points, snapshot.locale)} points`);
   }
 
   private getRandomMarqueePoints() {
@@ -945,10 +986,14 @@ export class LobbyScene extends Phaser.Scene {
     return normalized.length > 11 ? `${normalized.slice(0, 11)}...` : normalized;
   }
 
-  private getRandomMarqueeY() {
-    const lanes = [672, 698, 724];
-    const lane = lanes[Math.floor(Math.random() * lanes.length)];
-    return lane + Phaser.Math.Between(-4, 4);
+  private getRandomBubbleX(halfWidth: number) {
+    const anchors = [255, 540, 825];
+    const anchor = anchors[Math.floor(Math.random() * anchors.length)];
+    return Phaser.Math.Clamp(
+      anchor + Phaser.Math.Between(-36, 36),
+      halfWidth + 20,
+      STAGE_WIDTH - halfWidth - 20,
+    );
   }
 
   private captureSection(top: number, bottom: number, draw: () => void, overscan = 220) {

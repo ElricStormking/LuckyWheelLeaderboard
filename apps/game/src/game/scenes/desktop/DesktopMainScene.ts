@@ -1,0 +1,2241 @@
+import Phaser from "phaser";
+import {
+  EligibilityStatus,
+  PlatformLinkType,
+  WheelVisualState,
+  type SpinSuccessResponse,
+  type WheelSegmentDto,
+} from "@lucky-wheel/contracts";
+import { ensureBackgroundMusic, playWinningEffect } from "../../audio";
+import {
+  addRoundedPanel,
+  addTextButton,
+  formatDate,
+  formatNumber,
+  openExternalLink,
+} from "../../helpers";
+import {
+  COLORS,
+  FONTS,
+  SCENE_KEYS,
+  STAGE_HEIGHT,
+  STAGE_WIDTH,
+  shouldShowDevEligibilitySwitch,
+} from "../../constants";
+import { prototypeState } from "../../state/prototype-state";
+import { DesktopPageScene } from "./DesktopPageScene";
+import {
+  DESKTOP_RANKING_PLATE_KEYS,
+  DESKTOP_PAGE_CENTER_X,
+  DESKTOP_PAGE_CENTER_Y,
+  DESKTOP_PRIZE_BADGE_KEYS,
+  getDesktopPlatformLinkUrl,
+  wireImageButton,
+} from "./desktopSceneShared";
+
+type PickerOption = {
+  label: string;
+  description?: string;
+  selected?: boolean;
+  onSelect: () => Promise<void> | void;
+};
+
+type ActivityPill = {
+  container: Phaser.GameObjects.Container;
+  label: Phaser.GameObjects.Text;
+  width: number;
+  delayRemaining: number;
+  progress: number;
+  duration: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  alphaPeak: number;
+  startScale: number;
+  endScale: number;
+};
+
+type DesktopWheelButton = {
+  container: Phaser.GameObjects.Container;
+  label: Phaser.GameObjects.Text;
+  setLabel: (nextLabel: string) => void;
+  setBackground: (color: number) => void;
+  setEnabled: (enabled: boolean) => void;
+};
+
+type DesktopLeaderboardRow = {
+  plate: Phaser.GameObjects.Image;
+  playerText: Phaser.GameObjects.Text;
+  scoreText: Phaser.GameObjects.Text;
+};
+
+type DesktopPrizeRow = {
+  rankBadge: Phaser.GameObjects.Image;
+  rewardZone: Phaser.GameObjects.Image;
+  prizeLabel: Phaser.GameObjects.Text;
+  prizeDescription: Phaser.GameObjects.Text;
+};
+
+type RankPalette = {
+  fill: number;
+  shadow: number;
+  stripe: number;
+  pillFill: number;
+  rankColor: string;
+  suffixColor: string;
+  amountColor: string;
+};
+
+type PrizeRowLayout = {
+  badgeX: number;
+  rewardX: number;
+  y: number;
+  badgeScale: number;
+  rewardScale: number;
+  align: "left" | "right";
+};
+
+const CONTENT_HEIGHT = 5780;
+const TOP_SECTION_END = 1600;
+const LEADERBOARD_SECTION_TOP = 1600;
+const PRIZE_SECTION_TOP = 3100;
+const TERMS_SECTION_TOP = 4840;
+
+const HEADER_Y = 74;
+const HEADER_FOREGROUND_DEPTH = 100;
+const MODAL_DEPTH = 220;
+const HEADER_SHADOW_WIDTH = 1880;
+const HEADER_FRAME_SCALE_X = 1.095;
+const EVENT_SELECTOR_X = DESKTOP_PAGE_CENTER_X - 28;
+const EVENT_SELECTOR_FRAME_SCALE_X = 0.224;
+const EVENT_SELECTOR_FRAME_SCALE_Y = 0.182;
+const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.228;
+const EVENT_SELECTOR_FRAME_HOVER_SCALE_Y = 0.186;
+const EVENT_SELECTOR_TEXT_OFFSET_X = -8;
+const EVENT_SELECTOR_CHEVRON_OFFSET_X = 90;
+const EVENT_SELECTOR_LABEL_WIDTH = 176;
+const EVENT_SELECTOR_HIT_WIDTH = 250;
+const EVENT_SELECTOR_HIT_HEIGHT = 58;
+
+const HERO_TITLE_Y = 210;
+const HERO_TUTORIAL_Y = 336;
+const HERO_PERIOD_Y = 452;
+const ACTIVITY_BOARD_LEFT = 232;
+const ACTIVITY_BOARD_RIGHT = 1688;
+const ACTIVITY_BOARD_TOP = 500;
+const ACTIVITY_BOARD_BOTTOM = 826;
+const ACTIVITY_PILL_END_MIN_Y = HERO_PERIOD_Y + 14;
+const ACTIVITY_PILL_END_MAX_Y = HERO_PERIOD_Y + 44;
+const ACTIVITY_PILL_START_MIN_Y = 660;
+const ACTIVITY_PILL_START_MAX_Y = 828;
+const ACTIVITY_PILL_WIDTHS = [210, 238, 264, 286] as const;
+const ACTIVITY_PILL_HEIGHT = 42;
+
+const WHEEL_CENTER_X = 960;
+const WHEEL_CENTER_Y = 978;
+const WHEEL_SCALE = 0.84;
+const POINTER_X = 960;
+const POINTER_Y = 585;
+const POINTER_SCALE = 0.76;
+const SUMMARY_PANEL_Y = 1450;
+
+const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
+const LEADERBOARD_ROW_WIDTH = 392;
+const LEADERBOARD_ROW_HEIGHT = 74;
+const LEADERBOARD_ROW_START_Y = 1962;
+const LEADERBOARD_ROW_SPACING = 92;
+const LEADERBOARD_PANEL_RADIUS = 24;
+const LEADERBOARD_PLATE_SCALE = 0.156;
+const LEADERBOARD_PLAYER_OFFSET_X = 168;
+const LEADERBOARD_SCORE_INSET = 16;
+
+const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
+  { badgeX: 672, rewardX: 1100, y: 3498, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 1248, rewardX: 820, y: 3788, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
+  { badgeX: 672, rewardX: 1100, y: 4078, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 1248, rewardX: 820, y: 4368, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
+  { badgeX: 672, rewardX: 1100, y: 4658, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+];
+
+const CELEBRATION_DURATION_MS = 6000;
+const FIREWORK_CADENCE_MS = 420;
+const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
+const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
+const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
+const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
+const SEGMENT_HIGHLIGHT_SHADOW = 0x8a4300;
+const SEGMENT_HIGHLIGHT_ORANGE = 0xff8b1f;
+const SEGMENT_HIGHLIGHT_GOLD = 0xffcb47;
+const SEGMENT_HIGHLIGHT_GOLD_SOFT = 0xffefad;
+const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
+const ENDED_WHEEL_TEXT_DARK = "#50555d";
+const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
+
+export class DesktopMainScene extends DesktopPageScene {
+  private periodLabel?: Phaser.GameObjects.Text;
+  private promotionPeriodText?: Phaser.GameObjects.Text;
+  private headerPointsText?: Phaser.GameObjects.Text;
+  private summaryPointsText?: Phaser.GameObjects.Text;
+  private playerText?: Phaser.GameObjects.Text;
+  private leaderboardTitleText?: Phaser.GameObjects.Text;
+  private leaderboardSubtitleText?: Phaser.GameObjects.Text;
+  private leaderboardPendingPanel?: Phaser.GameObjects.Container;
+  private leaderboardPendingText?: Phaser.GameObjects.Text;
+  private leaderboardMyRankText?: Phaser.GameObjects.Text;
+  private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
+  private prizeSubtitleText?: Phaser.GameObjects.Text;
+  private rulesBodyText?: Phaser.GameObjects.Text;
+  private pickerContainer?: Phaser.GameObjects.Container;
+  private pickerBusy = false;
+  private activityPills: ActivityPill[] = [];
+  private leaderboardRows: DesktopLeaderboardRow[] = [];
+  private prizeRows: DesktopPrizeRow[] = [];
+
+  private wheelRoot?: Phaser.GameObjects.Container;
+  private wheelRotation = 0;
+  private renderedWheelSignature = "";
+  private renderedHighlightIndex?: number;
+  private button?: DesktopWheelButton;
+  private testSpinButton?: ReturnType<typeof addTextButton>;
+  private currentEligibility?: EligibilityStatus;
+  private currentWheelVisualState = WheelVisualState.Normal;
+  private spinning = false;
+  private pointer?: Phaser.GameObjects.Image;
+  private highlightedSegmentIndex?: number;
+  private highlightGraphic?: Phaser.GameObjects.Container;
+  private highlightTween?: Phaser.Tweens.Tween;
+  private celebrationTimer?: Phaser.Time.TimerEvent;
+  private celebrationBursts: Phaser.Time.TimerEvent[] = [];
+
+  private isDraggingScroll = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private dragStartScrollY = 0;
+  private lastDragY = 0;
+  private lastDragTime = 0;
+  private scrollVelocity = 0;
+  private activeScrollPointerId?: number;
+  private suppressTapUntil = 0;
+
+  constructor() {
+    super(SCENE_KEYS.DesktopMain);
+  }
+
+  create() {
+    ensureBackgroundMusic(this);
+
+    this.cameras.main.setBackgroundColor(COLORS.pageTop);
+    this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
+
+    this.drawScrollableBackground();
+    this.createHeader();
+    this.createHero();
+    this.createWheelSection();
+    this.createLeaderboardSection();
+    this.createPrizeSection();
+    this.createTermsSection();
+    this.setupScrollControls();
+
+    this.bindPrototypeLifecycle(() => this.refreshDynamicContent());
+    this.cleanup.push(
+      prototypeState.subscribe("spin-start", () => {
+        this.spinning = true;
+        this.applyState();
+      }),
+      prototypeState.subscribe(
+        "spin-result",
+        ((event: Event) => {
+          const detail = (event as CustomEvent<SpinSuccessResponse>).detail;
+          this.animateToSegment(detail);
+        }) as EventListener,
+      ),
+    );
+
+    this.events.on(Phaser.Scenes.Events.UPDATE, this.updateScene, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.UPDATE, this.updateScene, this);
+      this.highlightTween?.stop();
+      this.highlightGraphic?.destroy();
+      this.celebrationTimer?.remove(false);
+      this.clearCelebrationBursts();
+      this.closePicker();
+      this.activityPills = [];
+      this.leaderboardRows = [];
+      this.prizeRows = [];
+    });
+
+    this.setScrollY(Number(this.registry.get("desktopScrollY") ?? 0));
+    this.refreshDynamicContent();
+  }
+
+  private drawScrollableBackground() {
+    const gradient = this.add.graphics();
+    gradient.fillGradientStyle(
+      COLORS.pageTop,
+      COLORS.pageTop,
+      COLORS.pageBottom,
+      COLORS.pageBottom,
+      1,
+    );
+    gradient.fillRect(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
+
+    const sectionBands = this.add.graphics();
+    sectionBands.fillStyle(0xf9fdff, 0.96);
+    sectionBands.fillRect(0, LEADERBOARD_SECTION_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_SECTION_TOP);
+    sectionBands.fillGradientStyle(0xd8f4ff, 0xd8f4ff, 0xbfeafd, 0xbfeafd, 1);
+    sectionBands.fillRect(0, PRIZE_SECTION_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_SECTION_TOP);
+    sectionBands.fillStyle(0xfcfeff, 0.98);
+    sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
+
+    const atmosphere = this.add.graphics();
+    atmosphere.fillStyle(COLORS.stageMist, 0.08);
+    atmosphere.fillCircle(250, 280, 220);
+    atmosphere.fillCircle(1645, 360, 210);
+    atmosphere.fillCircle(960, 960, 460);
+    atmosphere.fillCircle(1240, 2250, 380);
+    atmosphere.fillCircle(420, 2580, 300);
+    atmosphere.fillCircle(1460, 3620, 340);
+
+    this.add.image(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, "Desktop_PageBackground");
+    this.add
+      .image(DESKTOP_PAGE_CENTER_X, 1110, "Desktop_MainBackgroundAccent")
+      .setScale(1.04)
+      .setAlpha(0.12);
+
+    const leaderboardGlow = this.add.graphics();
+    leaderboardGlow.fillStyle(0xb7ecff, 0.18);
+    leaderboardGlow.fillEllipse(960, 2240, 1450, 520);
+    leaderboardGlow.fillStyle(0xffffff, 0.34);
+    leaderboardGlow.fillEllipse(960, 2420, 840, 280);
+
+    const prizeGlow = this.add.graphics();
+    prizeGlow.fillStyle(0xffffff, 0.2);
+    prizeGlow.fillEllipse(960, 3940, 1380, 760);
+    prizeGlow.fillStyle(0x8fddff, 0.18);
+    prizeGlow.fillEllipse(960, 4260, 980, 280);
+
+    const separators = this.add.graphics();
+    separators.fillStyle(0xffffff, 0.88);
+    separators.fillRect(0, LEADERBOARD_SECTION_TOP - 16, STAGE_WIDTH, 16);
+    separators.fillRect(0, PRIZE_SECTION_TOP - 16, STAGE_WIDTH, 16);
+    separators.fillRect(0, TERMS_SECTION_TOP - 16, STAGE_WIDTH, 16);
+  }
+
+  private createHeader() {
+    const headerShadow = this.pinToViewport(
+      this.add.rectangle(960, HEADER_Y + 4, HEADER_SHADOW_WIDTH, 88, 0x58abd3, 0.08),
+    );
+    headerShadow.setDepth(HEADER_FOREGROUND_DEPTH - 2);
+
+    const header = this.pinToViewport(this.add.image(960, HEADER_Y, "Desktop_HudFrame"));
+    header.setScale(HEADER_FRAME_SCALE_X, 1);
+    header.setDepth(HEADER_FOREGROUND_DEPTH - 1);
+
+    const logo = this.pinToViewport(this.add.image(158, HEADER_Y + 1, "Desktop_LogoIBET"));
+    logo.setScale(1.08);
+    logo.setDepth(HEADER_FOREGROUND_DEPTH);
+
+    this.createHeaderTab(470, "EVENT PAGE", true, () => this.scrollTo(0));
+    this.createHeaderTab(610, "DEPOSIT", false, () => {
+      openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.Deposit));
+    });
+
+    const periodFrame = this.pinToViewport(
+      this.add.image(EVENT_SELECTOR_X, HEADER_Y + 1, "Desktop_FrameTime"),
+    );
+    periodFrame.setScale(EVENT_SELECTOR_FRAME_SCALE_X, EVENT_SELECTOR_FRAME_SCALE_Y);
+    periodFrame.setDepth(HEADER_FOREGROUND_DEPTH - 1);
+
+    this.periodLabel = this.pinToViewport(
+      this.add.text(
+        EVENT_SELECTOR_X + EVENT_SELECTOR_TEXT_OFFSET_X,
+        HEADER_Y + 1,
+        prototypeState.t("lobby.loadingLiveEvent"),
+        {
+          fontFamily: FONTS.body,
+          fontSize: "21px",
+          fontStyle: "700",
+          color: "#2f4254",
+          align: "center",
+          wordWrap: { width: EVENT_SELECTOR_LABEL_WIDTH, useAdvancedWrap: false },
+        },
+      ),
+    );
+    this.periodLabel.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
+
+    const dropdownChevron = this.pinToViewport(
+      this.add.text(EVENT_SELECTOR_X + EVENT_SELECTOR_CHEVRON_OFFSET_X, HEADER_Y + 1, "v", {
+        fontFamily: FONTS.body,
+        fontSize: "25px",
+        fontStyle: "700",
+        color: "#1da8ee",
+      }),
+    );
+    dropdownChevron.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
+
+    const dropdownHitArea = this.pinToViewport(
+      this.add.zone(
+        EVENT_SELECTOR_X,
+        HEADER_Y + 1,
+        EVENT_SELECTOR_HIT_WIDTH,
+        EVENT_SELECTOR_HIT_HEIGHT,
+      ),
+    );
+    dropdownHitArea.setDepth(HEADER_FOREGROUND_DEPTH + 1);
+    dropdownHitArea.setInteractive(
+      new Phaser.Geom.Rectangle(
+        -EVENT_SELECTOR_HIT_WIDTH / 2,
+        -EVENT_SELECTOR_HIT_HEIGHT / 2,
+        EVENT_SELECTOR_HIT_WIDTH,
+        EVENT_SELECTOR_HIT_HEIGHT,
+      ),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    dropdownHitArea.on("pointerup", () => this.runTapAction(() => this.openEventPicker()));
+    dropdownHitArea.on("pointerover", () => {
+      periodFrame.setScale(EVENT_SELECTOR_FRAME_HOVER_SCALE_X, EVENT_SELECTOR_FRAME_HOVER_SCALE_Y);
+      dropdownChevron.setScale(1.05);
+    });
+    dropdownHitArea.on("pointerout", () => {
+      periodFrame.setScale(EVENT_SELECTOR_FRAME_SCALE_X, EVENT_SELECTOR_FRAME_SCALE_Y);
+      dropdownChevron.setScale(1);
+    });
+
+    const myPointIcon = this.pinToViewport(this.add.image(1378, HEADER_Y, "Desktop_IconMyPoint"));
+    myPointIcon.setDepth(HEADER_FOREGROUND_DEPTH);
+
+    this.headerPointsText = this.pinToViewport(
+      this.add.text(1404, HEADER_Y + 1, "My Total Points : 0", {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#1b2630",
+      }),
+    );
+    this.headerPointsText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
+
+    const diamondIcon = this.pinToViewport(this.add.image(1618, HEADER_Y, "Desktop_IconDiamond"));
+    diamondIcon.setDepth(HEADER_FOREGROUND_DEPTH);
+
+    this.playerText = this.pinToViewport(
+      this.add.text(1646, HEADER_Y + 1, "--------", {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#1b2630",
+      }),
+    );
+    this.playerText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
+
+    const languageButton = this.pinToViewport(
+      this.add.image(1800, HEADER_Y, "Desktop_ButtonLanguage"),
+    );
+    languageButton.setScale(0.46);
+    languageButton.setDepth(HEADER_FOREGROUND_DEPTH);
+    wireImageButton(languageButton, 0.46, () => this.runTapAction(() => this.openLocalePicker()));
+
+    const supportButton = this.pinToViewport(
+      this.add.image(1862, HEADER_Y, "Desktop_ButtonSupport"),
+    );
+    supportButton.setScale(0.46);
+    supportButton.setDepth(HEADER_FOREGROUND_DEPTH);
+    wireImageButton(supportButton, 0.46, () => {
+      this.runTapAction(() => {
+        openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.CustomerService));
+      });
+    });
+  }
+
+  private createHeaderTab(
+    _x: number,
+    _label: string,
+    _active: boolean,
+    _onClick?: () => void,
+  ) {
+    const text = this.pinToViewport(
+      this.add.text(_x, HEADER_Y + 1, _label, {
+        fontFamily: FONTS.display,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: _active ? "#18aef5" : "#171b1f",
+        letterSpacing: 1.2,
+      }),
+    );
+    text.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
+
+    if (!_onClick) {
+      return text;
+    }
+
+    text.setInteractive({ useHandCursor: true });
+    text.on("pointerover", () => text.setScale(1.04));
+    text.on("pointerout", () => text.setScale(1));
+    text.on("pointerup", () => this.runTapAction(_onClick));
+    return text;
+  }
+
+  private createHero() {
+    this.add.image(960, HERO_TITLE_Y, "Desktop_MainTitle").setScale(0.9);
+    this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(0.44);
+
+    const stepCopy = [
+      `${prototypeState.t("lobby.stepDepositTitle")}\n${prototypeState.t("lobby.stepDepositCopy")}`,
+      `${prototypeState.t("lobby.stepSpinTitle")}\n${prototypeState.t("lobby.stepSpinCopy")}`,
+      `${prototypeState.t("lobby.stepRankTitle")}\n${prototypeState.t("lobby.stepRankCopy")}`,
+    ];
+    const stepXs = [819, 960, 1101];
+
+    stepXs.forEach((x, index) => {
+      this.add
+        .text(x, HERO_TUTORIAL_Y + 28, stepCopy[index], {
+          fontFamily: FONTS.body,
+          fontSize: "17px",
+          fontStyle: "700",
+          color: "#179fe7",
+          align: "center",
+          lineSpacing: 2,
+          wordWrap: { width: 132, useAdvancedWrap: true },
+        })
+        .setOrigin(0.5);
+    });
+
+    this.promotionPeriodText = this.add
+      .text(960, HERO_PERIOD_Y, prototypeState.t("lobby.checkingEligibility"), {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#9aa0a7",
+      })
+      .setOrigin(0.5);
+
+    this.createActivityBoard();
+  }
+
+  private createActivityBoard() {
+    const boardGlow = this.add.ellipse(960, 680, 1460, 440, 0xffffff, 0.22);
+    boardGlow.setDepth(0.5);
+    const wheelGlow = this.add.ellipse(960, 785, 1040, 260, 0xffffff, 0.3);
+    wheelGlow.setDepth(0.6);
+
+    this.activityPills = Array.from({ length: 14 }, (_, index) => {
+      const width = ACTIVITY_PILL_WIDTHS[index % ACTIVITY_PILL_WIDTHS.length];
+      const pill = this.createActivityPill(width);
+      pill.container.setDepth(0.9);
+      this.resetActivityPill(pill, index * 280 + Phaser.Math.Between(40, 260));
+      return pill;
+    });
+  }
+
+  private createActivityPill(width: number): ActivityPill {
+    const container = this.add.container(0, 0);
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0xffffff, 0.38);
+    graphics.fillRoundedRect(-width / 2, -ACTIVITY_PILL_HEIGHT / 2, width, ACTIVITY_PILL_HEIGHT, 21);
+    graphics.lineStyle(2, 0x98dcff, 0.82);
+    graphics.strokeRoundedRect(-width / 2, -ACTIVITY_PILL_HEIGHT / 2, width, ACTIVITY_PILL_HEIGHT, 21);
+
+    const label = this.add
+      .text(0, 0, "", {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#21a5ea",
+        align: "center",
+      })
+      .setOrigin(0.5);
+
+    container.add([graphics, label]);
+    container.setAlpha(0);
+
+    return {
+      container,
+      label,
+      width,
+      delayRemaining: 0,
+      progress: 0,
+      duration: 0,
+      startX: 0,
+      startY: 0,
+      endX: 0,
+      endY: 0,
+      alphaPeak: 0.72,
+      startScale: 1,
+      endScale: 1,
+    };
+  }
+
+  private createWheelSection() {
+    this.wheelRoot = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
+    this.wheelRoot.setScale(WHEEL_SCALE);
+    this.wheelRoot.setDepth(4);
+    this.drawWheel([]);
+
+    this.button = this.createWheelCenterButton();
+    this.drawPointer();
+
+    this.add.image(960, SUMMARY_PANEL_Y, "Desktop_FrameTotalPoint").setScale(0.58);
+    this.add
+      .text(820, SUMMARY_PANEL_Y + 1, `${prototypeState.t("lobby.myTotalPoints")}:`, {
+        fontFamily: FONTS.body,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#14a8ee",
+      })
+      .setOrigin(0, 0.5);
+
+    this.summaryPointsText = this.add
+      .text(1118, SUMMARY_PANEL_Y, "0", {
+        fontFamily: FONTS.display,
+        fontSize: "44px",
+        fontStyle: "700",
+        color: "#10a7eb",
+      })
+      .setOrigin(1, 0.5);
+
+    this.createHistoryButton(960, SUMMARY_PANEL_Y + 88);
+
+    if (shouldShowDevEligibilitySwitch()) {
+      this.testSpinButton = addTextButton(
+        this,
+        1552,
+        SUMMARY_PANEL_Y,
+        184,
+        54,
+        "Test Spin",
+        () => this.runVisualTestSpin(),
+        {
+          backgroundColor: 0xe9f7ff,
+          labelColor: "#0a2942",
+          radius: 28,
+        },
+      );
+      this.testSpinButton.label.setFontSize("20px");
+    }
+  }
+
+  private createHistoryButton(x: number, y: number) {
+    const container = this.add.container(x, y);
+    container.setDepth(8);
+
+    const label = this.add
+      .text(-8, 0, prototypeState.t("lobby.history"), {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#149fe4",
+      })
+      .setOrigin(1, 0.5);
+
+    const bubble = this.add.circle(24, 0, 20, 0xffffff, 0.98);
+    bubble.setStrokeStyle(2, 0xbbe9ff, 0.95);
+    const chevron = this.add
+      .text(24, -1, "›", {
+        fontFamily: FONTS.display,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#149fe4",
+      })
+      .setOrigin(0.5);
+
+    container.add([label, bubble, chevron]);
+    container.setSize(170, 48);
+    container.setInteractive(
+      new Phaser.Geom.Rectangle(-85, -24, 170, 48),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    container.on("pointerover", () => {
+      container.setScale(1.03);
+      label.setColor("#0f92d5");
+    });
+    container.on("pointerout", () => {
+      container.setScale(1);
+      label.setColor("#149fe4");
+    });
+    container.on("pointerup", () => {
+      this.runTapAction(() => {
+        if (this.scene.isActive(SCENE_KEYS.HistoryOverlay)) {
+          this.scene.stop(SCENE_KEYS.HistoryOverlay);
+          return;
+        }
+
+        this.scene.launch(SCENE_KEYS.HistoryOverlay);
+      });
+    });
+
+  }
+
+  private createLeaderboardSection() {
+    this.leaderboardTitleText = this.add
+      .text(960, LEADERBOARD_SECTION_TOP + 144, prototypeState.t("leaderboard.liveTitle"), {
+        fontFamily: FONTS.display,
+        fontSize: "72px",
+        fontStyle: "800",
+        color: "#47bdf6",
+      })
+      .setOrigin(0.5);
+
+    this.leaderboardSubtitleText = this.add
+      .text(960, LEADERBOARD_SECTION_TOP + 222, prototypeState.t("leaderboard.liveSubtitle"), {
+        fontFamily: FONTS.body,
+        fontSize: "22px",
+        fontStyle: "700",
+        color: "#5a8099",
+        align: "center",
+        wordWrap: { width: 820, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
+
+    const divider = this.add.graphics();
+    divider.lineStyle(2, COLORS.line, 0.9);
+    divider.lineBetween(260, LEADERBOARD_SECTION_TOP + 294, 1660, LEADERBOARD_SECTION_TOP + 294);
+
+    LEADERBOARD_COLUMN_LEFTS.forEach((left) => {
+      this.add
+        .text(left + 24, LEADERBOARD_SECTION_TOP + 350, "Rank", {
+          fontFamily: FONTS.body,
+          fontSize: "24px",
+          fontStyle: "700",
+          color: "#12a2ea",
+        })
+        .setOrigin(0, 0.5);
+      this.add
+        .text(left + 176, LEADERBOARD_SECTION_TOP + 350, "Username", {
+          fontFamily: FONTS.body,
+          fontSize: "24px",
+          fontStyle: "700",
+          color: "#12a2ea",
+        })
+        .setOrigin(0, 0.5);
+      this.add
+        .text(left + LEADERBOARD_ROW_WIDTH - 14, LEADERBOARD_SECTION_TOP + 350, "Total Points", {
+          fontFamily: FONTS.body,
+          fontSize: "24px",
+          fontStyle: "700",
+          color: "#12a2ea",
+        })
+        .setOrigin(1, 0.5);
+    });
+
+    this.leaderboardPendingPanel = addRoundedPanel(
+      this,
+      960,
+      LEADERBOARD_SECTION_TOP + 665,
+      820,
+      220,
+      {
+        fillColor: COLORS.white,
+        radius: 40,
+      },
+    );
+    this.leaderboardPendingPanel.setVisible(false);
+    this.leaderboardPendingText = this.add
+      .text(960, LEADERBOARD_SECTION_TOP + 665, "", {
+        fontFamily: FONTS.body,
+        fontSize: "30px",
+        fontStyle: "700",
+        color: "#5d7d97",
+        align: "center",
+        wordWrap: { width: 660, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+
+      Array.from({ length: 30 }, (_, index) => {
+        const columnIndex = Math.floor(index / 10);
+        const rowIndex = index % 10;
+        const left = LEADERBOARD_COLUMN_LEFTS[columnIndex];
+        const y = LEADERBOARD_ROW_START_Y + rowIndex * LEADERBOARD_ROW_SPACING;
+
+        const plate = this.add
+          .image(left + LEADERBOARD_ROW_WIDTH / 2, y, "Desktop_RankingPlate_NotListed")
+          .setScale(LEADERBOARD_PLATE_SCALE)
+          .setVisible(false);
+
+        const playerText = this.add
+          .text(left + LEADERBOARD_PLAYER_OFFSET_X, y - 2, "-", {
+            fontFamily: FONTS.body,
+            fontSize: "20px",
+            fontStyle: "700",
+            color: "#0a2942",
+            wordWrap: { width: 126, useAdvancedWrap: true },
+          })
+          .setOrigin(0, 0.5)
+          .setVisible(false);
+
+        const scoreText = this.add
+          .text(left + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, y - 2, "-", {
+            fontFamily: FONTS.display,
+            fontSize: "20px",
+            fontStyle: "700",
+            color: "#10a7eb",
+          })
+          .setOrigin(1, 0.5)
+          .setVisible(false);
+
+        this.leaderboardRows.push({
+          plate,
+          playerText,
+          scoreText,
+        });
+      });
+
+    this.leaderboardMyRankText = this.add
+      .text(960, PRIZE_SECTION_TOP - 122, "", {
+        fontFamily: FONTS.body,
+        fontSize: "24px",
+        fontStyle: "700",
+        color: "#0a2942",
+        align: "center",
+        wordWrap: { width: 960, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
+
+    this.leaderboardLastSyncedText = this.add
+      .text(960, PRIZE_SECTION_TOP - 72, "", {
+        fontFamily: FONTS.body,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#62839b",
+      })
+      .setOrigin(0.5);
+
+    const prizeAreaButton = addTextButton(
+      this,
+      960,
+      PRIZE_SECTION_TOP - 28,
+      210,
+      50,
+      "Prize Area",
+      () => this.scrollTo(PRIZE_SECTION_TOP - 32),
+      {
+        backgroundColor: 0xeaf8ff,
+        labelColor: "#149fe4",
+        radius: 28,
+      },
+    );
+    prizeAreaButton.label.setFontSize("18px");
+  }
+
+  private createPrizeSection() {
+    this.add.image(960, PRIZE_SECTION_TOP + 126, "Desktop_PrizeTitle").setScale(1.08);
+
+    this.prizeSubtitleText = this.add
+      .text(960, PRIZE_SECTION_TOP + 206, prototypeState.t("prize.liveSubtitle"), {
+        fontFamily: FONTS.body,
+        fontSize: "21px",
+        fontStyle: "700",
+        color: "#3f7b93",
+        align: "center",
+        wordWrap: { width: 880, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
+
+    PRIZE_ROW_LAYOUTS.forEach((row, index) => {
+      const rankBadge = this.add
+        .image(row.badgeX, row.y, DESKTOP_PRIZE_BADGE_KEYS[index])
+        .setScale(row.badgeScale);
+      const rewardZone = this.add
+        .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
+        .setScale(row.rewardScale);
+
+      const isRightAligned = row.align === "right";
+      const textX = row.rewardX + (isRightAligned ? 156 : -156);
+      const origin = isRightAligned ? 1 : 0;
+
+      const prizeLabel = this.add
+        .text(textX, row.y - 22, "-", {
+          fontFamily: FONTS.display,
+          fontSize: index === 0 ? "32px" : "28px",
+          fontStyle: "700",
+          color: "#ffffff",
+          align: isRightAligned ? "right" : "left",
+        })
+        .setOrigin(origin, 0.5);
+
+      const prizeDescription = this.add
+        .text(textX, row.y + 18, "", {
+          fontFamily: FONTS.body,
+          fontSize: "18px",
+          fontStyle: "700",
+          color: "#0a2942",
+          align: isRightAligned ? "right" : "left",
+          wordWrap: { width: index === 0 ? 290 : 250, useAdvancedWrap: true },
+        })
+        .setOrigin(origin, 0.5);
+
+      this.prizeRows.push({ rankBadge, rewardZone, prizeLabel, prizeDescription });
+    });
+
+  }
+
+  private createTermsSection() {
+    const termsPlate = this.add.graphics();
+    termsPlate.fillStyle(0xe4e4e4, 1);
+    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
+
+    this.add
+      .text(960, TERMS_SECTION_TOP + 208, prototypeState.t("rules.title"), {
+        fontFamily: FONTS.display,
+        fontSize: "68px",
+        fontStyle: "800",
+        color: "#47bdf6",
+      })
+      .setOrigin(0.5);
+
+    this.rulesBodyText = this.add
+      .text(250, TERMS_SECTION_TOP + 350, "", {
+        fontFamily: FONTS.body,
+        fontSize: "20px",
+        color: "#253a4e",
+        lineSpacing: 8,
+        wordWrap: { width: 1420, useAdvancedWrap: true },
+      })
+      .setOrigin(0, 0);
+
+  }
+
+  private setupScrollControls() {
+    const handleDown = (pointer: Phaser.Input.Pointer) => {
+      if (this.isDesktopModalOpen()) {
+        return;
+      }
+
+      this.activeScrollPointerId = pointer.id;
+      this.isDraggingScroll = false;
+      this.dragStartX = pointer.x;
+      this.dragStartY = pointer.y;
+      this.dragStartScrollY = this.cameras.main.scrollY;
+      this.lastDragY = pointer.y;
+      this.lastDragTime = this.time.now;
+      this.scrollVelocity = 0;
+    };
+
+    const handleMove = (pointer: Phaser.Input.Pointer) => {
+      if (this.isDesktopModalOpen() || pointer.id !== this.activeScrollPointerId || !pointer.isDown) {
+        return;
+      }
+
+      const deltaX = pointer.x - this.dragStartX;
+      const deltaY = pointer.y - this.dragStartY;
+
+      if (!this.isDraggingScroll) {
+        const passedThreshold = Math.abs(deltaY) > 12;
+        const mostlyVertical = Math.abs(deltaY) > Math.abs(deltaX) * 1.15;
+        if (!passedThreshold || !mostlyVertical) {
+          return;
+        }
+
+        this.isDraggingScroll = true;
+        this.suppressTapUntil = this.time.now + 220;
+      }
+
+      this.setScrollY(this.dragStartScrollY - deltaY);
+
+      const now = this.time.now;
+      const elapsed = Math.max(1, now - this.lastDragTime);
+      const scrollDelta = this.lastDragY - pointer.y;
+      const instantVelocity = scrollDelta / elapsed;
+      this.scrollVelocity = Phaser.Math.Linear(this.scrollVelocity, instantVelocity, 0.35);
+      this.lastDragY = pointer.y;
+      this.lastDragTime = now;
+    };
+
+    const handleUp = (pointer: Phaser.Input.Pointer) => {
+      if (pointer.id !== this.activeScrollPointerId) {
+        return;
+      }
+
+      if (this.isDraggingScroll) {
+        this.suppressTapUntil = this.time.now + 220;
+      }
+
+      this.isDraggingScroll = false;
+      this.activeScrollPointerId = undefined;
+    };
+
+    const handleWheel = (
+      _pointer: Phaser.Input.Pointer,
+      _gameObjects: Phaser.GameObjects.GameObject[],
+      _deltaX: number,
+      deltaY: number,
+    ) => {
+      if (this.isDesktopModalOpen()) {
+        return;
+      }
+
+      this.setScrollY(this.cameras.main.scrollY + deltaY * 0.92);
+      this.scrollVelocity = 0;
+      this.suppressTapUntil = this.time.now + 120;
+    };
+
+    this.input.on("pointerdown", handleDown);
+    this.input.on("pointermove", handleMove);
+    this.input.on("pointerup", handleUp);
+    this.input.on("wheel", handleWheel);
+
+    this.cleanup.push(() => {
+      this.input.off("pointerdown", handleDown);
+      this.input.off("pointermove", handleMove);
+      this.input.off("pointerup", handleUp);
+      this.input.off("wheel", handleWheel);
+    });
+  }
+
+  private refreshDynamicContent() {
+    const snapshot = prototypeState.getSnapshot();
+    const totalPoints = formatNumber(snapshot.player?.totalScore ?? 0, snapshot.locale);
+
+    this.periodLabel?.setText(this.getEventSelectorValue());
+    this.promotionPeriodText?.setText(
+      snapshot.currentEvent?.promotionPeriodLabel
+        ? `Promotion Period: ${snapshot.currentEvent.promotionPeriodLabel}`
+        : snapshot.isBootstrapping
+          ? prototypeState.t("lobby.loadingPayload")
+          : prototypeState.t("lobby.loadingLiveEvent"),
+    );
+    this.headerPointsText?.setText(`${prototypeState.t("lobby.myTotalPoints")} : ${totalPoints}`);
+    this.summaryPointsText?.setText(totalPoints);
+    this.playerText?.setText(this.formatAccountLabel(snapshot.player?.playerName));
+
+    if (snapshot.leaderboard?.leaderboard.length) {
+      this.activityPills.forEach((pill) => {
+        if (!pill.label.text || pill.label.text === "Loading player activity...") {
+          this.assignActivityMessage(pill);
+        }
+      });
+    }
+
+    this.refreshLeaderboardSection();
+    this.refreshPrizeSection();
+    this.refreshRulesSection();
+    this.applyState();
+  }
+
+  private refreshLeaderboardSection() {
+    const snapshot = prototypeState.getSnapshot();
+    const isPending =
+      snapshot.currentEvent?.status === "ended" &&
+      snapshot.leaderboard?.resultsVisible === false;
+
+    const title = isPending
+      ? prototypeState.t("leaderboard.pendingTitle")
+      : snapshot.currentEvent?.status === "live"
+        ? prototypeState.t("leaderboard.liveTitle")
+        : prototypeState.t("leaderboard.archiveTitle");
+    const subtitle = isPending
+      ? prototypeState.t("leaderboard.pendingSubtitle")
+      : snapshot.currentEvent?.status === "live"
+        ? prototypeState.t("leaderboard.liveSubtitle")
+        : prototypeState.t("leaderboard.archiveSubtitle");
+
+    this.leaderboardTitleText?.setText(title);
+    this.leaderboardSubtitleText?.setText(subtitle);
+
+    this.leaderboardPendingPanel?.setVisible(isPending);
+    this.leaderboardPendingText
+      ?.setVisible(isPending)
+      .setText(snapshot.leaderboard?.pendingMessage ?? prototypeState.t("leaderboard.pendingSubtitle"));
+
+      const rows = snapshot.leaderboard?.leaderboard.slice(0, 30) ?? [];
+      this.leaderboardRows.forEach((row, index) => {
+        const entry = rows[index];
+        const visible = Boolean(entry) && !isPending;
+        row.plate.setVisible(visible);
+        row.playerText.setVisible(visible);
+        row.scoreText.setVisible(visible);
+
+        if (!visible || !entry) {
+          return;
+        }
+
+        row.plate.setTexture(
+          DESKTOP_RANKING_PLATE_KEYS[entry.rank - 1] ?? "Desktop_RankingPlate_NotListed",
+        );
+        row.playerText.setText(entry.playerName);
+        row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
+        row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
+      });
+
+    if (isPending) {
+      this.leaderboardMyRankText?.setText("");
+      this.leaderboardLastSyncedText?.setText("");
+      return;
+    }
+
+    const myRank = snapshot.leaderboard?.myRank;
+    this.leaderboardMyRankText?.setText(
+      myRank
+        ? `My Rank #${myRank.rank} | ${myRank.playerName} | ${formatNumber(myRank.score, snapshot.locale)} pts`
+        : snapshot.isBootstrapping
+          ? "Loading leaderboard..."
+          : "",
+    );
+    this.leaderboardLastSyncedText?.setText(
+      prototypeState.t("leaderboard.lastSynced", {
+        value: snapshot.leaderboard?.lastSyncedAt
+          ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+              dateStyle: "short",
+              timeStyle: "short",
+            })
+          : "-",
+      }),
+    );
+  }
+
+  private refreshPrizeSection() {
+    const snapshot = prototypeState.getSnapshot();
+    this.prizeSubtitleText?.setText(
+      snapshot.currentEvent?.status === "live"
+        ? prototypeState.t("prize.liveSubtitle")
+        : prototypeState.t("prize.archiveSubtitle"),
+    );
+
+    this.prizeRows.forEach((row, index) => {
+      const prize = snapshot.prizes[index];
+      const visible = Boolean(prize);
+      row.rankBadge.setVisible(visible);
+      row.rewardZone.setVisible(visible);
+      row.prizeLabel.setVisible(visible);
+      row.prizeDescription.setVisible(visible);
+
+      if (!prize) {
+        return;
+      }
+
+      row.prizeLabel.setText(prize.prizeLabel);
+      row.prizeDescription.setText(
+        prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
+      );
+    });
+  }
+
+  private refreshRulesSection() {
+    const snapshot = prototypeState.getSnapshot();
+    this.rulesBodyText?.setText(snapshot.currentEvent?.rulesContent || prototypeState.t("rules.loading"));
+  }
+
+  private updateScene(_time: number, delta: number) {
+    this.applyScrollMomentum(delta);
+    this.updateActivityPills(delta);
+  }
+
+  private applyScrollMomentum(delta: number) {
+    if (this.isDesktopModalOpen() || this.isDraggingScroll || Math.abs(this.scrollVelocity) < 0.01) {
+      return;
+    }
+
+    this.setScrollY(this.cameras.main.scrollY + this.scrollVelocity * delta);
+    this.scrollVelocity *= 0.94;
+
+    const maxScroll = CONTENT_HEIGHT - STAGE_HEIGHT;
+    if (this.cameras.main.scrollY <= 0 || this.cameras.main.scrollY >= maxScroll) {
+      this.scrollVelocity *= 0.55;
+    }
+
+    if (Math.abs(this.scrollVelocity) < 0.01) {
+      this.scrollVelocity = 0;
+    }
+  }
+
+  private updateActivityPills(delta: number) {
+    if (this.activityPills.length === 0) {
+      return;
+    }
+
+    this.activityPills.forEach((pill) => {
+      if (pill.delayRemaining > 0) {
+        pill.delayRemaining = Math.max(0, pill.delayRemaining - delta);
+        return;
+      }
+
+      pill.progress = Math.min(1, pill.progress + delta / pill.duration);
+      const eased = Phaser.Math.Easing.Cubic.Out(pill.progress);
+      pill.container.setPosition(
+        pill.startX,
+        Phaser.Math.Linear(pill.startY, pill.endY, eased),
+      );
+      const scale = Phaser.Math.Linear(pill.startScale, pill.endScale, eased);
+      pill.container.setScale(scale);
+
+      let alpha = pill.alphaPeak;
+      if (pill.progress < 0.2) {
+        alpha = pill.alphaPeak * (pill.progress / 0.2);
+      } else if (pill.progress > 0.72) {
+        alpha = pill.alphaPeak * (1 - (pill.progress - 0.72) / 0.28);
+      }
+      pill.container.setAlpha(Phaser.Math.Clamp(alpha, 0, pill.alphaPeak));
+
+      if (pill.progress >= 1) {
+        this.resetActivityPill(pill);
+      }
+    });
+  }
+
+  private resetActivityPill(
+    pill: ActivityPill,
+    delayMs = Phaser.Math.Between(320, 1120),
+  ) {
+    pill.delayRemaining = delayMs;
+    pill.progress = 0;
+    pill.duration = Phaser.Math.Between(2800, 3600);
+    pill.startX = Phaser.Math.Between(
+      ACTIVITY_BOARD_LEFT + pill.width / 2 + 24,
+      ACTIVITY_BOARD_RIGHT - pill.width / 2 - 24,
+    );
+    pill.startY = Phaser.Math.Between(ACTIVITY_PILL_START_MIN_Y, ACTIVITY_PILL_START_MAX_Y);
+    pill.endX = pill.startX;
+    pill.endY = Phaser.Math.Between(ACTIVITY_PILL_END_MIN_Y, ACTIVITY_PILL_END_MAX_Y);
+    pill.alphaPeak = Phaser.Math.FloatBetween(0.82, 0.96);
+    pill.startScale = Phaser.Math.FloatBetween(0.82, 0.9);
+    pill.endScale = pill.startScale + Phaser.Math.FloatBetween(0.08, 0.15);
+    pill.container.setPosition(pill.startX, pill.startY);
+    pill.container.setAlpha(0);
+    pill.container.setScale(pill.startScale);
+    this.assignActivityMessage(pill);
+  }
+
+  private assignActivityMessage(pill: ActivityPill) {
+    const snapshot = prototypeState.getSnapshot();
+    const leaderboardEntries = snapshot.leaderboard?.leaderboard ?? [];
+
+    if (leaderboardEntries.length === 0) {
+      pill.label.setText("Loading player activity...");
+      return;
+    }
+
+    const entry = leaderboardEntries[Math.floor(Math.random() * Math.min(leaderboardEntries.length, 30))];
+    const name = this.maskPlayerName(entry.playerName);
+    const score = this.getRandomPositiveScore();
+    pill.label.setText(`${name} Earn ${formatNumber(score, snapshot.locale)} points`);
+  }
+
+  private getRandomPositiveScore() {
+    const snapshot = prototypeState.getSnapshot();
+    const historyScores =
+      snapshot.player?.spinHistory
+        .map((entry) => entry.scoreDelta)
+        .filter((score) => score > 0) ?? [];
+
+    const pool = historyScores.length > 0 ? historyScores : [20, 80, 120, 200];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  private maskPlayerName(name?: string) {
+    if (!name) {
+      return "player";
+    }
+
+    const normalized = name.replace(/\s+/g, "");
+    if (normalized.length <= 2) {
+      return `${normalized[0] ?? "*"}*`;
+    }
+
+    return `${normalized[0]}*****${normalized[normalized.length - 1]}`;
+  }
+
+  private applyState() {
+    const snapshot = prototypeState.getSnapshot();
+    const canTestSpin = !this.spinning && Boolean(snapshot.currentEvent?.wheelSegments.length);
+    if (this.testSpinButton) {
+      this.testSpinButton.setEnabled(canTestSpin);
+      this.testSpinButton.setBackground(canTestSpin ? 0xe9f7ff : COLORS.disabled);
+      this.testSpinButton.label.setColor("#0a2942");
+    }
+
+    if (!this.wheelRoot || !this.button) {
+      return;
+    }
+
+    if (!snapshot.currentEvent || !snapshot.eligibility) {
+      this.button.setLabel("Loading");
+      this.button.setBackground(COLORS.disabled);
+      this.button.setEnabled(false);
+      return;
+    }
+
+    this.currentEligibility = snapshot.eligibility.eligibilityStatus;
+    this.currentWheelVisualState = snapshot.eligibility.wheelVisualState;
+    const wheelSignature = this.getWheelSignature(
+      snapshot.currentEvent.wheelSegments,
+      this.currentWheelVisualState,
+    );
+
+    if (wheelSignature !== this.renderedWheelSignature) {
+      this.drawWheel(snapshot.currentEvent.wheelSegments);
+    } else {
+      this.syncWinningSegmentHighlight();
+    }
+    this.syncPointerVisualState();
+
+    this.button.setLabel(snapshot.eligibility.buttonLabel);
+    this.button.setBackground(
+      this.currentEligibility === EligibilityStatus.GoToDeposit
+        ? COLORS.accent
+        : this.currentEligibility === EligibilityStatus.EventEnded
+          ? COLORS.disabled
+          : COLORS.primary,
+    );
+    this.button.setEnabled(
+      !this.spinning &&
+        this.currentEligibility !== EligibilityStatus.AlreadySpin &&
+        this.currentEligibility !== EligibilityStatus.EventEnded,
+    );
+    this.button.label.setColor(
+      this.currentEligibility === EligibilityStatus.GoToDeposit ? "#0a2942" : "#ffffff",
+    );
+  }
+
+  private animateToSegment(result: SpinSuccessResponse) {
+    this.animateWheelToSegmentIndex(result.segmentIndex, () => {
+      this.playSpinCelebration(result.segmentIndex);
+    });
+  }
+
+  private animateWheelToSegmentIndex(segmentIndex: number, onComplete?: () => void) {
+    if (!this.wheelRoot) {
+      return;
+    }
+
+    const currentDegrees = Phaser.Math.Wrap(
+      Phaser.Math.RadToDeg(this.wheelRotation),
+      0,
+      360,
+    );
+    const desiredDegrees = Phaser.Math.Wrap(-segmentIndex * 60, 0, 360);
+    const travelDegrees = 360 * 5 + desiredDegrees - currentDegrees;
+    const targetRotation =
+      this.wheelRotation +
+      Phaser.Math.DegToRad(travelDegrees <= 0 ? travelDegrees + 360 : travelDegrees);
+
+    this.tweens.add({
+      targets: this.wheelRoot,
+      rotation: targetRotation,
+      duration: 3800,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        this.wheelRotation = targetRotation;
+        onComplete?.();
+      },
+    });
+  }
+
+  public runVisualTestSpin() {
+    const segments = prototypeState.getSnapshot().currentEvent?.wheelSegments ?? [];
+    if (this.spinning || segments.length === 0) {
+      return;
+    }
+
+    this.spinning = true;
+    this.applyState();
+    const segmentIndex = Phaser.Math.Between(0, segments.length - 1);
+    this.animateWheelToSegmentIndex(segmentIndex, () => {
+      this.playSpinCelebration(segmentIndex);
+    });
+  }
+
+  private playSpinCelebration(segmentIndex: number) {
+    this.highlightedSegmentIndex = segmentIndex;
+    playWinningEffect(this);
+    this.applyState();
+    this.launchCelebrationFireworks();
+
+    this.celebrationTimer?.remove(false);
+    this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
+      this.clearCelebrationBursts();
+      this.highlightedSegmentIndex = undefined;
+      this.highlightTween?.stop();
+      this.highlightGraphic?.destroy();
+      this.highlightGraphic = undefined;
+      this.highlightTween = undefined;
+      this.spinning = false;
+      prototypeState.acknowledgeSpinResult();
+      this.applyState();
+    });
+  }
+
+  private drawWheel(segments: WheelSegmentDto[]) {
+    if (!this.wheelRoot) {
+      return;
+    }
+
+    const wheelRoot = this.wheelRoot;
+    const isGreyedOut = this.currentWheelVisualState === WheelVisualState.GreyedOut;
+    this.highlightTween?.stop();
+    this.highlightTween = undefined;
+    this.highlightGraphic = undefined;
+    this.renderedHighlightIndex = undefined;
+    wheelRoot.removeAll(true);
+
+    const wheelBackdrop = this.add.image(
+      0,
+      0,
+      isGreyedOut ? "Desktop_RouletteExpired" : "Desktop_Roulette",
+    );
+    wheelRoot.add(wheelBackdrop);
+    this.renderedWheelSignature = this.getWheelSignature(segments, this.currentWheelVisualState);
+
+    if (segments.length === 0) {
+      return;
+    }
+
+    segments.forEach((segment, index) => {
+      const isLightSegment = index % 2 === 1;
+      const labelColor = isGreyedOut
+        ? isLightSegment
+          ? ENDED_WHEEL_TEXT_DARK
+          : ENDED_WHEEL_TEXT_LIGHT
+        : isLightSegment
+          ? "#0a2942"
+          : "#ffffff";
+
+      const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
+      const labelRadius = 244;
+      const labelContainer = this.add.container(
+        Math.cos(centerAngle) * labelRadius,
+        Math.sin(centerAngle) * labelRadius,
+      );
+
+      const label = this.add
+        .text(0, -18, segment.label, {
+          fontFamily: FONTS.display,
+          fontSize: "60px",
+          fontStyle: "800",
+          color: labelColor,
+        })
+        .setOrigin(0.5);
+
+      const unit = this.add
+        .text(0, 26, "points", {
+          fontFamily: FONTS.body,
+          fontSize: "24px",
+          fontStyle: "700",
+          color: labelColor,
+        })
+        .setOrigin(0.5)
+        .setAlpha(isGreyedOut ? (isLightSegment ? 0.86 : 0.92) : isLightSegment ? 0.92 : 0.88);
+
+      labelContainer.add([label, unit]);
+      labelContainer.setRotation(centerAngle + Math.PI / 2);
+      wheelRoot.add(labelContainer);
+    });
+
+    this.syncWinningSegmentHighlight();
+  }
+
+  private attachWinningSegmentPulse(segmentIndex: number) {
+    if (!this.wheelRoot) {
+      return;
+    }
+
+    this.highlightTween?.stop();
+    this.highlightGraphic?.destroy();
+
+    const startAngle = Phaser.Math.DegToRad(-120 + segmentIndex * 60);
+    const endAngle = Phaser.Math.DegToRad(-60 + segmentIndex * 60);
+    const midAngle = (startAngle + endAngle) / 2;
+    const startInnerX = Math.cos(startAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const startInnerY = Math.sin(startAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const endInnerX = Math.cos(endAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const endInnerY = Math.sin(endAngle) * SEGMENT_HIGHLIGHT_INNER_RADIUS;
+    const highlight = this.add.container(0, 0);
+    const frame = this.add.graphics();
+
+    frame.fillStyle(SEGMENT_HIGHLIGHT_GOLD_SOFT, 0.12);
+    frame.beginPath();
+    frame.moveTo(startInnerX, startInnerY);
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.lineTo(endInnerX, endInnerY);
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_INNER_RADIUS, endAngle, startAngle, true);
+    frame.closePath();
+    frame.fillPath();
+
+    frame.lineStyle(32, SEGMENT_HIGHLIGHT_SHADOW, 0.34);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(18, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_OUTER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(8, SEGMENT_HIGHLIGHT_GOLD, 1);
+    frame.beginPath();
+    frame.arc(
+      0,
+      0,
+      SEGMENT_HIGHLIGHT_OUTER_RADIUS - 20,
+      startAngle + 0.012,
+      endAngle - 0.012,
+      false,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(12, SEGMENT_HIGHLIGHT_GOLD, 0.96);
+    frame.beginPath();
+    frame.arc(0, 0, SEGMENT_HIGHLIGHT_INNER_RADIUS, startAngle, endAngle, false);
+    frame.strokePath();
+
+    frame.lineStyle(6, SEGMENT_HIGHLIGHT_AMBER, 0.98);
+    frame.beginPath();
+    frame.arc(
+      0,
+      0,
+      SEGMENT_HIGHLIGHT_INNER_RADIUS + 16,
+      startAngle + 0.025,
+      endAngle - 0.025,
+      false,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(16, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    frame.beginPath();
+    frame.moveTo(startInnerX, startInnerY);
+    frame.lineTo(
+      Math.cos(startAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+      Math.sin(startAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+    );
+    frame.moveTo(endInnerX, endInnerY);
+    frame.lineTo(
+      Math.cos(endAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+      Math.sin(endAngle) * SEGMENT_HIGHLIGHT_OUTER_RADIUS,
+    );
+    frame.strokePath();
+
+    frame.lineStyle(6, SEGMENT_HIGHLIGHT_GOLD, 0.98);
+    frame.beginPath();
+    frame.moveTo(
+      Math.cos(startAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+      Math.sin(startAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+    );
+    frame.lineTo(
+      Math.cos(startAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+      Math.sin(startAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+    );
+    frame.moveTo(
+      Math.cos(endAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+      Math.sin(endAngle) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 14),
+    );
+    frame.lineTo(
+      Math.cos(endAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+      Math.sin(endAngle) * (SEGMENT_HIGHLIGHT_OUTER_RADIUS - 18),
+    );
+    frame.strokePath();
+
+    const crestOuterRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 4;
+    const crestInnerRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 34;
+    const crest = this.add.graphics();
+    crest.fillStyle(SEGMENT_HIGHLIGHT_GOLD, 1);
+    crest.beginPath();
+    crest.moveTo(
+      Math.cos(midAngle) * crestOuterRadius,
+      Math.sin(midAngle) * crestOuterRadius,
+    );
+    crest.lineTo(
+      Math.cos(midAngle - 0.09) * crestInnerRadius,
+      Math.sin(midAngle - 0.09) * crestInnerRadius,
+    );
+    crest.lineTo(
+      Math.cos(midAngle + 0.09) * crestInnerRadius,
+      Math.sin(midAngle + 0.09) * crestInnerRadius,
+    );
+    crest.closePath();
+    crest.fillPath();
+    crest.lineStyle(5, SEGMENT_HIGHLIGHT_ORANGE, 0.98);
+    crest.strokePath();
+
+    const innerBadge = this.add.graphics();
+    innerBadge.fillStyle(SEGMENT_HIGHLIGHT_AMBER, 0.22);
+    const innerBadgeApexRadius = SEGMENT_HIGHLIGHT_INNER_RADIUS - 24;
+    innerBadge.beginPath();
+    innerBadge.moveTo(
+      Math.cos(midAngle - 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+      Math.sin(midAngle - 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+    );
+    innerBadge.lineTo(
+      Math.cos(midAngle) * innerBadgeApexRadius,
+      Math.sin(midAngle) * innerBadgeApexRadius,
+    );
+    innerBadge.lineTo(
+      Math.cos(midAngle + 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+      Math.sin(midAngle + 0.16) * (SEGMENT_HIGHLIGHT_INNER_RADIUS + 2),
+    );
+    innerBadge.closePath();
+    innerBadge.fillPath();
+    innerBadge.lineStyle(5, SEGMENT_HIGHLIGHT_GOLD, 0.94);
+    innerBadge.strokePath();
+
+    highlight.add([frame, crest, innerBadge]);
+
+    for (let index = 0; index < SEGMENT_HIGHLIGHT_DOT_COUNT; index += 1) {
+      const dotAngle = Phaser.Math.Linear(
+        startAngle + 0.1,
+        endAngle - 0.1,
+        index / (SEGMENT_HIGHLIGHT_DOT_COUNT - 1),
+      );
+      const dotRadius = SEGMENT_HIGHLIGHT_OUTER_RADIUS - 8;
+      const dotX = Math.cos(dotAngle) * dotRadius;
+      const dotY = Math.sin(dotAngle) * dotRadius;
+      const dotShadow = this.add.circle(dotX, dotY + 4, 11, SEGMENT_HIGHLIGHT_SHADOW, 0.22);
+      const dotOuter = this.add.circle(dotX, dotY, 12, SEGMENT_HIGHLIGHT_ORANGE, 1);
+      const dotInner = this.add.circle(dotX, dotY, 6, SEGMENT_HIGHLIGHT_GOLD_SOFT, 1);
+      highlight.add([dotShadow, dotOuter, dotInner]);
+    }
+
+    highlight.setAlpha(0.72);
+    this.wheelRoot.add(highlight);
+    this.highlightGraphic = highlight;
+
+    this.highlightTween = this.tweens.add({
+      targets: highlight,
+      alpha: { from: 0.58, to: 1 },
+      scaleX: { from: 0.992, to: 1.028 },
+      scaleY: { from: 0.992, to: 1.028 },
+      duration: 280,
+      ease: "Quad.easeInOut",
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  private syncWinningSegmentHighlight() {
+    if (this.highlightedSegmentIndex === this.renderedHighlightIndex) {
+      return;
+    }
+
+    if (this.highlightedSegmentIndex === undefined) {
+      this.highlightTween?.stop();
+      this.highlightTween = undefined;
+      this.highlightGraphic?.destroy();
+      this.highlightGraphic = undefined;
+      this.renderedHighlightIndex = undefined;
+      return;
+    }
+
+    this.attachWinningSegmentPulse(this.highlightedSegmentIndex);
+    this.renderedHighlightIndex = this.highlightedSegmentIndex;
+  }
+
+  private getWheelSignature(
+    segments: WheelSegmentDto[],
+    wheelVisualState = WheelVisualState.Normal,
+  ) {
+    return [
+      wheelVisualState,
+      ...segments.map((segment) =>
+        [
+          segment.segmentIndex,
+          segment.label,
+          segment.scoreOperator,
+          segment.scoreOperand,
+          segment.weightPercent,
+        ].join(":"),
+      ),
+    ].join("|");
+  }
+
+  private syncPointerVisualState() {
+    if (!this.pointer) {
+      return;
+    }
+
+    if (this.currentWheelVisualState === WheelVisualState.GreyedOut) {
+      this.pointer.setTintFill(0xf8fafb);
+      this.pointer.setAlpha(0.82);
+      return;
+    }
+
+    this.pointer.clearTint();
+    this.pointer.setAlpha(1);
+  }
+
+  private launchCelebrationFireworks() {
+    this.clearCelebrationBursts();
+
+    for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
+      const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
+        const point = this.getRandomFireworkPoint();
+        const isHeroBurst = index % 4 === 0;
+        this.createFireworkBurst(
+          point.x,
+          point.y,
+          Phaser.Math.FloatBetween(isHeroBurst ? 1.06 : 0.88, isHeroBurst ? 1.24 : 1.06),
+        );
+
+        if (Math.random() < (isHeroBurst ? 0.55 : 0.32)) {
+          const echo = this.getNearbyFireworkPoint(point);
+          this.createFireworkBurst(
+            echo.x,
+            echo.y,
+            Phaser.Math.FloatBetween(isHeroBurst ? 0.72 : 0.54, isHeroBurst ? 0.92 : 0.76),
+          );
+        }
+      });
+
+      this.celebrationBursts.push(timer);
+    }
+  }
+
+  private clearCelebrationBursts() {
+    this.celebrationBursts.forEach((timer) => timer.remove(false));
+    this.celebrationBursts = [];
+  }
+
+  private getRandomFireworkPoint() {
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const radius = Phaser.Math.Between(280, 520);
+    const x = Phaser.Math.Clamp(
+      WHEEL_CENTER_X + Math.cos(angle) * radius + Phaser.Math.Between(-40, 40),
+      340,
+      1580,
+    );
+    const y = Phaser.Math.Clamp(
+      WHEEL_CENTER_Y + Math.sin(angle) * radius + Phaser.Math.Between(-35, 35),
+      360,
+      1440,
+    );
+
+    return { x, y };
+  }
+
+  private getNearbyFireworkPoint(origin: { x: number; y: number }) {
+    return {
+      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-110, 110), 340, 1580),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-95, 95), 360, 1440),
+    };
+  }
+
+  private createFireworkBurst(x: number, y: number, scale = 1) {
+    const colors = [
+      0xff304f,
+      0xff8a00,
+      0xffd400,
+      0x8be000,
+      0x16cf6a,
+      0x00cfff,
+      0x2d7cff,
+      0x7c3cff,
+      0xff4ed8,
+    ];
+    const burstBaseColor = colors[Phaser.Math.Between(0, colors.length - 1)];
+
+    const flash = this.add.circle(x, y, 20 * scale, burstBaseColor, 0.5);
+    this.tweens.add({
+      targets: flash,
+      scale: 3.9,
+      alpha: 0,
+      duration: 440,
+      ease: "Quad.easeOut",
+      onComplete: () => flash.destroy(),
+    });
+
+    const ring = this.add.circle(x, y, 30 * scale);
+    ring.setStrokeStyle(6 * scale, burstBaseColor, 0.92);
+    this.tweens.add({
+      targets: ring,
+      scale: 4.2,
+      alpha: 0,
+      duration: 980,
+      ease: "Cubic.easeOut",
+      onComplete: () => ring.destroy(),
+    });
+
+    const spokes = this.add.graphics({ x, y });
+    for (let index = 0; index < 6; index += 1) {
+      const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.12, 0.12);
+      const inner = 18 * scale;
+      const outer = Phaser.Math.Between(88, 130) * scale;
+      const spokeColor = colors[(index + Phaser.Math.Between(0, 3)) % colors.length];
+      spokes.lineStyle(5 * scale, spokeColor, 0.92);
+      spokes.beginPath();
+      spokes.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+      spokes.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+      spokes.strokePath();
+    }
+    this.tweens.add({
+      targets: spokes,
+      scale: 1.22,
+      alpha: 0,
+      angle: Phaser.Math.Between(-25, 25),
+      duration: 940,
+      ease: "Quart.easeOut",
+      onComplete: () => spokes.destroy(),
+    });
+
+    const particleCount = Phaser.Math.Between(8, 12);
+    for (let index = 0; index < particleCount; index += 1) {
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const distance = Phaser.Math.Between(120, 190) * scale;
+      const size = Phaser.Math.Between(5, 10) * scale;
+      const particleColor =
+        colors[(index + Phaser.Math.Between(0, colors.length - 1)) % colors.length];
+      const particle = this.add
+        .circle(
+          x,
+          y,
+          size,
+          particleColor,
+          Phaser.Math.FloatBetween(0.86, 1),
+        );
+
+      this.tweens.add({
+        targets: particle,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance + Phaser.Math.Between(-24, 34) * scale,
+        scale: 0.18,
+        alpha: 0,
+        duration: Phaser.Math.Between(900, 1450),
+        ease: "Cubic.easeOut",
+        onComplete: () => particle.destroy(),
+      });
+    }
+  }
+
+  private drawPointer() {
+    this.pointer = this.add
+      .image(POINTER_X, POINTER_Y, "Desktop_RouletteArrow")
+      .setScale(POINTER_SCALE)
+      .setDepth(7);
+    this.syncPointerVisualState();
+  }
+
+  private createWheelCenterButton(): DesktopWheelButton {
+    const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
+    container.setDepth(7);
+
+    const base = this.add.image(0, 0, "Desktop_SpinBlue");
+    const face = this.add.image(0, 0, "Desktop_SpinRed");
+    const spinArrows = this.add.image(0, 0, "Desktop_SpinArrow");
+    const label = this.add
+      .text(0, 8, "SPIN NOW", {
+        fontFamily: FONTS.display,
+        fontSize: "40px",
+        color: "#ffffff",
+        fontStyle: "800",
+        align: "center",
+      })
+      .setOrigin(0.5);
+    label.setWordWrapWidth(190, true);
+
+    base.setScale(0.85);
+    face.setScale(0.65);
+    spinArrows.setScale(0.72);
+    container.add([base, face, spinArrows, label]);
+    container.setSize(240, 240);
+
+    const syncVisuals = (color: number) => {
+      face.clearTint();
+      base.clearTint();
+      spinArrows.clearTint();
+      face.setTexture("Desktop_SpinRed");
+      face.setAlpha(1);
+      base.setAlpha(1);
+      spinArrows.setAlpha(1);
+
+      if (color === COLORS.accent) {
+        face.setTint(0xffd15a);
+        label.setColor("#0a2942");
+        return;
+      }
+
+      if (color === COLORS.disabled) {
+        face.setTexture("Desktop_SpinExpired");
+        base.setTintFill(0xe4e8ec);
+        base.setAlpha(0.42);
+        spinArrows.setTintFill(0xf0f3f6);
+        spinArrows.setAlpha(0.62);
+        return;
+      }
+
+      label.setColor("#ffffff");
+    };
+
+    const setInteractive = (enabled: boolean) => {
+      face.disableInteractive();
+      if (!enabled) {
+        container.setAlpha(0.76);
+        return;
+      }
+
+      face.setInteractive({ useHandCursor: true });
+      container.setAlpha(1);
+    };
+
+    face.on("pointerup", () => {
+      this.runTapAction(() => {
+        const snapshot = prototypeState.getSnapshot();
+        const eligibility = snapshot.eligibility?.eligibilityStatus;
+
+        if (!eligibility || this.spinning) {
+          return;
+        }
+
+        if (eligibility === EligibilityStatus.GoToDeposit) {
+          openExternalLink(snapshot.eligibility?.depositUrl);
+          return;
+        }
+
+        if (eligibility !== EligibilityStatus.PlayableNow) {
+          return;
+        }
+
+        void prototypeState.spin();
+      });
+    });
+    face.on("pointerover", () => {
+      container.setScale(1.03);
+    });
+    face.on("pointerout", () => {
+      container.setScale(1);
+    });
+
+    syncVisuals(COLORS.primary);
+    setInteractive(true);
+
+    return {
+      container,
+      label,
+      setLabel(nextLabel: string) {
+        label.setText(nextLabel);
+      },
+      setBackground(color: number) {
+        syncVisuals(color === COLORS.primary ? 0xe15693 : color);
+      },
+      setEnabled(enabled: boolean) {
+        setInteractive(enabled);
+      },
+    };
+  }
+
+  private addRankRibbon(x: number, y: number, rank: number, prizeLabel: string) {
+    const container = this.add.container(x, y);
+    const graphics = this.add.graphics();
+    const width = 152;
+    const height = 56;
+    const notchWidth = 28;
+    const palette = this.getRankPalette(rank);
+
+    graphics.fillStyle(palette.shadow, 0.24);
+    graphics.fillPoints(
+      [
+        new Phaser.Geom.Point(-width / 2 + 7, -height / 2 + 6),
+        new Phaser.Geom.Point(width / 2 - notchWidth + 7, -height / 2 + 6),
+        new Phaser.Geom.Point(width / 2 + 7, 6),
+        new Phaser.Geom.Point(width / 2 - notchWidth + 7, height / 2 + 6),
+        new Phaser.Geom.Point(-width / 2 + 7, height / 2 + 6),
+      ],
+      true,
+    );
+
+    graphics.fillStyle(palette.fill, 1);
+    graphics.fillPoints(
+      [
+        new Phaser.Geom.Point(-width / 2, -height / 2),
+        new Phaser.Geom.Point(width / 2 - notchWidth, -height / 2),
+        new Phaser.Geom.Point(width / 2, 0),
+        new Phaser.Geom.Point(width / 2 - notchWidth, height / 2),
+        new Phaser.Geom.Point(-width / 2, height / 2),
+      ],
+      true,
+    );
+
+    graphics.fillStyle(palette.stripe, 0.9);
+    graphics.fillPoints(
+      [
+        new Phaser.Geom.Point(width / 2 - 44, -height / 2),
+        new Phaser.Geom.Point(width / 2 - 18, -height / 2),
+        new Phaser.Geom.Point(width / 2 - notchWidth + 2, -3),
+        new Phaser.Geom.Point(width / 2 - 18, height / 2),
+        new Phaser.Geom.Point(width / 2 - 44, height / 2),
+        new Phaser.Geom.Point(width / 2 - notchWidth - 18, 2),
+      ],
+      true,
+    );
+
+    const prizePill = this.add.graphics();
+    prizePill.fillStyle(palette.pillFill, 0.98);
+    prizePill.fillRoundedRect(-64, 7, 88, 20, 7);
+
+    const rankSuffix = this.getOrdinalSuffix(rank);
+
+    const rankText = this.add
+      .text(-57, -8, String(rank), {
+        fontFamily: FONTS.display,
+        fontSize: rank < 10 ? "34px" : "28px",
+        fontStyle: "700",
+        color: palette.rankColor,
+      })
+      .setOrigin(0, 0.5);
+
+    const suffixText = this.add
+      .text(rank < 10 ? -25 : -16, -6, rankSuffix, {
+        fontFamily: FONTS.body,
+        fontSize: "15px",
+        fontStyle: "700",
+        color: palette.suffixColor,
+      })
+      .setOrigin(0, 0.5);
+
+    const prizeText = this.add
+      .text(-56, 17, prizeLabel, {
+        fontFamily: FONTS.body,
+        fontSize: "12px",
+        fontStyle: "700",
+        color: palette.amountColor,
+      })
+      .setOrigin(0, 0.5);
+
+    container.add([graphics, prizePill, rankText, suffixText, prizeText]);
+    return container;
+  }
+
+  private getRankPalette(rank: number): RankPalette {
+    if (rank <= 3) {
+      return {
+        fill: 0x14a8ee,
+        shadow: 0x0f86c5,
+        stripe: 0x9ae4ff,
+        pillFill: 0xfafcff,
+        rankColor: "#ffffff",
+        suffixColor: "#ffffff",
+        amountColor: "#0fa0e7",
+      };
+    }
+
+    return {
+      fill: 0xcfcfcf,
+      shadow: 0x9ea5ad,
+      stripe: 0xf4f4f4,
+      pillFill: 0xffffff,
+      rankColor: "#ffffff",
+      suffixColor: "#ffffff",
+      amountColor: "#9ca3ab",
+    };
+  }
+
+  private getOrdinalSuffix(rank: number) {
+    const remainder = rank % 100;
+    if (remainder >= 11 && remainder <= 13) {
+      return "th";
+    }
+
+    switch (rank % 10) {
+      case 1:
+        return "st";
+      case 2:
+        return "nd";
+      case 3:
+        return "rd";
+      default:
+        return "th";
+    }
+  }
+
+  private getEventSelectorValue() {
+    const currentEvent = prototypeState.getSnapshot().currentEvent;
+    if (!currentEvent) {
+      return prototypeState.t("lobby.loadingLiveEvent");
+    }
+
+    return currentEvent.id.length <= 22
+      ? currentEvent.id
+      : currentEvent.promotionPeriodLabel || currentEvent.title;
+  }
+
+  private formatAccountLabel(playerName?: string) {
+    if (!playerName) {
+      return "--------";
+    }
+
+    const compact = playerName.replace(/\s+/g, "");
+    return compact.length > 12 ? `${compact.slice(0, 12)}...` : compact;
+  }
+
+  private openLocalePicker() {
+    const snapshot = prototypeState.getSnapshot();
+
+    this.showPicker("Choose Language", snapshot.supportedLocales.map((option) => ({
+      label: option.label,
+      description: option.code,
+      selected: option.code === snapshot.locale,
+      onSelect: () => prototypeState.setLocale(option.code),
+    })));
+  }
+
+  private openEventPicker() {
+    const snapshot = prototypeState.getSnapshot();
+
+    this.showPicker("Choose Promotion Period", snapshot.events.map((entry) => ({
+      label: entry.promotionPeriodLabel,
+      description: entry.title,
+      selected: entry.id === snapshot.currentEvent?.id,
+      onSelect: () => prototypeState.selectEvent(entry.id),
+    })));
+  }
+
+  private showPicker(title: string, options: PickerOption[]) {
+    if (options.length === 0) {
+      return;
+    }
+
+    this.closePicker();
+
+    const panelHeight = Math.min(920, 180 + options.length * 118);
+    const modal = this.pinToViewport(this.add.container(0, 0));
+    modal.setDepth(MODAL_DEPTH);
+
+    const backdrop = this.pinToViewport(
+      this.add
+        .rectangle(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, STAGE_WIDTH, STAGE_HEIGHT, COLORS.overlay, 0.72)
+        .setInteractive({ useHandCursor: true }),
+    );
+    backdrop.on("pointerup", () => this.closePicker());
+    modal.add(backdrop);
+
+    const panel = this.pinToViewport(
+      addRoundedPanel(this, DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, 760, panelHeight, {
+        fillColor: COLORS.panel,
+        radius: 40,
+      }),
+    );
+    modal.add(panel);
+
+    const titleText = this.pinToViewport(
+      this.add.text(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 54, title, {
+        fontFamily: FONTS.display,
+        fontSize: "38px",
+        fontStyle: "700",
+        color: "#10a7eb",
+      }),
+    );
+    titleText.setOrigin(0.5);
+    modal.add(titleText);
+
+    const firstRowY = DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 144;
+    options.forEach((option, index) => {
+      const y = firstRowY + index * 110;
+      const card = this.pinToViewport(
+        addRoundedPanel(this, DESKTOP_PAGE_CENTER_X, y, 680, 88, {
+          fillColor: option.selected ? 0xe7f8ff : COLORS.white,
+          radius: 28,
+        }),
+      );
+      modal.add(card);
+
+      const hitArea = this.pinToViewport(this.add.zone(DESKTOP_PAGE_CENTER_X, y, 700, 96));
+      hitArea.setInteractive(
+        new Phaser.Geom.Rectangle(-350, -48, 700, 96),
+        Phaser.Geom.Rectangle.Contains,
+      );
+      hitArea.on("pointerover", () => card.setScale(1.01));
+      hitArea.on("pointerout", () => card.setScale(1));
+      hitArea.on("pointerup", async () => {
+        if (this.pickerBusy) {
+          return;
+        }
+
+        this.pickerBusy = true;
+        hitArea.disableInteractive();
+
+        try {
+          await option.onSelect();
+          this.closePicker();
+        } finally {
+          this.pickerBusy = false;
+        }
+      });
+      modal.add(hitArea);
+
+      const label = this.pinToViewport(
+        this.add.text(DESKTOP_PAGE_CENTER_X - 300, y - 10, option.label, {
+          fontFamily: FONTS.display,
+          fontSize: "30px",
+          fontStyle: "700",
+          color: "#0a2942",
+        }),
+      );
+      label.setOrigin(0, 0.5);
+      modal.add(label);
+
+      if (option.description) {
+        const description = this.pinToViewport(
+          this.add.text(DESKTOP_PAGE_CENTER_X - 300, y + 22, option.description, {
+            fontFamily: FONTS.body,
+            fontSize: "18px",
+            fontStyle: "700",
+            color: "#5c7f9a",
+          }),
+        );
+        description.setOrigin(0, 0.5);
+        modal.add(description);
+      }
+
+      if (option.selected) {
+        const chip = this.pinToViewport(
+          addRoundedPanel(this, DESKTOP_PAGE_CENTER_X + 240, y, 118, 42, {
+            fillColor: COLORS.accent,
+            strokeColor: COLORS.accent,
+            radius: 21,
+          }),
+        );
+        chip.add(
+          this.add
+            .text(0, 0, "Current", {
+              fontFamily: FONTS.body,
+              fontSize: "16px",
+              fontStyle: "700",
+              color: "#0a2942",
+            })
+            .setOrigin(0.5),
+        );
+        modal.add(chip);
+      }
+    });
+
+    this.pickerContainer = modal;
+  }
+
+  private closePicker() {
+    this.pickerBusy = false;
+    this.pickerContainer?.destroy(true);
+    this.pickerContainer = undefined;
+  }
+
+  private isDesktopModalOpen() {
+    return Boolean(this.pickerContainer) || this.scene.isActive(SCENE_KEYS.HistoryOverlay);
+  }
+
+  private scrollTo(targetY: number) {
+    this.scrollVelocity = 0;
+    const target = Phaser.Math.Clamp(targetY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    this.tweens.addCounter({
+      from: this.cameras.main.scrollY,
+      to: target,
+      duration: 420,
+      ease: "Sine.easeInOut",
+      onUpdate: (tween) => {
+        this.setScrollY(tween.getValue() ?? target);
+      },
+    });
+  }
+
+  private setScrollY(scrollY: number) {
+    const clamped = Phaser.Math.Clamp(scrollY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    this.cameras.main.setScroll(0, clamped);
+    this.registry.set("desktopScrollY", clamped);
+  }
+
+  private runTapAction(action: () => void) {
+    if (this.isDraggingScroll || this.time.now < this.suppressTapUntil) {
+      return;
+    }
+
+    action();
+  }
+
+  private pinToViewport<T extends Phaser.GameObjects.GameObject>(gameObject: T) {
+    (gameObject as T & { setScrollFactor: (x: number, y?: number) => T }).setScrollFactor(0);
+    return gameObject;
+  }
+}

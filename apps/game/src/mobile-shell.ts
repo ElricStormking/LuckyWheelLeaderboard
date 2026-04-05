@@ -1,3 +1,5 @@
+import { applyGameLayout, isMobileBrowser } from "./runtimeEnvironment";
+
 type OverlayMode = "hidden" | "android" | "ios-intro" | "ios-steps" | "rotate";
 
 type NavigatorWithStandalone = Navigator & {
@@ -19,7 +21,6 @@ type MobileLaunchElements = {
   secondary: HTMLButtonElement;
 };
 
-const MOBILE_USER_AGENT = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i;
 const IOS_USER_AGENT = /iPhone|iPad|iPod/i;
 
 export function mountMobileShellController() {
@@ -72,13 +73,12 @@ export function mountMobileShellController() {
   };
 
   const applyShellState = () => {
-    const mobile = isMobileDevice();
+    const mobile = isMobileBrowser();
     const rotateRequired = mobile && isLandscapeOrientation();
     const fullscreenActive = isFullscreenActive();
     const standaloneActive = isStandaloneMode();
 
-    document.documentElement.classList.toggle("desktop-framed", !mobile);
-    document.documentElement.classList.toggle("mobile-immersive", mobile);
+    applyGameLayout(mobile ? "mobile" : "desktop");
     document.documentElement.classList.toggle("fullscreen-active", fullscreenActive);
     document.documentElement.classList.toggle("standalone-active", standaloneActive);
 
@@ -216,15 +216,14 @@ function renderOverlay(elements: MobileLaunchElements, mode: Exclude<OverlayMode
 }
 
 function hideOverlay(elements: MobileLaunchElements) {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && elements.overlay.contains(activeElement)) {
+    activeElement.blur();
+  }
+
   elements.overlay.hidden = true;
   elements.overlay.setAttribute("aria-hidden", "true");
   elements.overlay.dataset.mode = "hidden";
-}
-
-function isMobileDevice() {
-  const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-  const compactScreen = Math.min(window.screen.width, window.screen.height) <= 1366;
-  return MOBILE_USER_AGENT.test(window.navigator.userAgent) || (coarsePointer && compactScreen);
 }
 
 function isLandscapeOrientation() {

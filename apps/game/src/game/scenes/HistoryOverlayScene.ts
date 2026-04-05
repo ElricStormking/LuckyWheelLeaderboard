@@ -12,26 +12,27 @@ export class HistoryOverlayScene extends BaseOverlayScene {
     const snapshot = prototypeState.getSnapshot();
     const frame = this.createFrame("", undefined, 1500);
     const titleY = frame.top - 88;
-    const titleShadow = this.add.ellipse(540, titleY + 8, 350, 86, 0x72cfff, 0.14);
+    const titleCenterX = frame.centerX;
+    const titleShadow = this.add.ellipse(titleCenterX, titleY + 8, 350, 86, 0x72cfff, 0.14);
 
     const titleFrame = this.add.graphics();
     titleFrame.fillStyle(COLORS.white, 0.98);
-    titleFrame.fillRoundedRect(372, titleY - 34, 336, 68, 34);
+    titleFrame.fillRoundedRect(titleCenterX - 168, titleY - 34, 336, 68, 34);
     titleFrame.lineStyle(3, 0x18aef5, 0.95);
-    titleFrame.strokeRoundedRect(372, titleY - 34, 336, 68, 34);
+    titleFrame.strokeRoundedRect(titleCenterX - 168, titleY - 34, 336, 68, 34);
     titleFrame.lineStyle(1.5, 0xbdeeff, 0.95);
-    titleFrame.strokeRoundedRect(382, titleY - 24, 316, 48, 24);
+    titleFrame.strokeRoundedRect(titleCenterX - 158, titleY - 24, 316, 48, 24);
 
     const titleDecor = this.add.graphics();
     titleDecor.fillStyle(0x18aef5, 1);
-    titleDecor.fillCircle(418, titleY, 4);
-    titleDecor.fillCircle(662, titleY, 4);
+    titleDecor.fillCircle(titleCenterX - 122, titleY, 4);
+    titleDecor.fillCircle(titleCenterX + 122, titleY, 4);
     titleDecor.lineStyle(2, 0x9fe2ff, 0.95);
-    titleDecor.lineBetween(428, titleY, 456, titleY);
-    titleDecor.lineBetween(624, titleY, 652, titleY);
+    titleDecor.lineBetween(titleCenterX - 112, titleY, titleCenterX - 84, titleY);
+    titleDecor.lineBetween(titleCenterX + 84, titleY, titleCenterX + 112, titleY);
 
     this.add
-      .text(540, titleY, prototypeState.t("history.title"), {
+      .text(titleCenterX, titleY, prototypeState.t("history.title"), {
         fontFamily: FONTS.display,
         fontSize: "30px",
         fontStyle: "700",
@@ -52,7 +53,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       .setOrigin(0, 0.5);
 
     this.add
-      .text(540, headerY, prototypeState.t("history.points"), {
+      .text(frame.centerX, headerY, prototypeState.t("history.points"), {
         fontFamily: FONTS.body,
         fontSize: "28px",
         fontStyle: "700",
@@ -71,7 +72,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
 
     spinHistory?.items.forEach((entry, index) => {
       const y = firstRowY + index * 118;
-      addRoundedPanel(this, 540, y, 860, 88, {
+      addRoundedPanel(this, frame.centerX, y, 860, 88, {
         fillColor: COLORS.white,
         fillAlpha: 0.98,
         strokeColor: 0xd9edf9,
@@ -79,8 +80,8 @@ export class HistoryOverlayScene extends BaseOverlayScene {
         radius: 18,
       });
 
-      const separatorLeftX = 540 - 150;
-      const separatorRightX = 540 + 140;
+      const separatorLeftX = frame.centerX - 150;
+      const separatorRightX = frame.centerX + 140;
       const separatorTop = y - 28;
       const separatorBottom = y + 28;
 
@@ -108,7 +109,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
         .setOrigin(0, 0.5);
 
       this.add
-        .text(540, y, `${entry.scoreDelta >= 0 ? "+" : ""}${formatNumber(entry.scoreDelta, snapshot.locale)}`, {
+        .text(frame.centerX, y, `${entry.scoreDelta >= 0 ? "+" : ""}${formatNumber(entry.scoreDelta, snapshot.locale)}`, {
           fontFamily: FONTS.body,
           fontSize: "34px",
           fontStyle: "700",
@@ -142,7 +143,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
   }
 
   private drawPager(
-    frame: { left: number; right: number; bottom: number },
+    frame: { left: number; right: number; bottom: number; centerX: number },
     page: number,
     pageSize: number,
     total: number,
@@ -158,7 +159,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
     ).filter((value, index, list) => list.indexOf(value) === index);
 
     this.add
-      .text(336, pagerY, "\u2039", {
+      .text(frame.centerX - 204, pagerY, "\u2039", {
         fontFamily: FONTS.body,
         fontSize: "40px",
         fontStyle: "700",
@@ -173,7 +174,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       });
 
     pageNumbers.forEach((pageNumber, index) => {
-      const x = 450 + index * 82;
+      const x = frame.centerX - 90 + index * 82;
       if (pageNumber === page) {
         const activeCircle = this.add.circle(x, pagerY, 24, activeFill, 1);
         activeCircle.setStrokeStyle(0);
@@ -201,7 +202,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
     });
 
     this.add
-      .text(744, pagerY, "\u203A", {
+      .text(frame.centerX + 204, pagerY, "\u203A", {
         fontFamily: FONTS.body,
         fontSize: "40px",
         fontStyle: "700",
@@ -217,13 +218,13 @@ export class HistoryOverlayScene extends BaseOverlayScene {
   }
 
   private drawEmptyState(frame: { left: number; right: number; top: number; bottom: number }, copy: string) {
-    addRoundedPanel(this, 540, (frame.top + frame.bottom) / 2, 760, 180, {
+    addRoundedPanel(this, (frame.left + frame.right) / 2, (frame.top + frame.bottom) / 2, 760, 180, {
       fillColor: COLORS.white,
       radius: 36,
     });
 
     this.add
-      .text(540, (frame.top + frame.bottom) / 2, copy, {
+      .text((frame.left + frame.right) / 2, (frame.top + frame.bottom) / 2, copy, {
         fontFamily: FONTS.body,
         fontSize: "28px",
         color: "#5d7d97",
