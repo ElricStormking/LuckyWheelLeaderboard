@@ -1,7 +1,14 @@
 import Phaser from "phaser";
 import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
-import { addRoundedPanel, formatDate, formatNumber } from "../helpers";
+import {
+  addRoundedPanel,
+  formatCountdownDuration,
+  formatDate,
+  formatNumber,
+  getNextLeaderboardRefreshRemainingMs,
+  maskLeaderboardPlayerName,
+} from "../helpers";
 import { COLORS, FONTS, SCENE_KEYS } from "../constants";
 
 type RankPalette = {
@@ -141,7 +148,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
       rowsContainer.add(rankRibbon);
 
       const playerText = this.add
-        .text(frame.left + 300, y, entry.playerName, {
+        .text(frame.left + 300, y, maskLeaderboardPlayerName(entry.playerName, entry.isSelf), {
           fontFamily: FONTS.body,
           fontSize: "30px",
           fontStyle: entry.isSelf ? "700" : "600",
@@ -299,25 +306,58 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
         .setOrigin(1, 0.5);
     }
 
-    this.add
+    const footerText = this.add
       .text(
         540,
         frame.bottom - 214,
-        prototypeState.t("leaderboard.lastSynced", {
-          value: snapshot.leaderboard?.lastSyncedAt
-            ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
-                dateStyle: "short",
-                timeStyle: "short",
-              })
-            : "-",
-        }),
+        "",
         {
           fontFamily: FONTS.body,
           fontSize: "22px",
           color: "#62839b",
         },
       )
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setLineSpacing(8);
+
+    const refreshFooterText = () => {
+      const currentSnapshot = prototypeState.getSnapshot();
+      const lastSyncedValue = currentSnapshot.leaderboard?.lastSyncedAt
+        ? formatDate(currentSnapshot.leaderboard.lastSyncedAt, currentSnapshot.locale, {
+            dateStyle: "short",
+            timeStyle: "short",
+          })
+        : "-";
+
+      const footerLines = [
+        prototypeState.t("leaderboard.lastSynced", {
+          value: lastSyncedValue,
+        }),
+      ];
+
+      if (currentSnapshot.currentEvent?.status === "live") {
+        const remainingMs = getNextLeaderboardRefreshRemainingMs(currentSnapshot.leaderboard?.lastSyncedAt);
+        if (remainingMs !== null) {
+          footerLines.push(
+            prototypeState.t("leaderboard.nextRefreshIn", {
+              value: formatCountdownDuration(remainingMs),
+            }),
+          );
+        }
+      }
+
+      footerText.setText(footerLines.join("\n"));
+    };
+
+    refreshFooterText();
+    const footerTimer = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: refreshFooterText,
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      footerTimer.destroy();
+    });
   }
 
   private addRankRibbon(x: number, y: number, rank: number, prizeLabel: string) {

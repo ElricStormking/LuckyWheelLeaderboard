@@ -16,7 +16,7 @@ const WHEEL_SCALE = 0.85;
 const WHEEL_BACKDROP_SCALE = 0.86;
 const WHEEL_BACKDROP_SIZE = 972;
 const POINTER_SCALE = 0.58;
-const POINTER_GAP = 10 * WHEEL_SCALE;
+const POINTER_GAP = -14 * WHEEL_SCALE;
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
@@ -318,7 +318,7 @@ export class WheelScene extends Phaser.Scene {
           ? ENDED_WHEEL_TEXT_DARK
           : ENDED_WHEEL_TEXT_LIGHT
         : isLightSegment
-          ? "#0a2942"
+          ? "#14a8ee"
           : "#ffffff";
 
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
@@ -329,18 +329,18 @@ export class WheelScene extends Phaser.Scene {
       );
 
       const label = this.add
-        .text(0, -20, segment.label, {
-          fontFamily: FONTS.display,
-          fontSize: "64px",
+        .text(0, -22, segment.label, {
+          fontFamily: FONTS.displayName,
+          fontSize: "76px",
           fontStyle: "800",
           color: labelColor,
         })
         .setOrigin(0.5);
 
       const unit = this.add
-        .text(0, 28, "points", {
-          fontFamily: FONTS.body,
-          fontSize: "26px",
+        .text(0, 36, "points", {
+          fontFamily: FONTS.bodyName,
+          fontSize: "30px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -749,27 +749,24 @@ export class WheelScene extends Phaser.Scene {
 
   private createWheelCenterButton() {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
-    const shadow = this.add.circle(6, 10, 108, 0x8f4b75, 0.18);
-    const face = this.add.image(0, 0, "Spin_Red").setScale(0.69);
-    const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.72);
+    const face = this.add.image(0, 0, "Spin_Red").setScale(0.88);
+    const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.9);
     const label = this.add
-      .text(0, 10, "SPIN NOW", {
-        fontFamily: FONTS.display,
-        fontSize: "42px",
+      .text(0, 4, "SPIN NOW", {
+        fontFamily: FONTS.displayName,
+        fontSize: "40px",
         color: "#ffffff",
         fontStyle: "800",
         align: "center",
       })
       .setOrigin(0.5);
-    label.setWordWrapWidth(180, true);
+    label.setWordWrapWidth(208, true);
 
     const drawFace = (color: number) => {
       face.clearTint();
       spinArrows.clearTint();
       face.setAlpha(1);
       spinArrows.setAlpha(1);
-      shadow.setPosition(6, 10);
-      shadow.setFillStyle(0x8f4b75, 0.18);
 
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
@@ -778,18 +775,16 @@ export class WheelScene extends Phaser.Scene {
       }
 
       if (this.isEventEndedButton(color)) {
-        shadow.setPosition(0, 0);
         face.setTintFill(0x9fa6af);
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
-        shadow.setFillStyle(0x7b828a, 0.16);
       }
     };
 
     drawFace(COLORS.primary);
 
-    container.add([shadow, face, spinArrows, label]);
-    container.setSize(240, 240);
+    container.add([face, spinArrows, label]);
+    container.setSize(300, 300);
     container.setScale(WHEEL_SCALE);
     face.setInteractive({ useHandCursor: true });
     face.on("pointerup", () => {

@@ -12,7 +12,17 @@ import {
   STAGE_WIDTH,
   shouldShowDevEligibilitySwitch,
 } from "../constants";
-import { addPill, addRoundedPanel, formatNumber, openExternalLink } from "../helpers";
+import {
+  addPill,
+  addTextButton,
+  addRoundedPanel,
+  formatCountdownDuration,
+  formatDate,
+  formatNumber,
+  getNextLeaderboardRefreshRemainingMs,
+  maskLeaderboardPlayerName,
+  openExternalLink,
+} from "../helpers";
 
 type ActivityBubble = {
   container: Phaser.GameObjects.Container;
@@ -59,6 +69,26 @@ type SectionBand = {
 const CONTENT_HEIGHT = 7100;
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_ROW_YS = [2240, 2370, 2490, 2610, 2735, 2860, 2983, 3109, 3231, 3358];
+const INLINE_LEADERBOARD_TITLE_SCALE = 0.88;
+const INLINE_LEADERBOARD_SUBTITLE_Y = 2112;
+const INLINE_LEADERBOARD_HEADER_PANEL_Y = 2178;
+const INLINE_LEADERBOARD_COLUMN_LABEL_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y + 1;
+const INLINE_LEADERBOARD_HEADER_UNDERLINE_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y + 22;
+const INLINE_LEADERBOARD_ROW_OFFSET_Y = 60;
+const INLINE_LEADERBOARD_PLATE_SCALE = 0.32;
+const INLINE_LEADERBOARD_SELF_PLATE_SCALE = 0.34;
+const INLINE_LEADERBOARD_PLATE_BASE_X = 404;
+const INLINE_LEADERBOARD_RANK_COLUMN_X = 182;
+const INLINE_LEADERBOARD_USERNAME_COLUMN_X = 375;
+const INLINE_LEADERBOARD_TOTAL_HEADER_X = 584;
+const INLINE_LEADERBOARD_PRIZE_TEXT_X = 194;
+const INLINE_LEADERBOARD_SCORE_TEXT_X = 598;
+const INLINE_LEADERBOARD_PAGE_BUTTON_SCALE = 0.72;
+const INLINE_LEADERBOARD_PAGE_BUTTON_Y = 3524;
+const INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y = 3566;
+const INLINE_LEADERBOARD_SUMMARY_Y = 3648;
+const INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE = 0.34;
+const INLINE_LEADERBOARD_FOOTER_Y = 3778;
 const LEADERBOARD_PLATE_KEYS = [
   "RankingPlate_01",
   "RankingPlate_02",
@@ -165,6 +195,9 @@ export class LobbyScene extends Phaser.Scene {
   private leaderboardPendingText?: Phaser.GameObjects.Text;
   private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
   private myRankSummaryPlate?: Phaser.GameObjects.Image;
+  private myRankSummaryPlayerText?: Phaser.GameObjects.Text;
+  private myRankSummaryScoreText?: Phaser.GameObjects.Text;
+  private myRankSummaryPrizeText?: Phaser.GameObjects.Text;
   private myRankSummaryText?: Phaser.GameObjects.Text;
   private devControls: DevControl[] = [];
   private activityBubbles: ActivityBubble[] = [];
@@ -205,8 +238,14 @@ export class LobbyScene extends Phaser.Scene {
     this.captureSection(5790, CONTENT_HEIGHT, () => this.drawInlineRulesSection(), 260);
     this.setupScrollControls();
     this.refreshDynamicContent();
+    const leaderboardFooterTimer = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => this.refreshLeaderboardFooterText(),
+    });
 
     this.cleanup.push(
+      () => leaderboardFooterTimer.destroy(),
       prototypeState.subscribe("change", () => this.refreshDynamicContent()),
       prototypeState.subscribe("locale-change", () => this.scene.restart()),
       prototypeState.subscribe("error", () => {
@@ -255,16 +294,19 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawHeader() {
+    const centeredPeriodX = this.fromEditorX(375);
+    const headerClusterOffsetX = this.fromEditorX(42);
+
     this.add.image(this.fromEditorX(83), 110, "Button_iBET").setScale(0.86);
 
-    this.periodPanel = this.add.image(this.fromEditorX(333), 110, "Frame_time_01").setScale(0.38);
+    this.periodPanel = this.add.image(centeredPeriodX, 110, "Frame_time_01").setScale(0.38);
     this.periodPanel.setInteractive({ useHandCursor: true });
     this.periodPanel.on("pointerover", () => this.periodPanel?.setScale(0.392));
     this.periodPanel.on("pointerout", () => this.periodPanel?.setScale(0.38));
     this.periodPanel.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.PeriodOverlay)));
 
     this.add
-      .text(this.fromEditorX(207), 92, prototypeState.t("lobby.selectPeriod"), {
+      .text(this.fromEditorX(207) + headerClusterOffsetX, 92, prototypeState.t("lobby.selectPeriod"), {
         fontFamily: FONTS.body,
         fontSize: "16px",
         fontStyle: "700",
@@ -273,7 +315,7 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0, 0.5);
 
     this.periodPill = this.add
-      .text(this.fromEditorX(333), 120, prototypeState.t("lobby.loadingLiveEvent"), {
+      .text(centeredPeriodX, 120, prototypeState.t("lobby.loadingLiveEvent"), {
         fontFamily: FONTS.body,
         fontSize: "24px",
         fontStyle: "700",
@@ -281,13 +323,17 @@ export class LobbyScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const localeButton = this.add.image(this.fromEditorX(547), 110, "Button_Language").setScale(0.78);
+    const localeButton = this.add
+      .image(this.fromEditorX(547) + headerClusterOffsetX, 110, "Button_Language")
+      .setScale(0.78);
     localeButton.setInteractive({ useHandCursor: true });
     localeButton.on("pointerover", () => localeButton.setScale(0.8));
     localeButton.on("pointerout", () => localeButton.setScale(0.78));
     localeButton.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.LocaleOverlay)));
 
-    const supportButton = this.add.image(this.fromEditorX(666), 110, "Button_Support").setScale(0.78);
+    const supportButton = this.add
+      .image(this.fromEditorX(666) + headerClusterOffsetX, 110, "Button_Support")
+      .setScale(0.78);
     supportButton.setInteractive({ useHandCursor: true });
     supportButton.on("pointerover", () => supportButton.setScale(0.8));
     supportButton.on("pointerout", () => supportButton.setScale(0.78));
@@ -410,7 +456,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawQuickActions() {
-    this.createActionButton(540, 1808, 240, 88, prototypeState.t("lobby.history"), () => {
+    this.createHistoryActionButton(540, 1808, () => {
       this.toggleOverlay(SCENE_KEYS.HistoryOverlay);
     });
 
@@ -420,11 +466,73 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawInlineLeaderboardSection() {
-    this.add.image(this.fromEditorX(379), 2020, "Title_Ranking").setScale(1);
-    this.add.image(this.fromEditorX(378), 2144, "Divider").setScale(1);
+    this.add
+      .image(this.fromEditorX(379), 2020, "Title_Ranking")
+      .setScale(INLINE_LEADERBOARD_TITLE_SCALE);
+    this.add
+      .text(540, INLINE_LEADERBOARD_SUBTITLE_Y, prototypeState.t("leaderboard.sectionSubtitle"), {
+        fontFamily: FONTS.body,
+        fontSize: "22px",
+        fontStyle: "700",
+        color: "#5a8099",
+        align: "center",
+        wordWrap: { width: 840, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
+
+    this.add
+      .text(
+        this.fromEditorX(INLINE_LEADERBOARD_RANK_COLUMN_X),
+        INLINE_LEADERBOARD_COLUMN_LABEL_Y,
+        prototypeState.t("leaderboard.columnRank"),
+        {
+        fontFamily: FONTS.body,
+        fontSize: "26px",
+        fontStyle: "700",
+        color: "#12a2ea",
+        },
+      )
+      .setOrigin(0.5);
+
+    this.add
+      .text(
+        this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X),
+        INLINE_LEADERBOARD_COLUMN_LABEL_Y,
+        prototypeState.t("leaderboard.columnUsername"),
+        {
+        fontFamily: FONTS.body,
+        fontSize: "26px",
+        fontStyle: "700",
+        color: "#12a2ea",
+        },
+      )
+      .setOrigin(0.5);
+
+    this.add
+      .text(
+        this.fromEditorX(INLINE_LEADERBOARD_TOTAL_HEADER_X),
+        INLINE_LEADERBOARD_COLUMN_LABEL_Y,
+        prototypeState.t("leaderboard.columnTotalPoints"),
+        {
+        fontFamily: FONTS.body,
+        fontSize: "26px",
+        fontStyle: "700",
+        color: "#12a2ea",
+        },
+      )
+      .setOrigin(0.5);
+
+    const headerUnderline = this.add.graphics();
+    headerUnderline.lineStyle(3, 0x21b7f7, 0.96);
+    headerUnderline.lineBetween(
+      this.fromEditorX(72),
+      INLINE_LEADERBOARD_HEADER_UNDERLINE_Y,
+      this.fromEditorX(678),
+      INLINE_LEADERBOARD_HEADER_UNDERLINE_Y,
+    );
 
     this.leaderboardPendingText = this.add
-      .text(540, 2144, "", {
+      .text(540, 2346, "", {
         fontFamily: FONTS.body,
         fontSize: "28px",
         color: "#5d7d97",
@@ -434,7 +542,8 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setVisible(false);
 
-    LEADERBOARD_ROW_YS.forEach((y, index) => {
+    LEADERBOARD_ROW_YS.forEach((baseY, index) => {
+      const y = baseY + INLINE_LEADERBOARD_ROW_OFFSET_Y;
       const highlightArrow = this.add.graphics();
       highlightArrow.fillStyle(COLORS.primary, 1);
       highlightArrow.fillTriangle(
@@ -448,13 +557,13 @@ export class LobbyScene extends Phaser.Scene {
       highlightArrow.setDepth(1);
       highlightArrow.setVisible(false);
 
-      const plateScale = 0.36;
+      const plateScale = INLINE_LEADERBOARD_PLATE_SCALE;
       const plate = this.add
         .image(this.getLeaderboardPlateX(index + 1, plateScale), y, this.getLeaderboardPlateKey(index + 1))
         .setScale(plateScale);
 
       const playerText = this.add
-        .text(this.fromEditorX(375), y - 4, "-", {
+        .text(this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), y - 4, "-", {
           fontFamily: FONTS.body,
           fontSize: "30px",
           fontStyle: "700",
@@ -463,7 +572,7 @@ export class LobbyScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5);
 
       const prizeText = this.add
-        .text(this.fromEditorX(112), this.getLeaderboardPrizeTextY(y, index + 1), "", {
+        .text(this.fromEditorX(INLINE_LEADERBOARD_PRIZE_TEXT_X), this.getLeaderboardPrizeTextY(y, index + 1), "", {
           fontFamily: FONTS.body,
           fontSize: "22px",
           fontStyle: "700",
@@ -472,7 +581,7 @@ export class LobbyScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5);
 
       const scoreText = this.add
-        .text(this.fromEditorX(655), y - 4, "-", {
+        .text(this.fromEditorX(INLINE_LEADERBOARD_SCORE_TEXT_X), y - 4, "-", {
           fontFamily: FONTS.display,
           fontSize: "32px",
           fontStyle: "700",
@@ -485,7 +594,9 @@ export class LobbyScene extends Phaser.Scene {
 
     const pageXs = [this.fromEditorX(295), this.fromEditorX(375), this.fromEditorX(455)];
     pageXs.forEach((x, index) => {
-      const button = this.add.image(x, 3512, PAGE_BUTTON_KEYS[index]).setScale(1);
+      const button = this.add
+        .image(x, INLINE_LEADERBOARD_PAGE_BUTTON_Y, PAGE_BUTTON_KEYS[index])
+        .setScale(INLINE_LEADERBOARD_PAGE_BUTTON_SCALE);
       button.setInteractive({ useHandCursor: true });
       button.on("pointerup", () => this.runTapAction(() => {
         this.leaderboardPage = index + 1;
@@ -494,15 +605,45 @@ export class LobbyScene extends Phaser.Scene {
       this.pageButtons.push(button);
     });
 
-    this.add.image(this.fromEditorX(374), 3590, "Divider").setScale(1);
+    this.add.image(this.fromEditorX(374), INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y, "Divider").setScale(1);
 
     this.myRankSummaryPlate = this.add
-      .image(540, 3696, "RankingPlate_Notl")
-      .setScale(0.34)
+      .image(540, INLINE_LEADERBOARD_SUMMARY_Y, "RankingPlate_Notl")
+      .setScale(INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE)
+      .setVisible(false);
+
+    this.myRankSummaryPlayerText = this.add
+      .text(this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
+        fontFamily: FONTS.body,
+        fontSize: "30px",
+        fontStyle: "700",
+        color: "#0896d8",
+      })
+      .setOrigin(0.5, 0.5)
+      .setVisible(false);
+
+    this.myRankSummaryPrizeText = this.add
+      .text(this.fromEditorX(INLINE_LEADERBOARD_PRIZE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y, "", {
+        fontFamily: FONTS.body,
+        fontSize: "22px",
+        fontStyle: "700",
+        color: "#5d7d97",
+      })
+      .setOrigin(0.5, 0.5)
+      .setVisible(false);
+
+    this.myRankSummaryScoreText = this.add
+      .text(this.fromEditorX(INLINE_LEADERBOARD_SCORE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
+        fontFamily: FONTS.display,
+        fontSize: "32px",
+        fontStyle: "700",
+        color: "#10a7eb",
+      })
+      .setOrigin(1, 0.5)
       .setVisible(false);
 
     this.myRankSummaryText = this.add
-      .text(540, 3686, "", {
+      .text(540, INLINE_LEADERBOARD_SUMMARY_Y - 10, "", {
         fontFamily: FONTS.body,
         fontSize: "26px",
         fontStyle: "700",
@@ -513,16 +654,27 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.leaderboardLastSyncedText = this.add
-      .text(540, 3796, "", {
+      .text(540, INLINE_LEADERBOARD_FOOTER_Y, "", {
         fontFamily: FONTS.body,
         fontSize: "22px",
         color: "#62839b",
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setLineSpacing(8);
   }
 
   private drawInlinePrizeSection() {
     this.add.image(this.fromEditorX(378), 3976, "Title_PrizeArea").setScale(1);
+    this.add
+      .text(540, 4046, prototypeState.t("prize.sectionSubtitle"), {
+        fontFamily: FONTS.body,
+        fontSize: "24px",
+        fontStyle: "700",
+        color: "#415f77",
+        align: "center",
+        wordWrap: { width: 760, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5);
 
     const rewardXs = [
       this.fromEditorX(480),
@@ -596,24 +748,23 @@ export class LobbyScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
 
-    const depositButton = this.add.image(540, 6990, "Reminder").setScale(1.08);
-    depositButton.setInteractive({ useHandCursor: true });
-    depositButton.on("pointerover", () => depositButton.setScale(1.1));
-    depositButton.on("pointerout", () => depositButton.setScale(1.08));
-    depositButton.on("pointerup", () =>
-      this.runTapAction(() => {
-        openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.Deposit));
-      }),
+    const depositButton = addTextButton(
+      this,
+      540,
+      6990,
+      830,
+      104,
+      "Go to Deposit",
+      () =>
+        this.runTapAction(() => {
+          openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.Deposit));
+        }),
+      {
+        backgroundColor: COLORS.primary,
+        radius: 46,
+      },
     );
-
-    this.add
-      .text(365, 6990, "GO to Deposit", {
-        fontFamily: FONTS.display,
-        fontSize: "34px",
-        fontStyle: "700",
-        color: "#ffffff",
-      })
-      .setOrigin(0.5);
+    depositButton.label.setFontSize(34);
   }
 
   private drawDevPanel() {
@@ -799,17 +950,20 @@ export class LobbyScene extends Phaser.Scene {
         return;
       }
 
-      const rowY = this.getLeaderboardRowY(LEADERBOARD_ROW_YS[index], entry.rank);
-      const plateScaleX = entry.isSelf ? 0.39 : 0.36;
-      row.highlightArrow.setY(rowY - LEADERBOARD_ROW_YS[index]);
+      const slotBaseY = LEADERBOARD_ROW_YS[index] + INLINE_LEADERBOARD_ROW_OFFSET_Y;
+      const rowY = this.getLeaderboardRowY(slotBaseY, entry.rank);
+      const plateScale = entry.isSelf
+        ? INLINE_LEADERBOARD_SELF_PLATE_SCALE
+        : INLINE_LEADERBOARD_PLATE_SCALE;
+      row.highlightArrow.setY(rowY - slotBaseY);
       row.plate.setTexture(this.getLeaderboardPlateKey(entry.rank));
       row.plate.setY(rowY);
-      row.plate.setScale(plateScaleX, 0.36);
-      row.plate.setX(this.getLeaderboardPlateX(entry.rank, plateScaleX));
-      row.playerText.setY(rowY - 4);
-      row.scoreText.setY(rowY - 4);
+      row.plate.setScale(plateScale);
+      row.plate.setX(this.getLeaderboardPlateX(entry.rank, plateScale));
+      row.playerText.setY(slotBaseY - 4);
+      row.scoreText.setY(slotBaseY - 4);
       row.prizeText.setY(this.getLeaderboardPrizeTextY(rowY, entry.rank));
-      row.playerText.setText(entry.playerName);
+      row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
       row.prizeText.setText(entry.prizeName ?? `Rank #${entry.rank}`);
       row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
@@ -819,44 +973,60 @@ export class LobbyScene extends Phaser.Scene {
       button.setAlpha(index + 1 === this.leaderboardPage ? 1 : 0.58);
     });
 
-    const myRank = snapshot.leaderboard?.myRank;
+    const myRank =
+      snapshot.leaderboard?.myRank ??
+      snapshot.leaderboard?.leaderboard.find((entry) => entry.isSelf) ??
+      null;
+    const hasMyRank = Boolean(myRank);
+    const showTopRankSummaryPlate = Boolean(myRank && myRank.rank <= 30);
     const showNotListedPlate = Boolean(myRank && myRank.rank > 30);
-    this.myRankSummaryPlate?.setVisible(showNotListedPlate);
+    this.myRankSummaryPlate?.setVisible(hasMyRank);
+    this.myRankSummaryPlayerText?.setVisible(hasMyRank);
+    this.myRankSummaryScoreText?.setVisible(hasMyRank);
+    this.myRankSummaryPrizeText?.setVisible(showTopRankSummaryPlate);
 
     if (myRank) {
-      if (showNotListedPlate) {
-        this.myRankSummaryText
-          ?.setPosition(620, 3696)
-          .setFontSize("24px")
-          .setWordWrapWidth(560, true)
-          .setAlign("center")
-          .setText(
-            `#${myRank.rank} | ${myRank.playerName} | ${formatNumber(myRank.score, snapshot.locale)} pts`,
-          );
-      } else {
-        this.myRankSummaryText
-          ?.setPosition(540, 3686)
-          .setFontSize("26px")
-          .setWordWrapWidth(840, true)
-          .setAlign("center")
-          .setText(
-            `My Rank #${myRank.rank}  |  ${myRank.playerName}  |  ${formatNumber(myRank.score, snapshot.locale)} pts`,
-          );
-      }
+      const summarySlotBaseY = INLINE_LEADERBOARD_SUMMARY_Y;
+      const summaryPlateY = showTopRankSummaryPlate
+        ? this.getLeaderboardRowY(summarySlotBaseY, myRank.rank)
+        : summarySlotBaseY;
+      const summaryPlateX = showTopRankSummaryPlate
+        ? this.getLeaderboardPlateX(myRank.rank, INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE)
+        : 540;
+
+      this.myRankSummaryPlate
+        ?.setTexture(showTopRankSummaryPlate ? this.getLeaderboardPlateKey(myRank.rank) : "RankingPlate_Notl")
+        .setX(summaryPlateX)
+        .setY(summaryPlateY)
+        .setScale(INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE);
+
+      this.myRankSummaryPlayerText
+        ?.setY(summarySlotBaseY - 4)
+        .setText(myRank.playerName);
+
+      this.myRankSummaryScoreText
+        ?.setY(summarySlotBaseY - 4)
+        .setText(formatNumber(myRank.score, snapshot.locale));
+
+      this.myRankSummaryPrizeText
+        ?.setY(this.getLeaderboardPrizeTextY(summaryPlateY, myRank.rank))
+        .setText(myRank.prizeName ?? `Rank #${myRank.rank}`);
+
+      this.myRankSummaryText?.setVisible(false).setText("");
     } else {
+      this.myRankSummaryPlayerText?.setVisible(false).setText("");
+      this.myRankSummaryScoreText?.setVisible(false).setText("");
+      this.myRankSummaryPrizeText?.setVisible(false).setText("");
       this.myRankSummaryText
-        ?.setPosition(540, 3686)
+        ?.setPosition(540, INLINE_LEADERBOARD_SUMMARY_Y - 10)
         .setFontSize("26px")
         .setWordWrapWidth(840, true)
         .setAlign("center")
+        .setVisible(true)
         .setText(snapshot.isBootstrapping ? "Loading leaderboard..." : "");
     }
 
-    this.leaderboardLastSyncedText?.setText(
-      snapshot.leaderboard?.lastSyncedAt
-        ? `Last synced: ${new Date(snapshot.leaderboard.lastSyncedAt).toLocaleString()}`
-        : "",
-    );
+    this.refreshLeaderboardFooterText();
   }
 
   private refreshPrizeSection() {
@@ -878,6 +1048,35 @@ export class LobbyScene extends Phaser.Scene {
         prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
     });
+  }
+
+  private refreshLeaderboardFooterText() {
+    const snapshot = prototypeState.getSnapshot();
+    const lastSyncedValue = snapshot.leaderboard?.lastSyncedAt
+      ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+          dateStyle: "short",
+          timeStyle: "short",
+        })
+      : "-";
+
+    const footerLines = [
+      prototypeState.t("leaderboard.lastSynced", {
+        value: lastSyncedValue,
+      }),
+    ];
+
+    if (snapshot.currentEvent?.status === "live") {
+      const remainingMs = getNextLeaderboardRefreshRemainingMs(snapshot.leaderboard?.lastSyncedAt);
+      if (remainingMs !== null) {
+        footerLines.push(
+          prototypeState.t("leaderboard.nextRefreshIn", {
+            value: formatCountdownDuration(remainingMs),
+          }),
+        );
+      }
+    }
+
+    this.leaderboardLastSyncedText?.setText(footerLines.join("\n"));
   }
 
   private updateActivityBubbles(_time: number, delta: number) {
@@ -1047,7 +1246,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private getLeaderboardPlateX(rank: number, scaleX: number) {
-    const baseX = this.fromEditorX(370);
+    const baseX = this.fromEditorX(INLINE_LEADERBOARD_PLATE_BASE_X);
     const baselineVisualCenterOffset = -0.5;
     const visualCenterOffset = LEADERBOARD_PLATE_VISUAL_CENTER_OFFSETS[rank] ?? baselineVisualCenterOffset;
     return baseX + (baselineVisualCenterOffset - visualCenterOffset) * scaleX;
@@ -1061,7 +1260,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Normalize rank-plate PNGs with inconsistent transparent top/bottom padding
     // so pages 2 and 3 align to the same row grid as page 1.
-    return baseRowY + (targetVisualCenterOffset - visualCenterOffset) * 0.36;
+    return baseRowY + (targetVisualCenterOffset - visualCenterOffset) * INLINE_LEADERBOARD_PLATE_SCALE;
   }
 
   private getLeaderboardPrizeTextY(rowY: number, rank: number) {
@@ -1099,6 +1298,81 @@ export class LobbyScene extends Phaser.Scene {
         color: "#18aef5",
       })
       .setOrigin(0.5);
+  }
+
+  private createHistoryActionButton(x: number, y: number, onClick: () => void) {
+    const width = 214;
+    const height = 72;
+    const container = this.add.container(x, y);
+    const arrowCenterX = 72;
+
+    const label = this.add
+      .text(-18, 1, prototypeState.t("lobby.history"), {
+        fontFamily: FONTS.display,
+        fontSize: "30px",
+        fontStyle: "700",
+        color: "#149fe4",
+      })
+      .setOrigin(0.5);
+
+    const arrowBubble = this.add.circle(arrowCenterX, 0, 28, 0xf5fcff, 1);
+    arrowBubble.setStrokeStyle(1.5, 0xf9feff, 0.98);
+
+    const chevron = this.add.graphics();
+    chevron.lineStyle(6, 0x19a6eb, 1);
+    chevron.beginPath();
+    chevron.moveTo(arrowCenterX - 7, -10);
+    chevron.lineTo(arrowCenterX + 5, 0);
+    chevron.lineTo(arrowCenterX - 7, 10);
+    chevron.strokePath();
+
+    container.add([label, arrowBubble, chevron]);
+
+    const labelHitArea = this.add.rectangle(x - 18, y, 154, height, 0xffffff, 0);
+    labelHitArea.setInteractive({ useHandCursor: true });
+
+    const arrowHitArea = this.add.circle(x + arrowCenterX, y, 34, 0xffffff, 0);
+    arrowHitArea.setInteractive({ useHandCursor: true });
+
+    const handlePointerOver = () => {
+      container.setScale(1.02);
+      label.setColor("#0f94d8");
+      arrowBubble.setFillStyle(0xf1fbff, 1);
+      arrowBubble.setStrokeStyle(1.5, 0xf5fdff, 1);
+    };
+
+    const handlePointerOut = () => {
+      container.setScale(1);
+      label.setColor("#149fe4");
+      arrowBubble.setFillStyle(0xf5fcff, 1);
+      arrowBubble.setStrokeStyle(1.5, 0xf9feff, 0.98);
+    };
+
+    const handlePointerDown = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    const handlePointerUp = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      this.runTapAction(onClick);
+    };
+
+    [labelHitArea, arrowHitArea].forEach((target) => {
+      target.on("pointerover", handlePointerOver);
+      target.on("pointerout", handlePointerOut);
+      target.on("pointerdown", handlePointerDown);
+      target.on("pointerup", handlePointerUp);
+    });
   }
 
   private scrollTo(targetY: number) {

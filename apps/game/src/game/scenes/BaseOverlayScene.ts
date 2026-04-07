@@ -15,7 +15,7 @@ export class BaseOverlayScene extends Phaser.Scene {
       )
       .setInteractive();
 
-    backdrop.on("pointerup", () => this.closeOverlay());
+    backdrop.on("pointerdown", () => this.closeOverlay());
 
     const panel = addRoundedPanel(this, STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 30, 970, height, {
       fillColor: COLORS.panel,

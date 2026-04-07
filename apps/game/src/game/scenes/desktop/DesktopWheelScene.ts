@@ -12,9 +12,10 @@ import { prototypeState } from "../../state/prototype-state";
 
 const WHEEL_CENTER_X = 960;
 const WHEEL_CENTER_Y = 818;
-const WHEEL_SCALE = 0.85;
+const WHEEL_SCALE = 0.705;
+const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
-const POINTER_Y = 432;
+const POINTER_Y = WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + 2;
 const POINTER_SCALE = 0.78;
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
@@ -264,29 +265,29 @@ export class DesktopWheelScene extends Phaser.Scene {
           ? ENDED_WHEEL_TEXT_DARK
           : ENDED_WHEEL_TEXT_LIGHT
         : isLightSegment
-          ? "#0a2942"
+          ? "#14a8ee"
           : "#ffffff";
 
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
-      const labelRadius = 244;
+      const labelRadius = 306;
       const labelContainer = this.add.container(
         Math.cos(centerAngle) * labelRadius,
         Math.sin(centerAngle) * labelRadius,
       );
 
       const label = this.add
-        .text(0, -18, segment.label, {
-          fontFamily: FONTS.display,
-          fontSize: "60px",
+        .text(0, -28, segment.label, {
+          fontFamily: FONTS.displayName,
+          fontSize: "90px",
           fontStyle: "800",
           color: labelColor,
         })
         .setOrigin(0.5);
 
       const unit = this.add
-        .text(0, 26, "points", {
-          fontFamily: FONTS.body,
-          fontSize: "24px",
+        .text(0, 45, "points", {
+          fontFamily: FONTS.bodyName,
+          fontSize: "38px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -673,39 +674,36 @@ export class DesktopWheelScene extends Phaser.Scene {
   private drawPointer() {
     this.pointer = this.add
       .image(POINTER_X, POINTER_Y, "Desktop_RouletteArrow")
+      .setOrigin(0.5, 1)
       .setScale(POINTER_SCALE);
     this.syncPointerVisualState();
   }
 
   private createWheelCenterButton(): DesktopWheelButton {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
-    const base = this.add.image(0, 0, "Desktop_SpinBlue");
     const face = this.add.image(0, 0, "Desktop_SpinRed");
     const spinArrows = this.add.image(0, 0, "Desktop_SpinArrow");
     const label = this.add
-      .text(0, 8, "SPIN NOW", {
-        fontFamily: FONTS.display,
+      .text(0, 4, "SPIN NOW", {
+        fontFamily: FONTS.displayName,
         fontSize: "40px",
         color: "#ffffff",
         fontStyle: "800",
         align: "center",
       })
       .setOrigin(0.5);
-    label.setWordWrapWidth(190, true);
+    label.setWordWrapWidth(214, true);
 
-    base.setScale(0.85);
-    face.setScale(0.65);
-    spinArrows.setScale(0.72);
-    container.add([base, face, spinArrows, label]);
-    container.setSize(240, 240);
+    face.setScale(0.79);
+    spinArrows.setScale(0.86);
+    container.add([face, spinArrows, label]);
+    container.setSize(300, 300);
 
     const syncVisuals = (color: number) => {
       face.clearTint();
-      base.clearTint();
       spinArrows.clearTint();
       face.setTexture("Desktop_SpinRed");
       face.setAlpha(1);
-      base.setAlpha(1);
       spinArrows.setAlpha(1);
 
       if (color === COLORS.accent) {
@@ -716,8 +714,6 @@ export class DesktopWheelScene extends Phaser.Scene {
 
       if (color === COLORS.disabled) {
         face.setTexture("Desktop_SpinExpired");
-        base.setTintFill(0xe4e8ec);
-        base.setAlpha(0.42);
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
         return;

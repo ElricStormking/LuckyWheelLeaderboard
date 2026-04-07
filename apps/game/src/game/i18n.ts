@@ -43,8 +43,13 @@ type CopyKey =
   | "leaderboard.archiveSubtitle"
   | "leaderboard.pendingTitle"
   | "leaderboard.pendingSubtitle"
+  | "leaderboard.sectionSubtitle"
+  | "leaderboard.columnRank"
+  | "leaderboard.columnUsername"
+  | "leaderboard.columnTotalPoints"
   | "leaderboard.myRank"
   | "leaderboard.lastSynced"
+  | "leaderboard.nextRefreshIn"
   | "period.title"
   | "period.subtitle"
   | "period.selected"
@@ -52,6 +57,7 @@ type CopyKey =
   | "period.ended"
   | "period.finalized"
   | "prize.title"
+  | "prize.sectionSubtitle"
   | "prize.liveSubtitle"
   | "prize.archiveSubtitle"
   | "prize.defaultAccent"
@@ -130,8 +136,13 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "leaderboard.pendingTitle": "Event Result Pending",
     "leaderboard.pendingSubtitle":
       "Final event rankings are hidden until the calculation window completes.",
+    "leaderboard.sectionSubtitle": "Check your rank and see who's leading the competition.",
+    "leaderboard.columnRank": "Rank",
+    "leaderboard.columnUsername": "Username",
+    "leaderboard.columnTotalPoints": "Total Points",
     "leaderboard.myRank": "My Rank",
     "leaderboard.lastSynced": "Last synced: {value}",
+    "leaderboard.nextRefreshIn": "Next refresh in: {value}",
     "period.title": "Event Periods",
     "period.subtitle":
       "Live event first. Ended periods stay viewable, but final results appear after settlement.",
@@ -140,6 +151,7 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "period.ended": "ENDED",
     "period.finalized": "FINALIZED",
     "prize.title": "Prize Area",
+    "prize.sectionSubtitle": "Climb the ranks & earn bigger Cash Rewards!",
     "prize.liveSubtitle": "Current event reward tiers mapped to the live Top 30.",
     "prize.archiveSubtitle": "Archived prize tiers for the selected event period.",
     "prize.defaultAccent": "Prize Tier",
@@ -217,8 +229,13 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "leaderboard.pendingTitle": "Keputusan Acara Belum Sedia",
     "leaderboard.pendingSubtitle":
       "Ranking akhir acara disembunyikan sehingga tempoh pengiraan selesai.",
+    "leaderboard.sectionSubtitle": "Semak rank anda dan lihat siapa yang mendahului pertandingan.",
+    "leaderboard.columnRank": "Rank",
+    "leaderboard.columnUsername": "Username",
+    "leaderboard.columnTotalPoints": "Jumlah Mata",
     "leaderboard.myRank": "Rank Saya",
     "leaderboard.lastSynced": "Penyegerakan terakhir: {value}",
+    "leaderboard.nextRefreshIn": "Segar semula seterusnya dalam: {value}",
     "period.title": "Tempoh Acara",
     "period.subtitle":
       "Acara langsung di atas. Tempoh tamat masih boleh dilihat, tetapi keputusan akhir hanya muncul selepas penyelesaian.",
@@ -227,6 +244,7 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "period.ended": "TAMAT",
     "period.finalized": "DIMUKTAMADKAN",
     "prize.title": "Zon Hadiah",
+    "prize.sectionSubtitle": "Naiki ranking dan rebut ganjaran tunai yang lebih besar!",
     "prize.liveSubtitle": "Tier ganjaran semasa dipetakan kepada Top 30 acara langsung.",
     "prize.archiveSubtitle": "Tier hadiah arkib untuk tempoh acara terpilih.",
     "prize.defaultAccent": "Tier Hadiah",
@@ -303,6 +321,10 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "leaderboard.archiveSubtitle": "所选期数的只读归档排名。",
     "leaderboard.pendingTitle": "活动结果待公布",
     "leaderboard.pendingSubtitle": "最终活动排名会在计算窗口结束后显示。",
+    "leaderboard.sectionSubtitle": "查看你的排名，看看谁正领先这场竞赛。",
+    "leaderboard.columnRank": "排名",
+    "leaderboard.columnUsername": "用户名",
+    "leaderboard.columnTotalPoints": "总积分",
     "leaderboard.myRank": "我的排名",
     "leaderboard.lastSynced": "最后同步：{value}",
     "period.title": "活动期数",

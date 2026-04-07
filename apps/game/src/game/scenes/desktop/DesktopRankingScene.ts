@@ -1,5 +1,11 @@
 import Phaser from "phaser";
-import { formatNumber } from "../../helpers";
+import {
+  formatCountdownDuration,
+  formatDate,
+  formatNumber,
+  getNextLeaderboardRefreshRemainingMs,
+  maskLeaderboardPlayerName,
+} from "../../helpers";
 import { FONTS, SCENE_KEYS } from "../../constants";
 import { prototypeState } from "../../state/prototype-state";
 import { DesktopPageScene } from "./DesktopPageScene";
@@ -122,10 +128,18 @@ export class DesktopRankingScene extends DesktopPageScene {
         fontStyle: "700",
         color: "#62839b",
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setLineSpacing(6);
+
+    const footerTimer = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => this.refreshLeaderboardFooter(),
+    });
 
     this.bindPrototypeLifecycle(() => this.refreshLeaderboard());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      footerTimer.destroy();
       this.rows = [];
       this.pageButtons = [];
       this.pendingText = undefined;
@@ -177,7 +191,7 @@ export class DesktopRankingScene extends DesktopPageScene {
       row.plate.setTexture(
         DESKTOP_RANKING_PLATE_KEYS[entry.rank - 1] ?? "Desktop_RankingPlate_NotListed",
       );
-      row.playerText.setText(entry.playerName);
+      row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
       row.playerText.setColor(entry.isSelf ? "#0c96d7" : "#0a2942");
     });
@@ -203,10 +217,35 @@ export class DesktopRankingScene extends DesktopPageScene {
           : "",
     );
 
-    this.lastSyncedText?.setText(
-      snapshot.leaderboard?.lastSyncedAt
-        ? `Last synced: ${new Date(snapshot.leaderboard.lastSyncedAt).toLocaleString()}`
-        : "",
-    );
+    this.refreshLeaderboardFooter();
+  }
+
+  private refreshLeaderboardFooter() {
+    const snapshot = prototypeState.getSnapshot();
+    const lastSyncedValue = snapshot.leaderboard?.lastSyncedAt
+      ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+          dateStyle: "short",
+          timeStyle: "short",
+        })
+      : "-";
+
+    const footerLines = [
+      prototypeState.t("leaderboard.lastSynced", {
+        value: lastSyncedValue,
+      }),
+    ];
+
+    if (snapshot.currentEvent?.status === "live") {
+      const remainingMs = getNextLeaderboardRefreshRemainingMs(snapshot.leaderboard?.lastSyncedAt);
+      if (remainingMs !== null) {
+        footerLines.push(
+          prototypeState.t("leaderboard.nextRefreshIn", {
+            value: formatCountdownDuration(remainingMs),
+          }),
+        );
+      }
+    }
+
+    this.lastSyncedText?.setText(footerLines.join("\n"));
   }
 }

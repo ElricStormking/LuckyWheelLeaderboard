@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import {
+  EventStatus,
   EligibilityStatus,
   PlatformLinkType,
   WheelVisualState,
@@ -10,8 +11,11 @@ import { ensureBackgroundMusic, playWinningEffect } from "../../audio";
 import {
   addRoundedPanel,
   addTextButton,
+  formatCountdownDuration,
   formatDate,
   formatNumber,
+  getNextLeaderboardRefreshRemainingMs,
+  maskLeaderboardPlayerName,
   openExternalLink,
 } from "../../helpers";
 import {
@@ -38,6 +42,25 @@ type PickerOption = {
   description?: string;
   selected?: boolean;
   onSelect: () => Promise<void> | void;
+};
+
+type DesktopEventPickerEntry = {
+  id: string;
+  code: string;
+  title: string;
+  shortDescription: string;
+  promotionPeriodLabel: string;
+  status: EventStatus;
+};
+
+type DesktopEventTone = {
+  accent: number;
+  deep: number;
+  soft: number;
+  wash: number;
+  edge: number;
+  chipText: string;
+  dateText: string;
 };
 
 type ActivityPill = {
@@ -108,19 +131,26 @@ const MODAL_DEPTH = 220;
 const HEADER_SHADOW_WIDTH = 1880;
 const HEADER_FRAME_SCALE_X = 1.095;
 const EVENT_SELECTOR_X = DESKTOP_PAGE_CENTER_X - 28;
-const EVENT_SELECTOR_FRAME_SCALE_X = 0.224;
+const EVENT_SELECTOR_FRAME_SCALE_X = 0.292;
 const EVENT_SELECTOR_FRAME_SCALE_Y = 0.182;
-const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.228;
+const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.296;
 const EVENT_SELECTOR_FRAME_HOVER_SCALE_Y = 0.186;
 const EVENT_SELECTOR_TEXT_OFFSET_X = -8;
-const EVENT_SELECTOR_CHEVRON_OFFSET_X = 90;
-const EVENT_SELECTOR_LABEL_WIDTH = 176;
-const EVENT_SELECTOR_HIT_WIDTH = 250;
-const EVENT_SELECTOR_HIT_HEIGHT = 58;
+const EVENT_SELECTOR_CHEVRON_OFFSET_X = 122;
+const EVENT_SELECTOR_LABEL_WIDTH = 248;
+const EVENT_SELECTOR_HIT_WIDTH = 390;
+const EVENT_SELECTOR_HIT_HEIGHT = 66;
+const DESKTOP_EVENT_PICKER_PANEL_WIDTH = 900;
+const DESKTOP_EVENT_PICKER_CARD_WIDTH = 760;
+const DESKTOP_EVENT_PICKER_CARD_HEIGHT = 128;
+const DESKTOP_EVENT_PICKER_CARD_STEP_Y = 148;
+const DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH = 92;
+const DESKTOP_EVENT_PICKER_POINTER_ACCENT = 0x1db9ff;
+const DESKTOP_EVENT_PICKER_POINTER_DEEP = 0x0c7bbd;
 
 const HERO_TITLE_Y = 210;
 const HERO_TUTORIAL_Y = 336;
-const HERO_PERIOD_Y = 452;
+const HERO_PERIOD_Y = 438;
 const ACTIVITY_BOARD_LEFT = 232;
 const ACTIVITY_BOARD_RIGHT = 1688;
 const ACTIVITY_BOARD_TOP = 500;
@@ -134,9 +164,10 @@ const ACTIVITY_PILL_HEIGHT = 42;
 
 const WHEEL_CENTER_X = 960;
 const WHEEL_CENTER_Y = 978;
-const WHEEL_SCALE = 0.84;
+const WHEEL_SCALE = 0.705;
+const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
-const POINTER_Y = 585;
+const POINTER_Y = WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + 2;
 const POINTER_SCALE = 0.76;
 const SUMMARY_PANEL_Y = 1450;
 
@@ -147,6 +178,7 @@ const LEADERBOARD_ROW_START_Y = 1962;
 const LEADERBOARD_ROW_SPACING = 92;
 const LEADERBOARD_PANEL_RADIUS = 24;
 const LEADERBOARD_PLATE_SCALE = 0.156;
+const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 180;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
 
@@ -182,6 +214,9 @@ export class DesktopMainScene extends DesktopPageScene {
   private leaderboardSubtitleText?: Phaser.GameObjects.Text;
   private leaderboardPendingPanel?: Phaser.GameObjects.Container;
   private leaderboardPendingText?: Phaser.GameObjects.Text;
+  private leaderboardMyRankPlate?: Phaser.GameObjects.Image;
+  private leaderboardMyRankPlayerText?: Phaser.GameObjects.Text;
+  private leaderboardMyRankScoreText?: Phaser.GameObjects.Text;
   private leaderboardMyRankText?: Phaser.GameObjects.Text;
   private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
   private prizeSubtitleText?: Phaser.GameObjects.Text;
@@ -236,9 +271,15 @@ export class DesktopMainScene extends DesktopPageScene {
     this.createPrizeSection();
     this.createTermsSection();
     this.setupScrollControls();
+    const leaderboardFooterTimer = this.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => this.refreshLeaderboardFooterText(),
+    });
 
     this.bindPrototypeLifecycle(() => this.refreshDynamicContent());
     this.cleanup.push(
+      () => leaderboardFooterTimer.destroy(),
       prototypeState.subscribe("spin-start", () => {
         this.spinning = true;
         this.applyState();
@@ -270,22 +311,17 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private drawScrollableBackground() {
+    const desktopMainBackground = 0xd8f4ff;
     const gradient = this.add.graphics();
-    gradient.fillGradientStyle(
-      COLORS.pageTop,
-      COLORS.pageTop,
-      COLORS.pageBottom,
-      COLORS.pageBottom,
-      1,
-    );
+    gradient.fillStyle(desktopMainBackground, 1);
     gradient.fillRect(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
 
     const sectionBands = this.add.graphics();
-    sectionBands.fillStyle(0xf9fdff, 0.96);
+    sectionBands.fillStyle(desktopMainBackground, 0.96);
     sectionBands.fillRect(0, LEADERBOARD_SECTION_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_SECTION_TOP);
-    sectionBands.fillGradientStyle(0xd8f4ff, 0xd8f4ff, 0xbfeafd, 0xbfeafd, 1);
+    sectionBands.fillStyle(desktopMainBackground, 0.96);
     sectionBands.fillRect(0, PRIZE_SECTION_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_SECTION_TOP);
-    sectionBands.fillStyle(0xfcfeff, 0.98);
+    sectionBands.fillStyle(desktopMainBackground, 0.96);
     sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
 
     const atmosphere = this.add.graphics();
@@ -296,8 +332,6 @@ export class DesktopMainScene extends DesktopPageScene {
     atmosphere.fillCircle(1240, 2250, 380);
     atmosphere.fillCircle(420, 2580, 300);
     atmosphere.fillCircle(1460, 3620, 340);
-
-    this.add.image(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, "Desktop_PageBackground");
     this.add
       .image(DESKTOP_PAGE_CENTER_X, 1110, "Desktop_MainBackgroundAccent")
       .setScale(1.04)
@@ -317,7 +351,6 @@ export class DesktopMainScene extends DesktopPageScene {
 
     const separators = this.add.graphics();
     separators.fillStyle(0xffffff, 0.88);
-    separators.fillRect(0, LEADERBOARD_SECTION_TOP - 16, STAGE_WIDTH, 16);
     separators.fillRect(0, PRIZE_SECTION_TOP - 16, STAGE_WIDTH, 16);
     separators.fillRect(0, TERMS_SECTION_TOP - 16, STAGE_WIDTH, 16);
   }
@@ -375,23 +408,25 @@ export class DesktopMainScene extends DesktopPageScene {
     dropdownChevron.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
     const dropdownHitArea = this.pinToViewport(
-      this.add.zone(
-        EVENT_SELECTOR_X,
+      this.add.rectangle(
+        EVENT_SELECTOR_X + 8,
         HEADER_Y + 1,
         EVENT_SELECTOR_HIT_WIDTH,
         EVENT_SELECTOR_HIT_HEIGHT,
+        0xffffff,
+        0,
       ),
     );
     dropdownHitArea.setDepth(HEADER_FOREGROUND_DEPTH + 1);
-    dropdownHitArea.setInteractive(
-      new Phaser.Geom.Rectangle(
-        -EVENT_SELECTOR_HIT_WIDTH / 2,
-        -EVENT_SELECTOR_HIT_HEIGHT / 2,
-        EVENT_SELECTOR_HIT_WIDTH,
-        EVENT_SELECTOR_HIT_HEIGHT,
-      ),
-      Phaser.Geom.Rectangle.Contains,
-    );
+    dropdownHitArea.setInteractive({ useHandCursor: true });
+    dropdownHitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    });
     dropdownHitArea.on("pointerup", () => this.runTapAction(() => this.openEventPicker()));
     dropdownHitArea.on("pointerover", () => {
       periodFrame.setScale(EVENT_SELECTOR_FRAME_HOVER_SCALE_X, EVENT_SELECTOR_FRAME_HOVER_SCALE_Y);
@@ -676,7 +711,7 @@ export class DesktopMainScene extends DesktopPageScene {
       .setOrigin(0.5);
 
     this.leaderboardSubtitleText = this.add
-      .text(960, LEADERBOARD_SECTION_TOP + 222, prototypeState.t("leaderboard.liveSubtitle"), {
+      .text(960, LEADERBOARD_SECTION_TOP + 222, prototypeState.t("leaderboard.sectionSubtitle"), {
         fontFamily: FONTS.body,
         fontSize: "22px",
         fontStyle: "700",
@@ -686,13 +721,17 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(0.5);
 
+    const rankColumnLabel = prototypeState.t("leaderboard.columnRank");
+    const usernameColumnLabel = prototypeState.t("leaderboard.columnUsername");
+    const totalPointsColumnLabel = prototypeState.t("leaderboard.columnTotalPoints");
+
     const divider = this.add.graphics();
     divider.lineStyle(2, COLORS.line, 0.9);
     divider.lineBetween(260, LEADERBOARD_SECTION_TOP + 294, 1660, LEADERBOARD_SECTION_TOP + 294);
 
     LEADERBOARD_COLUMN_LEFTS.forEach((left) => {
       this.add
-        .text(left + 24, LEADERBOARD_SECTION_TOP + 350, "Rank", {
+        .text(left + 24, LEADERBOARD_SECTION_TOP + 350, rankColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: "24px",
           fontStyle: "700",
@@ -700,7 +739,7 @@ export class DesktopMainScene extends DesktopPageScene {
         })
         .setOrigin(0, 0.5);
       this.add
-        .text(left + 176, LEADERBOARD_SECTION_TOP + 350, "Username", {
+        .text(left + 176, LEADERBOARD_SECTION_TOP + 350, usernameColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: "24px",
           fontStyle: "700",
@@ -708,7 +747,7 @@ export class DesktopMainScene extends DesktopPageScene {
         })
         .setOrigin(0, 0.5);
       this.add
-        .text(left + LEADERBOARD_ROW_WIDTH - 14, LEADERBOARD_SECTION_TOP + 350, "Total Points", {
+        .text(left + LEADERBOARD_ROW_WIDTH - 14, LEADERBOARD_SECTION_TOP + 350, totalPointsColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: "24px",
           fontStyle: "700",
@@ -780,8 +819,35 @@ export class DesktopMainScene extends DesktopPageScene {
         });
       });
 
+    const summaryLeft = DESKTOP_PAGE_CENTER_X - LEADERBOARD_ROW_WIDTH / 2;
+    this.leaderboardMyRankPlate = this.add
+      .image(DESKTOP_PAGE_CENTER_X, LEADERBOARD_SUMMARY_Y, "Desktop_RankingPlate_NotListed")
+      .setScale(LEADERBOARD_PLATE_SCALE)
+      .setVisible(false);
+
+    this.leaderboardMyRankPlayerText = this.add
+      .text(summaryLeft + LEADERBOARD_PLAYER_OFFSET_X, LEADERBOARD_SUMMARY_Y - 2, "", {
+        fontFamily: FONTS.body,
+        fontSize: "20px",
+        fontStyle: "700",
+        color: "#0896d8",
+        wordWrap: { width: 126, useAdvancedWrap: true },
+      })
+      .setOrigin(0, 0.5)
+      .setVisible(false);
+
+    this.leaderboardMyRankScoreText = this.add
+      .text(summaryLeft + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, LEADERBOARD_SUMMARY_Y - 2, "", {
+        fontFamily: FONTS.display,
+        fontSize: "20px",
+        fontStyle: "700",
+        color: "#10a7eb",
+      })
+      .setOrigin(1, 0.5)
+      .setVisible(false);
+
     this.leaderboardMyRankText = this.add
-      .text(960, PRIZE_SECTION_TOP - 122, "", {
+      .text(960, LEADERBOARD_SUMMARY_Y, "", {
         fontFamily: FONTS.body,
         fontSize: "24px",
         fontStyle: "700",
@@ -798,23 +864,8 @@ export class DesktopMainScene extends DesktopPageScene {
         fontStyle: "700",
         color: "#62839b",
       })
-      .setOrigin(0.5);
-
-    const prizeAreaButton = addTextButton(
-      this,
-      960,
-      PRIZE_SECTION_TOP - 28,
-      210,
-      50,
-      "Prize Area",
-      () => this.scrollTo(PRIZE_SECTION_TOP - 32),
-      {
-        backgroundColor: 0xeaf8ff,
-        labelColor: "#149fe4",
-        radius: 28,
-      },
-    );
-    prizeAreaButton.label.setFontSize("18px");
+      .setOrigin(0.5)
+      .setLineSpacing(6);
   }
 
   private createPrizeSection() {
@@ -1023,11 +1074,7 @@ export class DesktopMainScene extends DesktopPageScene {
       : snapshot.currentEvent?.status === "live"
         ? prototypeState.t("leaderboard.liveTitle")
         : prototypeState.t("leaderboard.archiveTitle");
-    const subtitle = isPending
-      ? prototypeState.t("leaderboard.pendingSubtitle")
-      : snapshot.currentEvent?.status === "live"
-        ? prototypeState.t("leaderboard.liveSubtitle")
-        : prototypeState.t("leaderboard.archiveSubtitle");
+    const subtitle = prototypeState.t("leaderboard.sectionSubtitle");
 
     this.leaderboardTitleText?.setText(title);
     this.leaderboardSubtitleText?.setText(subtitle);
@@ -1052,35 +1099,48 @@ export class DesktopMainScene extends DesktopPageScene {
         row.plate.setTexture(
           DESKTOP_RANKING_PLATE_KEYS[entry.rank - 1] ?? "Desktop_RankingPlate_NotListed",
         );
-        row.playerText.setText(entry.playerName);
+        row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
         row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
         row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
       });
 
     if (isPending) {
+      this.leaderboardMyRankPlate?.setVisible(false);
+      this.leaderboardMyRankPlayerText?.setVisible(false).setText("");
+      this.leaderboardMyRankScoreText?.setVisible(false).setText("");
       this.leaderboardMyRankText?.setText("");
       this.leaderboardLastSyncedText?.setText("");
       return;
     }
 
-    const myRank = snapshot.leaderboard?.myRank;
-    this.leaderboardMyRankText?.setText(
-      myRank
-        ? `My Rank #${myRank.rank} | ${myRank.playerName} | ${formatNumber(myRank.score, snapshot.locale)} pts`
-        : snapshot.isBootstrapping
-          ? "Loading leaderboard..."
-          : "",
-    );
-    this.leaderboardLastSyncedText?.setText(
-      prototypeState.t("leaderboard.lastSynced", {
-        value: snapshot.leaderboard?.lastSyncedAt
-          ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
-              dateStyle: "short",
-              timeStyle: "short",
-            })
-          : "-",
-      }),
-    );
+    const myRank =
+      snapshot.leaderboard?.myRank ??
+      snapshot.leaderboard?.leaderboard.find((entry) => entry.isSelf) ??
+      null;
+
+    if (myRank) {
+      const plateKey =
+        DESKTOP_RANKING_PLATE_KEYS[myRank.rank - 1] ?? "Desktop_RankingPlate_NotListed";
+      this.leaderboardMyRankPlate
+        ?.setVisible(true)
+        .setTexture(plateKey);
+      this.leaderboardMyRankPlayerText
+        ?.setVisible(true)
+        .setText(myRank.playerName);
+      this.leaderboardMyRankScoreText
+        ?.setVisible(true)
+        .setText(formatNumber(myRank.score, snapshot.locale));
+      this.leaderboardMyRankText?.setVisible(false).setText("");
+    } else {
+      this.leaderboardMyRankPlate?.setVisible(false);
+      this.leaderboardMyRankPlayerText?.setVisible(false).setText("");
+      this.leaderboardMyRankScoreText?.setVisible(false).setText("");
+      this.leaderboardMyRankText
+        ?.setVisible(true)
+        .setText(snapshot.isBootstrapping ? "Loading leaderboard..." : "");
+    }
+
+    this.refreshLeaderboardFooterText();
   }
 
   private refreshPrizeSection() {
@@ -1108,6 +1168,35 @@ export class DesktopMainScene extends DesktopPageScene {
         prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
     });
+  }
+
+  private refreshLeaderboardFooterText() {
+    const snapshot = prototypeState.getSnapshot();
+    const lastSyncedValue = snapshot.leaderboard?.lastSyncedAt
+      ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+          dateStyle: "short",
+          timeStyle: "short",
+        })
+      : "-";
+
+    const footerLines = [
+      prototypeState.t("leaderboard.lastSynced", {
+        value: lastSyncedValue,
+      }),
+    ];
+
+    if (snapshot.currentEvent?.status === "live") {
+      const remainingMs = getNextLeaderboardRefreshRemainingMs(snapshot.leaderboard?.lastSyncedAt);
+      if (remainingMs !== null) {
+        footerLines.push(
+          prototypeState.t("leaderboard.nextRefreshIn", {
+            value: formatCountdownDuration(remainingMs),
+          }),
+        );
+      }
+    }
+
+    this.leaderboardLastSyncedText?.setText(footerLines.join("\n"));
   }
 
   private refreshRulesSection() {
@@ -1222,16 +1311,7 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private maskPlayerName(name?: string) {
-    if (!name) {
-      return "player";
-    }
-
-    const normalized = name.replace(/\s+/g, "");
-    if (normalized.length <= 2) {
-      return `${normalized[0] ?? "*"}*`;
-    }
-
-    return `${normalized[0]}*****${normalized[normalized.length - 1]}`;
+    return maskLeaderboardPlayerName(name);
   }
 
   private applyState() {
@@ -1386,29 +1466,29 @@ export class DesktopMainScene extends DesktopPageScene {
           ? ENDED_WHEEL_TEXT_DARK
           : ENDED_WHEEL_TEXT_LIGHT
         : isLightSegment
-          ? "#0a2942"
+          ? "#14a8ee"
           : "#ffffff";
 
       const centerAngle = Phaser.Math.DegToRad(-90 + index * 60);
-      const labelRadius = 244;
+      const labelRadius = 306;
       const labelContainer = this.add.container(
         Math.cos(centerAngle) * labelRadius,
         Math.sin(centerAngle) * labelRadius,
       );
 
       const label = this.add
-        .text(0, -18, segment.label, {
-          fontFamily: FONTS.display,
-          fontSize: "60px",
+        .text(0, -28, segment.label, {
+          fontFamily: FONTS.displayName,
+          fontSize: "90px",
           fontStyle: "800",
           color: labelColor,
         })
         .setOrigin(0.5);
 
       const unit = this.add
-        .text(0, 26, "points", {
-          fontFamily: FONTS.body,
-          fontSize: "24px",
+        .text(0, 45, "points", {
+          fontFamily: FONTS.bodyName,
+          fontSize: "38px",
           fontStyle: "700",
           color: labelColor,
         })
@@ -1795,6 +1875,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private drawPointer() {
     this.pointer = this.add
       .image(POINTER_X, POINTER_Y, "Desktop_RouletteArrow")
+      .setOrigin(0.5, 1)
       .setScale(POINTER_SCALE)
       .setDepth(7);
     this.syncPointerVisualState();
@@ -1804,33 +1885,29 @@ export class DesktopMainScene extends DesktopPageScene {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
     container.setDepth(7);
 
-    const base = this.add.image(0, 0, "Desktop_SpinBlue");
     const face = this.add.image(0, 0, "Desktop_SpinRed");
     const spinArrows = this.add.image(0, 0, "Desktop_SpinArrow");
     const label = this.add
-      .text(0, 8, "SPIN NOW", {
-        fontFamily: FONTS.display,
+      .text(0, 4, "SPIN NOW", {
+        fontFamily: FONTS.displayName,
         fontSize: "40px",
         color: "#ffffff",
         fontStyle: "800",
         align: "center",
       })
       .setOrigin(0.5);
-    label.setWordWrapWidth(190, true);
+    label.setWordWrapWidth(214, true);
 
-    base.setScale(0.85);
-    face.setScale(0.65);
-    spinArrows.setScale(0.72);
-    container.add([base, face, spinArrows, label]);
-    container.setSize(240, 240);
+    face.setScale(0.79);
+    spinArrows.setScale(0.86);
+    container.add([face, spinArrows, label]);
+    container.setSize(300, 300);
 
     const syncVisuals = (color: number) => {
       face.clearTint();
-      base.clearTint();
       spinArrows.clearTint();
       face.setTexture("Desktop_SpinRed");
       face.setAlpha(1);
-      base.setAlpha(1);
       spinArrows.setAlpha(1);
 
       if (color === COLORS.accent) {
@@ -1841,8 +1918,6 @@ export class DesktopMainScene extends DesktopPageScene {
 
       if (color === COLORS.disabled) {
         face.setTexture("Desktop_SpinExpired");
-        base.setTintFill(0xe4e8ec);
-        base.setAlpha(0.42);
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
         return;
@@ -2066,12 +2141,469 @@ export class DesktopMainScene extends DesktopPageScene {
   private openEventPicker() {
     const snapshot = prototypeState.getSnapshot();
 
-    this.showPicker("Choose Promotion Period", snapshot.events.map((entry) => ({
-      label: entry.promotionPeriodLabel,
-      description: entry.title,
-      selected: entry.id === snapshot.currentEvent?.id,
-      onSelect: () => prototypeState.selectEvent(entry.id),
-    })));
+    this.showEventPicker(snapshot.events as DesktopEventPickerEntry[], snapshot.currentEvent?.id);
+  }
+
+  private showEventPicker(events: DesktopEventPickerEntry[], selectedEventId?: string) {
+    if (events.length === 0) {
+      return;
+    }
+
+    this.closePicker();
+
+    const panelHeight = Math.min(
+      940,
+      268 + Math.max(0, events.length - 1) * DESKTOP_EVENT_PICKER_CARD_STEP_Y + DESKTOP_EVENT_PICKER_CARD_HEIGHT,
+    );
+    const modal = this.pinToViewport(this.add.container(0, 0));
+    modal.setDepth(MODAL_DEPTH);
+
+    const backdrop = this.pinToViewport(
+      this.add
+        .rectangle(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, STAGE_WIDTH, STAGE_HEIGHT, COLORS.overlay, 0.72)
+        .setInteractive({ useHandCursor: true }),
+    );
+    backdrop.on("pointerdown", () => this.closePicker());
+    modal.add(backdrop);
+
+    const panel = this.pinToViewport(
+      addRoundedPanel(
+        this,
+        DESKTOP_PAGE_CENTER_X,
+        DESKTOP_PAGE_CENTER_Y,
+        DESKTOP_EVENT_PICKER_PANEL_WIDTH,
+        panelHeight,
+        {
+          fillColor: COLORS.panel,
+          radius: 40,
+        },
+      ),
+    );
+    panel.setSize(DESKTOP_EVENT_PICKER_PANEL_WIDTH, panelHeight);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(
+        -DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2,
+        -panelHeight / 2,
+        DESKTOP_EVENT_PICKER_PANEL_WIDTH,
+        panelHeight,
+      ),
+      Phaser.Geom.Rectangle.Contains,
+    );
+
+    const swallowPanelTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    panel.on("pointerdown", swallowPanelTap);
+    panel.on("pointerup", swallowPanelTap);
+    modal.add(panel);
+
+    const titleText = this.pinToViewport(
+      this.add.text(
+        DESKTOP_PAGE_CENTER_X,
+        DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58,
+        prototypeState.t("period.title"),
+        {
+          fontFamily: FONTS.display,
+          fontSize: "38px",
+          fontStyle: "700",
+          color: "#10a7eb",
+        },
+      ),
+    );
+    titleText.setOrigin(0.5);
+    modal.add(titleText);
+
+    const subtitleText = this.pinToViewport(
+      this.add.text(
+        DESKTOP_PAGE_CENTER_X,
+        DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 108,
+        prototypeState.t("period.subtitle"),
+        {
+          fontFamily: FONTS.body,
+          fontSize: "16px",
+          color: "#60809a",
+          align: "center",
+          wordWrap: { width: DESKTOP_EVENT_PICKER_PANEL_WIDTH - 120, useAdvancedWrap: true },
+        },
+      ),
+    );
+    subtitleText.setOrigin(0.5);
+    modal.add(subtitleText);
+
+    const closeLabel = this.pinToViewport(
+      this.add.text(
+        DESKTOP_PAGE_CENTER_X + DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2 - 54,
+        DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58,
+        "x",
+        {
+          fontFamily: FONTS.body,
+          fontSize: "28px",
+          fontStyle: "700",
+          color: "#0a2942",
+        },
+      ),
+    );
+    closeLabel.setOrigin(0.5);
+    modal.add(closeLabel);
+
+    const closeHitArea = this.pinToViewport(
+      this.add
+        .rectangle(
+          DESKTOP_PAGE_CENTER_X + DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2 - 54,
+          DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58,
+          52,
+          52,
+          0xffffff,
+          0,
+        )
+        .setInteractive({ useHandCursor: true }),
+    );
+    closeHitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      this.closePicker();
+    });
+    modal.add(closeHitArea);
+
+    const firstRowY = DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 190;
+    events.forEach((entry, index) => {
+      const y = firstRowY + index * DESKTOP_EVENT_PICKER_CARD_STEP_Y;
+      this.drawDesktopEventPickerCard(modal, entry, y, entry.id === selectedEventId);
+    });
+
+    this.pickerContainer = modal;
+  }
+
+  private drawDesktopEventPickerCard(
+    modal: Phaser.GameObjects.Container,
+    entry: DesktopEventPickerEntry,
+    y: number,
+    isSelected: boolean,
+  ) {
+    const tone = this.getDesktopEventPickerTone(entry.status);
+    const card = this.pinToViewport(this.add.container(DESKTOP_PAGE_CENTER_X, y));
+
+    const shadow = this.add.graphics();
+    shadow.fillStyle(isSelected ? tone.accent : tone.deep, isSelected ? 0.14 : 0.08);
+    shadow.fillRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 8,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 + 8,
+      DESKTOP_EVENT_PICKER_CARD_WIDTH,
+      DESKTOP_EVENT_PICKER_CARD_HEIGHT,
+      18,
+    );
+
+    const plate = this.add.graphics();
+    plate.fillStyle(isSelected ? 0xf7fcff : COLORS.white, 1);
+    plate.fillRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2,
+      DESKTOP_EVENT_PICKER_CARD_WIDTH,
+      DESKTOP_EVENT_PICKER_CARD_HEIGHT,
+      18,
+    );
+    plate.lineStyle(2, isSelected ? tone.accent : tone.edge, 0.92);
+    plate.strokeRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2,
+      DESKTOP_EVENT_PICKER_CARD_WIDTH,
+      DESKTOP_EVENT_PICKER_CARD_HEIGHT,
+      18,
+    );
+
+    plate.fillStyle(tone.wash, isSelected ? 0.96 : 0.82);
+    plate.fillRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 12,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 + 12,
+      DESKTOP_EVENT_PICKER_CARD_WIDTH - 24,
+      38,
+      9,
+    );
+
+    plate.fillStyle(tone.soft, isSelected ? 0.9 : 0.62);
+    plate.fillRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 12,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 + 12,
+      DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH,
+      DESKTOP_EVENT_PICKER_CARD_HEIGHT - 24,
+      12,
+    );
+
+    plate.fillStyle(tone.accent, isSelected ? 0.2 : 0.1);
+    plate.fillRoundedRect(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH + 22,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 + 18,
+      200,
+      14,
+      7,
+    );
+
+    plate.lineStyle(2, tone.accent, 0.22);
+    plate.beginPath();
+    plate.moveTo(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH + 16,
+      -DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 + 18,
+    );
+    plate.lineTo(
+      -DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH + 16,
+      DESKTOP_EVENT_PICKER_CARD_HEIGHT / 2 - 18,
+    );
+    plate.strokePath();
+
+    card.add([shadow, plate]);
+    if (isSelected) {
+      card.add(this.createDesktopEventPickerPointer());
+    }
+    card.add(this.createDesktopEventPickerStatusTower(tone, entry.status));
+
+    const title = this.add
+      .text(-DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 112, -28, entry.title, {
+        fontFamily: FONTS.display,
+        fontSize: "21px",
+        fontStyle: "700",
+        color: "#0a2942",
+      })
+      .setOrigin(0, 0.5);
+
+    const description = this.add
+      .text(-DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 112, 15, entry.code || entry.id, {
+        fontFamily: FONTS.body,
+        fontSize: "13px",
+        color: "#597a95",
+        wordWrap: { width: 390, useAdvancedWrap: true },
+      })
+      .setOrigin(0, 0.5);
+
+    const dateText = this.add
+      .text(DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 - 16, -30, entry.promotionPeriodLabel, {
+        fontFamily: FONTS.body,
+        fontSize: "14px",
+        fontStyle: "700",
+        color: tone.dateText,
+        align: "right",
+      })
+      .setOrigin(1, 0.5);
+
+    const chip = this.createDesktopEventPickerStatusChip(
+      DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 - 92,
+      34,
+      isSelected ? prototypeState.t("period.selected") : this.getDesktopEventPickerStatusLabel(entry.status),
+      tone,
+      isSelected,
+    );
+
+    const hitArea = this.add.rectangle(0, 0, DESKTOP_EVENT_PICKER_CARD_WIDTH, DESKTOP_EVENT_PICKER_CARD_HEIGHT, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    const beginSelection = () => {
+      if (this.pickerBusy) {
+        return;
+      }
+
+      this.pickerBusy = true;
+      hitArea.disableInteractive();
+
+      void prototypeState.selectEvent(entry.id)
+        .then(() => this.closePicker())
+        .catch(() => {
+          this.pickerBusy = false;
+          hitArea.setInteractive({ useHandCursor: true });
+        });
+    };
+
+    hitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      beginSelection();
+    });
+    hitArea.on("pointerover", () => card.setScale(1.01));
+    hitArea.on("pointerout", () => card.setScale(1));
+    hitArea.on("pointerup", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    });
+
+    card.add([title, description, dateText, chip, hitArea]);
+    modal.add(card);
+  }
+
+  private createDesktopEventPickerStatusTower(tone: DesktopEventTone, status: EventStatus) {
+    const tower = this.add.container(-DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 + 56, 8);
+    tower.setScale(0.88);
+
+    const shadow = this.add.graphics();
+    shadow.fillStyle(tone.deep, 0.14);
+    shadow.fillRoundedRect(-16, -32, 32, 84, 14);
+    shadow.fillCircle(0, -50, 21);
+
+    const body = this.add.graphics();
+    body.fillStyle(tone.deep, 0.98);
+    body.fillRoundedRect(-14, -36, 28, 88, 14);
+    body.fillStyle(tone.accent, 1);
+    body.fillRoundedRect(-5, -20, 10, 58, 5);
+    body.fillStyle(0xffffff, 0.2);
+    body.fillRoundedRect(-5, -20, 10, 14, 5);
+
+    body.fillStyle(tone.deep, 1);
+    body.fillCircle(0, -50, 19);
+    body.lineStyle(2.5, tone.accent, 0.95);
+    body.strokeCircle(0, -50, 16);
+    body.fillStyle(tone.soft, 0.96);
+    body.fillCircle(0, 45, 8);
+
+    tower.add([shadow, body, this.createDesktopEventPickerStatusGlyph(status)]);
+    return tower;
+  }
+
+  private createDesktopEventPickerPointer() {
+    const pointer = this.add.container(-DESKTOP_EVENT_PICKER_CARD_WIDTH / 2 - 18, 8);
+
+    const shadow = this.add.graphics();
+    shadow.fillStyle(DESKTOP_EVENT_PICKER_POINTER_DEEP, 0.18);
+    shadow.fillTriangle(-14, -18, 14, 0, -14, 18);
+
+    const body = this.add.graphics();
+    body.fillStyle(DESKTOP_EVENT_PICKER_POINTER_ACCENT, 0.98);
+    body.fillTriangle(-18, -20, 12, 0, -18, 20);
+
+    const highlight = this.add.graphics();
+    highlight.fillStyle(0xffffff, 0.24);
+    highlight.fillTriangle(-14, -9, 0, -1, -14, 7);
+
+    pointer.add([shadow, body, highlight]);
+    return pointer;
+  }
+
+  private createDesktopEventPickerStatusGlyph(status: EventStatus) {
+    const glyph = this.add.graphics();
+
+    switch (status) {
+      case EventStatus.Live:
+        glyph.fillStyle(0xffffff, 1);
+        glyph.fillCircle(0, -50, 3);
+        glyph.lineStyle(2, 0xffffff, 0.95);
+        glyph.strokeCircle(0, -50, 8);
+        glyph.strokeCircle(0, -50, 13);
+        return glyph;
+
+      case EventStatus.Ended:
+        glyph.lineStyle(2.5, 0xffffff, 1);
+        glyph.beginPath();
+        glyph.moveTo(-8, -60);
+        glyph.lineTo(8, -44);
+        glyph.moveTo(-8, -44);
+        glyph.lineTo(8, -60);
+        glyph.strokePath();
+        return glyph;
+
+      case EventStatus.Finalized:
+      default:
+        glyph.lineStyle(3, 0xffffff, 1);
+        glyph.beginPath();
+        glyph.moveTo(-8, -49);
+        glyph.lineTo(-2, -42);
+        glyph.lineTo(10, -55);
+        glyph.strokePath();
+        return glyph;
+    }
+  }
+
+  private createDesktopEventPickerStatusChip(
+    x: number,
+    y: number,
+    label: string,
+    tone: DesktopEventTone,
+    isSelected: boolean,
+  ) {
+    const chip = this.add.container(x, y);
+    const bg = this.add.graphics();
+    const fill = isSelected ? tone.accent : tone.deep;
+
+    bg.fillStyle(fill, 0.96);
+    bg.fillRoundedRect(-74, -19, 148, 38, 12);
+    bg.lineStyle(1, 0xffffff, 0.14);
+    bg.strokeRoundedRect(-74, -19, 148, 38, 12);
+    bg.fillStyle(0xffffff, 0.12);
+    bg.fillRoundedRect(-56, -12, 112, 10, 5);
+
+    const text = this.add
+      .text(0, 1, label, {
+        fontFamily: FONTS.body,
+        fontSize: "11px",
+        fontStyle: "700",
+        color: tone.chipText,
+      })
+      .setOrigin(0.5);
+
+    chip.add([bg, text]);
+    return chip;
+  }
+
+  private getDesktopEventPickerTone(status: EventStatus): DesktopEventTone {
+    switch (status) {
+      case EventStatus.Live:
+        return {
+          accent: 0x1db9ff,
+          deep: 0x0c7bbd,
+          soft: 0xd9f4ff,
+          wash: 0xebf9ff,
+          edge: 0x9bdcff,
+          chipText: "#ffffff",
+          dateText: "#2f6888",
+        };
+      case EventStatus.Ended:
+        return {
+          accent: 0xf1b34a,
+          deep: 0x8d6726,
+          soft: 0xffefcc,
+          wash: 0xfff7e7,
+          edge: 0xf7d28c,
+          chipText: "#ffffff",
+          dateText: "#7d6135",
+        };
+      case EventStatus.Finalized:
+      default:
+        return {
+          accent: 0x7b95af,
+          deep: 0x546d87,
+          soft: 0xe7eef5,
+          wash: 0xf5f8fb,
+          edge: 0xb9cfdf,
+          chipText: "#ffffff",
+          dateText: "#4d6b82",
+        };
+    }
+  }
+
+  private getDesktopEventPickerStatusLabel(status: EventStatus) {
+    switch (status) {
+      case EventStatus.Live:
+        return prototypeState.t("period.live");
+      case EventStatus.Ended:
+        return prototypeState.t("period.ended");
+      case EventStatus.Finalized:
+        return prototypeState.t("period.finalized");
+      default:
+        return status.toUpperCase();
+    }
   }
 
   private showPicker(title: string, options: PickerOption[]) {

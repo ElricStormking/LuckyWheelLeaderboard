@@ -22,6 +22,64 @@ export function formatNumber(value: number, locale: AppLocale = "en") {
   return new Intl.NumberFormat(toIntlLocale(locale)).format(value);
 }
 
+export const LEADERBOARD_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+
+export function maskLeaderboardPlayerName(playerName?: string, revealFullName = false) {
+  const normalized = playerName?.replace(/\s+/g, "") ?? "";
+
+  if (!normalized) {
+    return "player";
+  }
+
+  if (revealFullName || normalized.length <= 1) {
+    return normalized;
+  }
+
+  if (normalized.length === 2) {
+    return normalized;
+  }
+
+  const hiddenSegment = "*".repeat(Math.max(1, Math.min(5, normalized.length - 2)));
+  return `${normalized[0]}${hiddenSegment}${normalized[normalized.length - 1]}`;
+}
+
+export function getNextLeaderboardRefreshRemainingMs(
+  lastSyncedAt?: string | number | Date | null,
+  now = Date.now(),
+  intervalMs = LEADERBOARD_REFRESH_INTERVAL_MS,
+) {
+  if (!lastSyncedAt) {
+    return null;
+  }
+
+  const lastSyncedTime = new Date(lastSyncedAt).getTime();
+  if (!Number.isFinite(lastSyncedTime)) {
+    return null;
+  }
+
+  const elapsed = now - lastSyncedTime;
+  const intervalsElapsed = Math.max(0, Math.floor(elapsed / intervalMs));
+  const nextRefreshTime = lastSyncedTime + (intervalsElapsed + 1) * intervalMs;
+  return Math.max(0, nextRefreshTime - now);
+}
+
+export function formatCountdownDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.ceil(durationMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
+}
+
 export function formatDate(
   value: string | number | Date,
   locale: AppLocale = "en",
