@@ -43,7 +43,7 @@ $remoteCmd = $remoteCmd.
   Replace("__REMOTE_ENV_FILE_PATH__", $Script:RemoteEnvFilePath).
   Replace("__REMOTE_ENV_FILE_NAME__", $Script:RemoteEnvFileName).
   Replace("__COMPOSE_FILE_NAME__", $Script:ComposeFileName)
-$remoteCmd = $remoteCmd -replace "`r`n", "`n"
+$remoteCmd = $remoteCmd -replace "`r", ""
 
 $remoteCmd | & ssh -i "$Script:SshKeyPath" "$($Script:ServerUser)@$($Script:ServerHost)" "bash -s"
 if ($LASTEXITCODE -ne 0) {
@@ -52,9 +52,10 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Public URLs (requires GCP firewall allow):" -ForegroundColor Yellow
 Write-Host "  Game : http://$($Script:ServerHost):3000"
-Write-Host "  Admin: http://$($Script:ServerHost):4002"
-Write-Host "  API  : http://$($Script:ServerHost):4000/api/v2/config/localization"
 Write-Host "  Merchant API: http://$($Script:ServerHost):4003/merchant-api/integration/launch"
+Write-Host "Restricted URLs (use SSH tunnel or firewall allow-list only):" -ForegroundColor Yellow
+Write-Host "  Admin: http://127.0.0.1:4002"
+Write-Host "  API  : http://127.0.0.1:4000/api/v2/config/localization"
 Write-Host "Verification completed." -ForegroundColor Green
 }
 finally {

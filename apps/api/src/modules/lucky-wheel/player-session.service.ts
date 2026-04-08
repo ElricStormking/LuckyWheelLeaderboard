@@ -28,6 +28,18 @@ interface LaunchRequestAuthContext {
   path?: string;
 }
 
+export interface PlayerAccessTokenClaims {
+  sub: string;
+  merchantId: string;
+  sessionId: string;
+  scope: string;
+  locale?: string;
+  eventId?: string;
+  iat: number;
+  exp: number;
+  jti: string;
+}
+
 @Injectable()
 export class PlayerSessionService {
   private readonly expectedMerchantId =
@@ -102,7 +114,7 @@ export class PlayerSessionService {
       eventId: event.id,
     }, this.refreshTokenTtlSec);
     const expiresAt = new Date(Date.now() + this.accessTokenTtlSec * 1000).toISOString();
-    const launchUrl = this.buildLaunchUrl(request, sessionId, event.id);
+    const launchUrl = this.buildLaunchUrl(request, sessionId, event.id, accessToken);
 
     return {
       sessionId,
@@ -250,6 +262,7 @@ export class PlayerSessionService {
     request: LuckyWheelPlayerSessionLaunchRequestDto,
     sessionId: string,
     eventId: string,
+    accessToken: string,
   ) {
     const url = new URL(this.clientBaseUrl);
     if (request.locale) {
@@ -258,7 +271,52 @@ export class PlayerSessionService {
     url.searchParams.set("eventId", eventId);
     url.searchParams.set("playerId", request.merchantPlayerId);
     url.searchParams.set("sessionId", sessionId);
+    url.searchParams.set("accessToken", accessToken);
     return url.toString();
+  }
+
+  resolvePlayerClaims(accessToken?: string) {
+    if (!accessToken?.trim()) {
+      return null;
+    }
+
+    const [encodedHeader, encodedBody, actualSignature] = accessToken.split(".");
+    if (!encodedHeader || !encodedBody || !actualSignature) {
+      throw new UnauthorizedException("Player access token is malformed.");
+    }
+
+    const unsignedToken = `${encodedHeader}.${encodedBody}`;
+    const expectedSignature = createHmac("sha256", this.expectedMerchantSecret)
+      .update(unsignedToken)
+      .digest("base64url");
+
+    if (!this.signatureEquals(expectedSignature, actualSignature)) {
+      throw new UnauthorizedException("Player access token signature is invalid.");
+    }
+
+    let claims: PlayerAccessTokenClaims;
+    try {
+      claims = JSON.parse(
+        Buffer.from(encodedBody, "base64url").toString("utf8"),
+      ) as PlayerAccessTokenClaims;
+    } catch {
+      throw new UnauthorizedException("Player access token payload is invalid.");
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!claims.exp || claims.exp <= nowSec) {
+      throw new UnauthorizedException("Player access token has expired.");
+    }
+
+    if (claims.scope !== "player") {
+      throw new UnauthorizedException("Player access token scope is invalid.");
+    }
+
+    if (!claims.sub?.trim()) {
+      throw new UnauthorizedException("Player access token subject is missing.");
+    }
+
+    return claims;
   }
 
   private parseTtl(value: string | undefined, fallback: number) {

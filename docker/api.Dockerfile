@@ -22,8 +22,9 @@ RUN npm ci \
 ENV NODE_ENV=production
 ENV PORT=4000
 ENV DATABASE_URL=file:/data/dev.db
+ENV UPLOAD_ROOT=/uploads
 
-VOLUME ["/data"]
+VOLUME ["/data", "/uploads"]
 
 EXPOSE 4000
 

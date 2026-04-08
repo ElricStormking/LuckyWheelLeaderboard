@@ -108,6 +108,11 @@ export class WheelScene extends Phaser.Scene {
           this.animateToSegment(detail);
         }) as EventListener,
       ),
+      prototypeState.subscribe("error", () => {
+        if (!this.scene.isActive(SCENE_KEYS.ErrorOverlay)) {
+          this.scene.launch(SCENE_KEYS.ErrorOverlay);
+        }
+      }),
     );
 
     const syncScroll = (
@@ -161,7 +166,7 @@ export class WheelScene extends Phaser.Scene {
     this.button.setLabel(snapshot.eligibility.buttonLabel);
     this.button.setBackground(
       this.currentEligibility === EligibilityStatus.GoToDeposit
-        ? COLORS.accent
+        ? COLORS.disabled
         : this.currentEligibility === EligibilityStatus.EventEnded
           ? COLORS.disabled
           : COLORS.primary,
@@ -179,7 +184,7 @@ export class WheelScene extends Phaser.Scene {
           : 0.78,
     );
     this.button.label.setColor(
-      this.currentEligibility === EligibilityStatus.GoToDeposit ? "#0a2942" : "#ffffff",
+      "#ffffff",
     );
   }
 
@@ -771,6 +776,7 @@ export class WheelScene extends Phaser.Scene {
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
         spinArrows.setTint(0xffffff);
+        label.setColor("#0a2942");
         return;
       }
 
@@ -778,6 +784,7 @@ export class WheelScene extends Phaser.Scene {
         face.setTintFill(0x9fa6af);
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
+        label.setColor("#ffffff");
       }
     };
 

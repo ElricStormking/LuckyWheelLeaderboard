@@ -413,6 +413,24 @@ export interface AdminPlatformLinksUpdateRequest {
   platformLinks: Omit<AdminPlatformLinkConfigDto, "id">[];
 }
 
+export interface AdminPrizeImageUploadResponse {
+  storageKey: string;
+  publicUrl: string;
+  contentType: string;
+  sizeBytes: number;
+  originalFileName: string;
+  width: number;
+  height: number;
+}
+
+export interface AdminUploadedImageDeleteRequest {
+  imageUrl: string;
+}
+
+export interface AdminUploadedImageDeleteResponse {
+  deleted: boolean;
+}
+
 export interface AdminOverviewResponse {
   generatedAt: string;
   currentEventId: string | null;

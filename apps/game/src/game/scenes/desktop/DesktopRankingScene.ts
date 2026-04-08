@@ -12,6 +12,7 @@ import { DesktopPageScene } from "./DesktopPageScene";
 import {
   DESKTOP_RANKING_BUTTON_KEYS,
   DESKTOP_RANKING_PLATE_KEYS,
+  getDesktopRankingPrizeTextPosition,
   wireImageButton,
 } from "./desktopSceneShared";
 
@@ -20,9 +21,11 @@ type RankingRow = {
   plate: Phaser.GameObjects.Image;
   playerText: Phaser.GameObjects.Text;
   scoreText: Phaser.GameObjects.Text;
+  prizeText: Phaser.GameObjects.Text;
 };
 
 const PAGE_SIZE = 10;
+const ROW_PRIZE_TEXT_FONT_SIZE = "12px";
 const ROW_LAYOUTS = [
   { x: 597, y: 262 },
   { x: 597, y: 410 },
@@ -60,7 +63,7 @@ export class DesktopRankingScene extends DesktopPageScene {
     this.add.image(947, 113, "Desktop_RankingTitle").setScale(0.9);
     this.addDesktopPageArrows(SCENE_KEYS.DesktopMain, SCENE_KEYS.DesktopPrize);
 
-    ROW_LAYOUTS.forEach(({ x, y }) => {
+    ROW_LAYOUTS.forEach(({ x, y }, index) => {
       const selfArrow = this.add.image(x - 182, y, "Desktop_RankingArrow").setScale(0.72);
       const plate = this.add.image(x, y, "Desktop_RankingPlate_01").setScale(0.25);
       const playerText = this.add
@@ -82,7 +85,19 @@ export class DesktopRankingScene extends DesktopPageScene {
         })
         .setOrigin(1, 0.5);
 
-      this.rows.push({ selfArrow, plate, playerText, scoreText });
+      const prizeText = this.add
+        .text(0, 0, "", {
+          fontFamily: FONTS.body,
+          fontSize: ROW_PRIZE_TEXT_FONT_SIZE,
+          fontStyle: "700",
+          color: "#8d98a1",
+        })
+        .setOrigin(0.5, 0.5);
+
+      const prizePosition = getDesktopRankingPrizeTextPosition(plate, index + 1);
+      prizeText.setPosition(prizePosition.x, prizePosition.y);
+
+      this.rows.push({ selfArrow, plate, playerText, scoreText, prizeText });
     });
 
     [778, 900, 1024, 1147].forEach((x, index) => {
@@ -183,8 +198,10 @@ export class DesktopRankingScene extends DesktopPageScene {
       row.plate.setVisible(visible);
       row.playerText.setVisible(visible);
       row.scoreText.setVisible(visible);
+      row.prizeText.setVisible(visible);
 
       if (!entry || isPending) {
+        row.prizeText.setText("");
         return;
       }
 
@@ -193,6 +210,11 @@ export class DesktopRankingScene extends DesktopPageScene {
       );
       row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
+      const prizePosition = getDesktopRankingPrizeTextPosition(row.plate, entry.rank);
+      row.prizeText
+        .setPosition(prizePosition.x, prizePosition.y)
+        .setText(this.getLeaderboardPrizeLabel(entry.rank, entry.prizeName))
+        .setColor(entry.rank <= 3 ? "#149fe4" : "#8d98a1");
       row.playerText.setColor(entry.isSelf ? "#0c96d7" : "#0a2942");
     });
 
@@ -248,4 +270,17 @@ export class DesktopRankingScene extends DesktopPageScene {
 
     this.lastSyncedText?.setText(footerLines.join("\n"));
   }
+
+  private getLeaderboardPrizeLabel(rank: number, prizeName: string | null) {
+    if (prizeName) {
+      return prizeName;
+    }
+
+    const configuredPrize = prototypeState
+      .getSnapshot()
+      .prizes.find((prize) => rank >= prize.rankFrom && rank <= prize.rankTo);
+
+    return configuredPrize?.prizeLabel ?? `Rank #${rank}`;
+  }
+
 }

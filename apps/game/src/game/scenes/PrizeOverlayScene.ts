@@ -1,6 +1,7 @@
 import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
 import { FONTS, SCENE_KEYS } from "../constants";
+import { syncPrizeArtImage } from "../prizeImageLoader";
 
 const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_01",
@@ -26,7 +27,10 @@ export class PrizeOverlayScene extends BaseOverlayScene {
     prizes.forEach((prize, index) => {
       const y = frame.top + 74 + index * 184;
       this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(0.92);
-      this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(0.88);
+      const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(0.88);
+      const prizeArt = this.add
+        .image(rewardXs[index], y, "Prize_RewardZone")
+        .setVisible(false);
       const isRightAligned = index % 2 === 1;
       const textX = rewardXs[index] + (isRightAligned ? 156 : -156);
       const origin = isRightAligned ? 1 : 0;
@@ -51,6 +55,9 @@ export class PrizeOverlayScene extends BaseOverlayScene {
           wordWrap: { width: 260, useAdvancedWrap: true },
         })
         .setOrigin(origin, 0.5);
+
+      rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
+      syncPrizeArtImage(this, prizeArt, prize.imageUrl, 180, 118);
     });
   }
 }

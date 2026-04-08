@@ -1,6 +1,7 @@
 import type { AppLocale } from "@lucky-wheel/contracts";
 
 export const FALLBACK_LOCALE: AppLocale = "en";
+const ACCESS_TOKEN_STORAGE_KEY = "luckyWheel.accessToken";
 
 type CopyKey =
   | "lobby.selectPeriod"
@@ -89,6 +90,10 @@ type CopyKey =
   | "error.subtitle"
   | "error.unknown"
   | "error.dismiss"
+  | "sessionExpired.title"
+  | "sessionExpired.subtitle"
+  | "sessionExpired.body"
+  | "sessionExpired.ok"
   | "locale.title"
   | "locale.subtitle"
   | "locale.current";
@@ -183,6 +188,11 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "error.subtitle": "Retry the current prototype flow.",
     "error.unknown": "Unknown prototype error.",
     "error.dismiss": "Dismiss",
+    "sessionExpired.title": "Session expired",
+    "sessionExpired.subtitle": "Please reopen the game from the website.",
+    "sessionExpired.body":
+      "Your play session has timed out. Return to the casino site and launch Lucky Wheel again to continue.",
+    "sessionExpired.ok": "OK",
     "locale.title": "Language",
     "locale.subtitle": "Choose the display language for the current play session.",
     "locale.current": "CURRENT",
@@ -276,6 +286,11 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "error.subtitle": "Cuba semula aliran prototaip semasa.",
     "error.unknown": "Ralat prototaip tidak diketahui.",
     "error.dismiss": "Tutup",
+    "sessionExpired.title": "Sesi tamat",
+    "sessionExpired.subtitle": "Sila buka semula permainan dari laman web.",
+    "sessionExpired.body":
+      "Sesi permainan anda telah tamat masa. Kembali ke laman kasino dan lancarkan Roda Tuah sekali lagi untuk meneruskan.",
+    "sessionExpired.ok": "OK",
     "locale.title": "Bahasa",
     "locale.subtitle": "Pilih bahasa paparan untuk sesi permainan semasa.",
     "locale.current": "SEMASA",
@@ -362,6 +377,11 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "error.subtitle": "请重试当前原型流程。",
     "error.unknown": "未知原型错误。",
     "error.dismiss": "关闭",
+    "sessionExpired.title": "会话已过期",
+    "sessionExpired.subtitle": "请从网站重新打开游戏。",
+    "sessionExpired.body":
+      "您的游戏会话已超时。请返回娱乐城网站并重新启动幸运转盘以继续。",
+    "sessionExpired.ok": "确定",
     "locale.title": "语言",
     "locale.subtitle": "为当前试玩会话选择显示语言。",
     "locale.current": "当前",
@@ -389,6 +409,21 @@ export function resolveLaunchLocale() {
     window.navigator.language;
 
   return normalizeLocale(candidate);
+}
+
+export function resolveLaunchAccessToken() {
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get("accessToken") ?? undefined;
+
+  if (token) {
+    window.sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+    window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+    return token;
+  }
+
+  window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  return undefined;
 }
 
 export function persistLocale(locale: AppLocale) {

@@ -10,11 +10,16 @@ export class ErrorOverlayScene extends BaseOverlayScene {
 
   create() {
     const snapshot = prototypeState.getSnapshot();
-    const message = snapshot.errorMessage ?? prototypeState.t("error.unknown");
-    const shouldRetryBootstrap = !snapshot.currentEvent;
+    const sessionExpired = snapshot.errorKind === "sessionExpired";
+    const message = sessionExpired
+      ? prototypeState.t("sessionExpired.body")
+      : (snapshot.errorMessage ?? prototypeState.t("error.unknown"));
+    const shouldRetryBootstrap = !sessionExpired && !snapshot.currentEvent;
     const frame = this.createFrame(
-      prototypeState.t("error.title"),
-      prototypeState.t("error.subtitle"),
+      sessionExpired ? prototypeState.t("sessionExpired.title") : prototypeState.t("error.title"),
+      sessionExpired
+        ? prototypeState.t("sessionExpired.subtitle")
+        : prototypeState.t("error.subtitle"),
       640,
     );
 
@@ -39,7 +44,11 @@ export class ErrorOverlayScene extends BaseOverlayScene {
       frame.centerY + 280,
       280,
       84,
-      shouldRetryBootstrap ? "Retry" : prototypeState.t("error.dismiss"),
+      sessionExpired
+        ? prototypeState.t("sessionExpired.ok")
+        : shouldRetryBootstrap
+          ? "Retry"
+          : prototypeState.t("error.dismiss"),
       () => {
         prototypeState.clearError();
         this.scene.stop();

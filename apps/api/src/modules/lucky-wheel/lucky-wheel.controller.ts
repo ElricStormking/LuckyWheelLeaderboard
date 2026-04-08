@@ -57,11 +57,14 @@ export class LuckyWheelController {
   @Get("events/current")
   getCurrentEvent(
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.luckyWheelService.getCurrentEvent(
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -98,6 +101,8 @@ export class LuckyWheelController {
     @Param("eventId") eventId: string,
     @Query("limit") limit?: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
@@ -105,6 +110,8 @@ export class LuckyWheelController {
       eventId,
       parsePositiveInt(limit, 30),
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      true,
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -125,12 +132,16 @@ export class LuckyWheelController {
   getPlayer(
     @Param("eventId") eventId: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.luckyWheelService.getPlayer(
       eventId,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      true,
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -139,6 +150,8 @@ export class LuckyWheelController {
     @Param("eventId") eventId: string,
     @Query("page") page?: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
@@ -146,6 +159,7 @@ export class LuckyWheelController {
       eventId,
       parsePositiveInt(page, 1),
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -153,12 +167,15 @@ export class LuckyWheelController {
   getPlayerEventHistory(
     @Query("page") page?: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.luckyWheelService.getPlayerEventHistory(
       parsePositiveInt(page, 1),
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -166,7 +183,9 @@ export class LuckyWheelController {
   getEligibility(
     @Param("eventId") eventId: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
     @Headers("x-lucky-eligibility-override") eligibilityOverride?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
@@ -174,6 +193,7 @@ export class LuckyWheelController {
       eventId,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
       parseEligibilityOverride(eligibilityOverride),
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -181,12 +201,15 @@ export class LuckyWheelController {
   getRealtime(
     @Param("eventId") eventId: string,
     @Query("locale") locale?: string,
+    @Query("accessToken") accessToken?: string,
+    @Headers("authorization") authorization?: string,
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.luckyWheelService.getRealtimeStream(
       eventId,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+      this.resolvePlayerId(authorization, accessToken),
     );
   }
 
@@ -194,11 +217,27 @@ export class LuckyWheelController {
   spin(
     @Body() request: SpinRequest,
     @Headers("x-lucky-eligibility-override") eligibilityOverride?: string,
+    @Headers("authorization") authorization?: string,
   ) {
     return this.luckyWheelService.spin(
       request,
       parseEligibilityOverride(eligibilityOverride),
+      this.resolvePlayerId(authorization),
     );
+  }
+
+  private resolvePlayerId(authorization?: string, accessToken?: string) {
+    const token = this.extractBearerToken(authorization) ?? accessToken;
+    return this.playerSessionService.resolvePlayerClaims(token)?.sub;
+  }
+
+  private extractBearerToken(authorization?: string) {
+    if (!authorization?.trim()) {
+      return undefined;
+    }
+
+    const [scheme, token] = authorization.split(" ");
+    return scheme?.toLowerCase() === "bearer" && token ? token : undefined;
   }
 }
 

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { FONTS, SCENE_KEYS } from "../../constants";
+import { syncPrizeArtImage } from "../../prizeImageLoader";
 import { prototypeState } from "../../state/prototype-state";
 import { DesktopPageScene } from "./DesktopPageScene";
 import { DESKTOP_PRIZE_BADGE_KEYS } from "./desktopSceneShared";
@@ -45,7 +46,10 @@ export class DesktopPrizeScene extends DesktopPageScene {
       const reward = this.add
         .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
         .setScale(row.rewardScale);
-      this.prizeContent?.add([badge, reward]);
+      const prizeArt = this.add
+        .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
+        .setVisible(false);
+      this.prizeContent?.add([badge, reward, prizeArt]);
 
       const isRightAligned = row.align === "right";
       const textX = row.rewardX + (isRightAligned ? 156 : -156);
@@ -78,6 +82,9 @@ export class DesktopPrizeScene extends DesktopPageScene {
         )
         .setOrigin(origin, 0.5);
       this.prizeContent?.add(description);
+
+      reward.setAlpha(prize.imageUrl ? 0.28 : 1);
+      syncPrizeArtImage(this, prizeArt, prize.imageUrl, 220, 138);
     });
   }
 }

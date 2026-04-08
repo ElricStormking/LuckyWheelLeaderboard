@@ -5,9 +5,11 @@ import {
 } from "@lucky-wheel/contracts";
 import type {
   AdminAuditLogResponse,
+  AdminUploadedImageDeleteResponse,
   AdminEventConfigDto,
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
+  AdminPrizeImageUploadResponse,
   AdminEventTermsUpdateRequest,
   AdminPlatformLinksUpdateRequest,
   AdminEventUpsertRequest,
@@ -20,6 +22,12 @@ import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const SUPPORTED_LOCALES: AppLocale[] = ["en", "ms", "zh-CN"];
+const PRIZE_IMAGE_RECOMMENDED_WIDTH = 900;
+const PRIZE_IMAGE_RECOMMENDED_HEIGHT = 600;
+const PRIZE_IMAGE_MIN_WIDTH = 300;
+const PRIZE_IMAGE_MIN_HEIGHT = 180;
+const PRIZE_IMAGE_MIN_ASPECT_RATIO = 1.2;
+const PRIZE_IMAGE_MAX_ASPECT_RATIO = 2.2;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -33,6 +41,7 @@ const SECTION_ORDER = [
 
 type AdminSection = (typeof SECTION_ORDER)[number];
 type ToastState = { tone: "success" | "error"; message: string } | null;
+type PrizeUploadDimensions = { width: number; height: number };
 
 type AdminState = {
   locale: AppLocale;
@@ -48,6 +57,10 @@ type AdminState = {
   selectedEventId?: string;
   isBootstrapping: boolean;
   isSaving: boolean;
+  uploadingPrizeIndex?: number;
+  uploadingPrizeProgress?: number;
+  prizeUploadWarnings: Record<number, string>;
+  prizeUploadDimensions: Record<number, PrizeUploadDimensions>;
   toast: ToastState;
   error?: string;
 };
@@ -65,6 +78,10 @@ const state: AdminState = {
   activeSection: "capital",
   isBootstrapping: true,
   isSaving: false,
+  uploadingPrizeIndex: undefined,
+  uploadingPrizeProgress: undefined,
+  prizeUploadWarnings: {},
+  prizeUploadDimensions: {},
   toast: null,
 };
 
@@ -141,6 +158,10 @@ async function loadEventWorkspace(eventId: string) {
     state.spins = spins;
     state.audit = audit;
     state.draft = clone(editor.event);
+    state.prizeUploadWarnings = {};
+    state.prizeUploadDimensions = {};
+    state.uploadingPrizeIndex = undefined;
+    state.uploadingPrizeProgress = undefined;
     state.isBootstrapping = false;
     state.isSaving = false;
     render();
@@ -479,7 +500,7 @@ function renderPrizeSection() {
               <th>Prize Name (${locale})</th>
               <th>Description (${locale})</th>
               <th>Accent</th>
-              <th>Image URL</th>
+                    <th>Prize Image</th>
               <th>Sort</th>
               <th>Setting</th>
             </tr>
@@ -502,7 +523,55 @@ function renderPrizeSection() {
                     <td><input data-prize-index="${index}" data-prize-field="prizeLabel" value="${escapeHtml(translation?.prizeLabel ?? "")}" /></td>
                     <td><textarea data-prize-index="${index}" data-prize-field="prizeDescription">${escapeHtml(translation?.prizeDescription ?? "")}</textarea></td>
                     <td><input data-prize-index="${index}" data-prize-field="accentLabel" value="${escapeHtml(translation?.accentLabel ?? "")}" /></td>
-                    <td><input data-prize-index="${index}" data-prize-field="imageUrl" value="${escapeHtml(prize.imageUrl ?? "")}" /></td>
+                    <td>
+                      <div class="prize-upload">
+                        <div class="prize-upload__preview">
+                          ${
+                            prize.imageUrl
+                              ? `<img class="prize-upload__preview-image" src="${escapeAttribute(prize.imageUrl)}" alt="Prize preview ${index + 1}" />`
+                              : `<div class="prize-upload__preview-empty">No image</div>`
+                          }
+                        </div>
+                        <div class="prize-upload__actions">
+                          <button class="text-button" data-action="upload-prize-image" data-prize-index="${index}" ${
+                            state.uploadingPrizeIndex === index ? "disabled" : ""
+                          }>
+                            ${state.uploadingPrizeIndex === index ? "Uploading..." : "Upload"}
+                          </button>
+                          <button class="text-button" data-action="clear-prize-image" data-prize-index="${index}" ${
+                            !prize.imageUrl || state.uploadingPrizeIndex === index ? "disabled" : ""
+                          }>
+                            Remove
+                          </button>
+                        </div>
+                        ${
+                          state.uploadingPrizeIndex === index
+                            ? `
+                              <div class="prize-upload__status">Uploading ${Math.round(state.uploadingPrizeProgress ?? 0)}%</div>
+                              <div class="prize-upload__progress">
+                                <span style="width:${Math.max(4, Math.round(state.uploadingPrizeProgress ?? 0))}%"></span>
+                              </div>
+                            `
+                            : ""
+                        }
+                        <div class="prize-upload__hint">
+                          Recommended: ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px, 3:2 landscape.
+                          Minimum: ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.
+                        </div>
+                        ${
+                          state.prizeUploadDimensions[index]
+                            ? `<div class="prize-upload__meta">Selected: ${state.prizeUploadDimensions[index].width}x${state.prizeUploadDimensions[index].height}px (${formatAspectRatioLabel(state.prizeUploadDimensions[index].width, state.prizeUploadDimensions[index].height)})</div>`
+                            : ""
+                        }
+                        ${
+                          state.prizeUploadWarnings[index]
+                            ? `<div class="prize-upload__warning">${escapeHtml(state.prizeUploadWarnings[index])}</div>`
+                            : ""
+                        }
+                        <input class="prize-upload__input" type="file" accept="image/png,image/jpeg,image/webp" data-prize-upload-input="${index}" />
+                        <input data-prize-index="${index}" data-prize-field="imageUrl" value="${escapeHtml(prize.imageUrl ?? "")}" placeholder="Uploaded image URL will appear here" />
+                      </div>
+                    </td>
                     <td><input type="number" data-prize-index="${index}" data-prize-field="displayOrder" value="${prize.displayOrder}" /></td>
                     <td><button class="text-button" data-action="remove-prize" data-prize-index="${index}">Remove</button></td>
                   </tr>
@@ -852,6 +921,10 @@ function bindEvents() {
     element.addEventListener("click", handleActionClick);
   });
 
+  app.querySelectorAll<HTMLInputElement>("[data-prize-upload-input]").forEach((element) => {
+    element.addEventListener("change", handlePrizeUploadChange);
+  });
+
   app.querySelector<HTMLSelectElement>('[data-action="locale"]')?.addEventListener("change", async (event) => {
     syncDraftFromDom();
     state.locale = (event.currentTarget as HTMLSelectElement).value as AppLocale;
@@ -891,6 +964,17 @@ async function handleActionClick(event: Event) {
       removePrizeRow(Number(target.dataset.prizeIndex));
       render();
       return;
+    case "upload-prize-image":
+      app
+        .querySelector<HTMLInputElement>(
+          `[data-prize-upload-input="${target.dataset.prizeIndex ?? ""}"]`,
+        )
+        ?.click();
+      return;
+    case "clear-prize-image":
+      syncDraftFromDom();
+      await clearPrizeImage(Number(target.dataset.prizeIndex));
+      return;
     case "save":
       await saveDraft();
       return;
@@ -912,6 +996,19 @@ async function handleActionClick(event: Event) {
     default:
       return;
   }
+}
+
+async function handlePrizeUploadChange(event: Event) {
+  const input = event.currentTarget as HTMLInputElement;
+  const prizeIndex = Number(input.dataset.prizeUploadInput);
+  const file = input.files?.[0];
+
+  if (!Number.isInteger(prizeIndex) || prizeIndex < 0 || !file) {
+    return;
+  }
+
+  await uploadPrizeImage(prizeIndex, file);
+  input.value = "";
 }
 
 function syncDraftFromDom() {
@@ -1102,6 +1199,15 @@ async function saveDraft() {
     return;
   }
 
+  if (state.uploadingPrizeIndex !== undefined) {
+    state.toast = {
+      tone: "error",
+      message: "Wait for the current image upload to finish before saving.",
+    };
+    render();
+    return;
+  }
+
   syncDraftFromDom();
   state.isSaving = true;
   render();
@@ -1197,6 +1303,168 @@ async function loadPagedResource(
   render();
 }
 
+async function uploadPrizeImage(prizeIndex: number, file: File) {
+  if (!state.draft || !state.selectedEventId) {
+    state.toast = {
+      tone: "error",
+      message: "Save or select an event before uploading images.",
+    };
+    render();
+    return;
+  }
+
+  syncDraftFromDom();
+  const prize = state.draft.prizes[prizeIndex];
+  if (!prize) {
+    return;
+  }
+
+  const dimensions = await readImageDimensions(file);
+  state.prizeUploadDimensions[prizeIndex] = dimensions;
+  const blockingError = getPrizeImageBlockingError(dimensions.width, dimensions.height);
+  if (blockingError) {
+    state.prizeUploadWarnings[prizeIndex] = blockingError;
+    render();
+    return;
+  }
+
+  const advisoryWarning = getPrizeImageAdvisoryWarning(dimensions.width, dimensions.height);
+  if (advisoryWarning) {
+    state.prizeUploadWarnings[prizeIndex] = advisoryWarning;
+  } else {
+    delete state.prizeUploadWarnings[prizeIndex];
+  }
+
+  state.uploadingPrizeIndex = prizeIndex;
+  state.uploadingPrizeProgress = 0;
+  render();
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("prizeId", prize.id);
+    formData.append("oldImageUrl", prize.imageUrl ?? "");
+
+    const response = await uploadMultipart<AdminPrizeImageUploadResponse>(
+      `${API_BASE_URL}/v2/admin/uploads/events/${encodeURIComponent(state.selectedEventId)}/prize-image`,
+      formData,
+      (percent) => {
+        state.uploadingPrizeProgress = percent;
+        render();
+      },
+    );
+
+    prize.imageUrl = response.publicUrl;
+    state.prizeUploadDimensions[prizeIndex] = {
+      width: response.width,
+      height: response.height,
+    };
+    state.toast = {
+      tone: "success",
+      message: "Prize image uploaded.",
+    };
+  } catch (error) {
+    state.prizeUploadWarnings[prizeIndex] = toErrorMessage(error);
+    state.toast = {
+      tone: "error",
+      message: toErrorMessage(error),
+    };
+  } finally {
+    state.uploadingPrizeIndex = undefined;
+    state.uploadingPrizeProgress = undefined;
+    render();
+  }
+}
+
+async function clearPrizeImage(index: number) {
+  if (!state.draft) {
+    return;
+  }
+
+  const prize = state.draft.prizes[index];
+  if (!prize) {
+    return;
+  }
+
+  const imageUrl = prize.imageUrl;
+  prize.imageUrl = null;
+  delete state.prizeUploadWarnings[index];
+  delete state.prizeUploadDimensions[index];
+
+  if (!imageUrl) {
+    render();
+    return;
+  }
+
+  try {
+    await request<AdminUploadedImageDeleteResponse>("/v2/admin/uploads", {
+      method: "DELETE",
+      body: JSON.stringify({ imageUrl }),
+    });
+    state.toast = {
+      tone: "success",
+      message: "Prize image removed.",
+    };
+  } catch (error) {
+    state.toast = {
+      tone: "error",
+      message: toErrorMessage(error),
+    };
+  }
+
+  render();
+}
+
+function getPrizeImageBlockingError(width: number, height: number) {
+  if (width < PRIZE_IMAGE_MIN_WIDTH || height < PRIZE_IMAGE_MIN_HEIGHT) {
+    return `Image is too small. Minimum size is ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.`;
+  }
+
+  const aspectRatio = width / height;
+  if (aspectRatio < PRIZE_IMAGE_MIN_ASPECT_RATIO || aspectRatio > PRIZE_IMAGE_MAX_ASPECT_RATIO) {
+    return "Image must be landscape oriented. Use an aspect ratio close to 3:2 or 16:10.";
+  }
+
+  return null;
+}
+
+function getPrizeImageAdvisoryWarning(width: number, height: number) {
+  if (width < PRIZE_IMAGE_RECOMMENDED_WIDTH || height < PRIZE_IMAGE_RECOMMENDED_HEIGHT) {
+    return `Image is valid, but ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px (3:2) is recommended for best clarity.`;
+  }
+
+  return "";
+}
+
+function formatAspectRatioLabel(width: number, height: number) {
+  if (!width || !height) {
+    return "-";
+  }
+
+  const gcd = getGreatestCommonDivisor(width, height);
+  const reducedWidth = width / gcd;
+  const reducedHeight = height / gcd;
+
+  if (reducedWidth <= 20 && reducedHeight <= 20) {
+    return `${reducedWidth}:${reducedHeight}`;
+  }
+
+  return `${(width / height).toFixed(2)}:1`;
+}
+
+function getGreatestCommonDivisor(left: number, right: number): number {
+  let a = Math.abs(Math.round(left));
+  let b = Math.abs(Math.round(right));
+
+  while (b !== 0) {
+    const remainder = a % b;
+    a = b;
+    b = remainder;
+  }
+
+  return a || 1;
+}
+
 function addPrizeRow() {
   if (!state.draft) {
     return;
@@ -1216,6 +1484,8 @@ function addPrizeRow() {
       accentLabel: null,
     })),
   });
+  state.prizeUploadWarnings = {};
+  state.prizeUploadDimensions = {};
 }
 
 function removePrizeRow(index: number) {
@@ -1227,6 +1497,8 @@ function removePrizeRow(index: number) {
   state.draft.prizes.forEach((entry, prizeIndex) => {
     entry.displayOrder = prizeIndex + 1;
   });
+  state.prizeUploadWarnings = {};
+  state.prizeUploadDimensions = {};
 }
 
 function buildTemplateRequest(): AdminEventUpsertRequest {
@@ -1402,11 +1674,13 @@ function getSaveTarget(draft: AdminEventConfigDto, section: AdminSection) {
 }
 
 async function request<T>(pathname: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers ?? {});
+  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(`${API_BASE_URL}${pathname}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 
@@ -1416,6 +1690,60 @@ async function request<T>(pathname: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+function uploadMultipart<T>(
+  url: string,
+  formData: FormData,
+  onProgress: (percent: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) {
+        return;
+      }
+
+      onProgress((event.loaded / event.total) * 100);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(xhr.responseText || `Request failed with status ${xhr.status}`));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(xhr.responseText) as T);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Upload failed."));
+    };
+
+    xhr.send(formData);
+  });
+}
+
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      URL.revokeObjectURL(objectUrl);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Unable to read image dimensions."));
+    };
+    image.src = objectUrl;
+  });
 }
 
 function getInputValue(name: string, fallback: string) {
@@ -1501,6 +1829,10 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeAttribute(value: string) {
+  return escapeHtml(value);
 }
 
 function toErrorMessage(error: unknown) {

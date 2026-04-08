@@ -9,13 +9,33 @@ services:
     environment:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL:-file:/data/dev.db}
+      API_AUTO_SEED_DEMO_DATA: ${API_AUTO_SEED_DEMO_DATA:-false}
+      LUCKY_WHEEL_FILL_TEST_LEADERBOARD: ${LUCKY_WHEEL_FILL_TEST_LEADERBOARD:-false}
       MERCHANT_API_BASE_URL: http://merchant-api:4003/merchant-api
+      MERCHANT_API_SERVICE_TOKEN: ${MERCHANT_API_SERVICE_TOKEN:-lw-local-dev-merchant-api-service-token}
+      MERCHANT_INTEGRATION_ID: ${MERCHANT_INTEGRATION_ID:-MERCHANT001}
+      LUCKY_WHEEL_PLATFORM_MERCHANT_SECRET: ${LUCKY_WHEEL_PLATFORM_MERCHANT_SECRET:-lucky-wheel-platform-secret-dev}
       LUCKY_WHEEL_CLIENT_BASE_URL: ${LUCKY_WHEEL_CLIENT_BASE_URL:-http://localhost:3000}
+      UPLOAD_ROOT: ${UPLOAD_ROOT:-/uploads}
+      UPLOAD_PUBLIC_BASE_URL: ${UPLOAD_PUBLIC_BASE_URL:-http://localhost:3000/api/uploads}
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     restart: unless-stopped
     volumes:
       - luckywheel_api_data:/data
+      - luckywheel_api_uploads:/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/v2/config/localization').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   merchant-api:
     build:
@@ -27,9 +47,27 @@ services:
     environment:
       PORT: 4003
       LUCKY_WHEEL_PLATFORM_BASE_URL: http://api:4000
+      MERCHANT_API_SERVICE_TOKEN: ${MERCHANT_API_SERVICE_TOKEN:-lw-local-dev-merchant-api-service-token}
+      MERCHANT_INTEGRATION_ID: ${MERCHANT_INTEGRATION_ID:-MERCHANT001}
+      MERCHANT_INTEGRATION_GUID: ${MERCHANT_INTEGRATION_GUID:-11111111-1111-1111-1111-111111111111}
+      MERCHANT_INTEGRATION_ALLOWED_IPS: ${MERCHANT_INTEGRATION_ALLOWED_IPS:-*}
+      MERCHANT_INTEGRATION_ACTIVE: ${MERCHANT_INTEGRATION_ACTIVE:-true}
+      LUCKY_WHEEL_PLATFORM_MERCHANT_SECRET: ${LUCKY_WHEEL_PLATFORM_MERCHANT_SECRET:-lucky-wheel-platform-secret-dev}
     ports:
       - "4003:4003"
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const token=process.env.MERCHANT_API_SERVICE_TOKEN||'lw-local-dev-merchant-api-service-token'; fetch('http://127.0.0.1:4003/merchant-api/v1/health',{headers:{Authorization:'Bearer '+token}}).then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   game:
     build:
@@ -38,10 +76,17 @@ services:
       args:
         VITE_API_BASE_URL: /api
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "3000:3000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
   admin:
     build:
@@ -50,11 +95,20 @@ services:
       args:
         VITE_API_BASE_URL: /api
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "4002:4002"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4002/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   luckywheel_api_data:
     name: luckywheelleaderboard_api-db
+  luckywheel_api_uploads:
+    name: luckywheelleaderboard_api-uploads

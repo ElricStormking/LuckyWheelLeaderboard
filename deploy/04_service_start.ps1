@@ -22,7 +22,7 @@ cd "$Script:RemoteAppDir"
 sudo docker compose --env-file "$Script:RemoteEnvFileName" -f "$Script:ComposeFileName" $upArgs --remove-orphans
 sudo docker compose --env-file "$Script:RemoteEnvFileName" -f "$Script:ComposeFileName" ps
 "@
-  $remoteCmd = $remoteCmd -replace "`r`n", "`n"
+  $remoteCmd = $remoteCmd -replace "`r", ""
   $remoteCmd | & ssh -i "$Script:SshKeyPath" "$($Script:ServerUser)@$($Script:ServerHost)" "bash -s"
   if ($LASTEXITCODE -ne 0) {
     throw "Failed to start remote services."

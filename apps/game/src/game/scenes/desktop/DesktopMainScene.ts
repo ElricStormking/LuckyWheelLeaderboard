@@ -27,12 +27,14 @@ import {
   shouldShowDevEligibilitySwitch,
 } from "../../constants";
 import { prototypeState } from "../../state/prototype-state";
+import { syncPrizeArtImage } from "../../prizeImageLoader";
 import { DesktopPageScene } from "./DesktopPageScene";
 import {
   DESKTOP_RANKING_PLATE_KEYS,
   DESKTOP_PAGE_CENTER_X,
   DESKTOP_PAGE_CENTER_Y,
   DESKTOP_PRIZE_BADGE_KEYS,
+  getDesktopRankingPrizeTextPosition,
   getDesktopPlatformLinkUrl,
   wireImageButton,
 } from "./desktopSceneShared";
@@ -91,11 +93,13 @@ type DesktopLeaderboardRow = {
   plate: Phaser.GameObjects.Image;
   playerText: Phaser.GameObjects.Text;
   scoreText: Phaser.GameObjects.Text;
+  prizeText: Phaser.GameObjects.Text;
 };
 
 type DesktopPrizeRow = {
   rankBadge: Phaser.GameObjects.Image;
   rewardZone: Phaser.GameObjects.Image;
+  prizeArt: Phaser.GameObjects.Image;
   prizeLabel: Phaser.GameObjects.Text;
   prizeDescription: Phaser.GameObjects.Text;
 };
@@ -174,10 +178,17 @@ const SUMMARY_PANEL_Y = 1450;
 const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
 const LEADERBOARD_ROW_WIDTH = 392;
 const LEADERBOARD_ROW_HEIGHT = 74;
-const LEADERBOARD_ROW_START_Y = 1962;
+const LEADERBOARD_HEADER_LABEL_Y = LEADERBOARD_SECTION_TOP + 312;
+const LEADERBOARD_HEADER_DIVIDER_Y = LEADERBOARD_SECTION_TOP + 346;
+const LEADERBOARD_ROW_START_Y = 1998;
 const LEADERBOARD_ROW_SPACING = 92;
 const LEADERBOARD_PANEL_RADIUS = 24;
 const LEADERBOARD_PLATE_SCALE = 0.156;
+const LEADERBOARD_HEADER_FONT_SIZE = "18px";
+const LEADERBOARD_HEADER_RANK_X = 54;
+const LEADERBOARD_HEADER_USERNAME_X = 212;
+const LEADERBOARD_HEADER_SCORE_X = 346;
+const LEADERBOARD_PRIZE_TEXT_FONT_SIZE = "12px";
 const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 180;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
@@ -217,6 +228,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private leaderboardMyRankPlate?: Phaser.GameObjects.Image;
   private leaderboardMyRankPlayerText?: Phaser.GameObjects.Text;
   private leaderboardMyRankScoreText?: Phaser.GameObjects.Text;
+  private leaderboardMyRankPrizeText?: Phaser.GameObjects.Text;
   private leaderboardMyRankText?: Phaser.GameObjects.Text;
   private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
   private prizeSubtitleText?: Phaser.GameObjects.Text;
@@ -726,34 +738,41 @@ export class DesktopMainScene extends DesktopPageScene {
     const totalPointsColumnLabel = prototypeState.t("leaderboard.columnTotalPoints");
 
     const divider = this.add.graphics();
-    divider.lineStyle(2, COLORS.line, 0.9);
-    divider.lineBetween(260, LEADERBOARD_SECTION_TOP + 294, 1660, LEADERBOARD_SECTION_TOP + 294);
+    divider.lineStyle(2, COLORS.line, 0.95);
+    LEADERBOARD_COLUMN_LEFTS.forEach((left) => {
+      divider.lineBetween(
+        left + 10,
+        LEADERBOARD_HEADER_DIVIDER_Y,
+        left + LEADERBOARD_ROW_WIDTH - 10,
+        LEADERBOARD_HEADER_DIVIDER_Y,
+      );
+    });
 
     LEADERBOARD_COLUMN_LEFTS.forEach((left) => {
       this.add
-        .text(left + 24, LEADERBOARD_SECTION_TOP + 350, rankColumnLabel, {
+        .text(left + LEADERBOARD_HEADER_RANK_X, LEADERBOARD_HEADER_LABEL_Y, rankColumnLabel, {
           fontFamily: FONTS.body,
-          fontSize: "24px",
+          fontSize: LEADERBOARD_HEADER_FONT_SIZE,
           fontStyle: "700",
           color: "#12a2ea",
         })
-        .setOrigin(0, 0.5);
+        .setOrigin(0.5, 0.5);
       this.add
-        .text(left + 176, LEADERBOARD_SECTION_TOP + 350, usernameColumnLabel, {
+        .text(left + LEADERBOARD_HEADER_USERNAME_X, LEADERBOARD_HEADER_LABEL_Y, usernameColumnLabel, {
           fontFamily: FONTS.body,
-          fontSize: "24px",
+          fontSize: LEADERBOARD_HEADER_FONT_SIZE,
           fontStyle: "700",
           color: "#12a2ea",
         })
-        .setOrigin(0, 0.5);
+        .setOrigin(0.5, 0.5);
       this.add
-        .text(left + LEADERBOARD_ROW_WIDTH - 14, LEADERBOARD_SECTION_TOP + 350, totalPointsColumnLabel, {
+        .text(left + LEADERBOARD_HEADER_SCORE_X, LEADERBOARD_HEADER_LABEL_Y, totalPointsColumnLabel, {
           fontFamily: FONTS.body,
-          fontSize: "24px",
+          fontSize: LEADERBOARD_HEADER_FONT_SIZE,
           fontStyle: "700",
           color: "#12a2ea",
         })
-        .setOrigin(1, 0.5);
+        .setOrigin(0.5, 0.5);
     });
 
     this.leaderboardPendingPanel = addRoundedPanel(
@@ -812,10 +831,24 @@ export class DesktopMainScene extends DesktopPageScene {
           .setOrigin(1, 0.5)
           .setVisible(false);
 
+        const prizeText = this.add
+          .text(0, 0, "", {
+            fontFamily: FONTS.body,
+            fontSize: LEADERBOARD_PRIZE_TEXT_FONT_SIZE,
+            fontStyle: "700",
+            color: "#8d98a1",
+          })
+          .setOrigin(0.5, 0.5)
+          .setVisible(false);
+
+        const prizePosition = getDesktopRankingPrizeTextPosition(plate, index + 1);
+        prizeText.setPosition(prizePosition.x, prizePosition.y);
+
         this.leaderboardRows.push({
           plate,
           playerText,
           scoreText,
+          prizeText,
         });
       });
 
@@ -845,6 +878,19 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(1, 0.5)
       .setVisible(false);
+
+    this.leaderboardMyRankPrizeText = this.add
+      .text(0, 0, "", {
+        fontFamily: FONTS.body,
+        fontSize: LEADERBOARD_PRIZE_TEXT_FONT_SIZE,
+        fontStyle: "700",
+        color: "#8d98a1",
+      })
+      .setOrigin(0.5, 0.5)
+      .setVisible(false);
+
+    const summaryPrizePosition = getDesktopRankingPrizeTextPosition(this.leaderboardMyRankPlate, 1);
+    this.leaderboardMyRankPrizeText.setPosition(summaryPrizePosition.x, summaryPrizePosition.y);
 
     this.leaderboardMyRankText = this.add
       .text(960, LEADERBOARD_SUMMARY_Y, "", {
@@ -889,6 +935,9 @@ export class DesktopMainScene extends DesktopPageScene {
       const rewardZone = this.add
         .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
         .setScale(row.rewardScale);
+      const prizeArt = this.add
+        .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
+        .setVisible(false);
 
       const isRightAligned = row.align === "right";
       const textX = row.rewardX + (isRightAligned ? 156 : -156);
@@ -915,7 +964,7 @@ export class DesktopMainScene extends DesktopPageScene {
         })
         .setOrigin(origin, 0.5);
 
-      this.prizeRows.push({ rankBadge, rewardZone, prizeLabel, prizeDescription });
+      this.prizeRows.push({ rankBadge, rewardZone, prizeArt, prizeLabel, prizeDescription });
     });
 
   }
@@ -1091,8 +1140,10 @@ export class DesktopMainScene extends DesktopPageScene {
         row.plate.setVisible(visible);
         row.playerText.setVisible(visible);
         row.scoreText.setVisible(visible);
+        row.prizeText.setVisible(visible);
 
         if (!visible || !entry) {
+          row.prizeText.setText("");
           return;
         }
 
@@ -1101,6 +1152,11 @@ export class DesktopMainScene extends DesktopPageScene {
         );
         row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
         row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
+        const prizePosition = getDesktopRankingPrizeTextPosition(row.plate, entry.rank);
+        row.prizeText
+          .setPosition(prizePosition.x, prizePosition.y)
+          .setText(this.getLeaderboardPrizeLabel(entry.rank, entry.prizeName))
+          .setColor(entry.rank <= 3 ? "#149fe4" : "#8d98a1");
         row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
       });
 
@@ -1108,6 +1164,7 @@ export class DesktopMainScene extends DesktopPageScene {
       this.leaderboardMyRankPlate?.setVisible(false);
       this.leaderboardMyRankPlayerText?.setVisible(false).setText("");
       this.leaderboardMyRankScoreText?.setVisible(false).setText("");
+      this.leaderboardMyRankPrizeText?.setVisible(false).setText("");
       this.leaderboardMyRankText?.setText("");
       this.leaderboardLastSyncedText?.setText("");
       return;
@@ -1130,11 +1187,18 @@ export class DesktopMainScene extends DesktopPageScene {
       this.leaderboardMyRankScoreText
         ?.setVisible(true)
         .setText(formatNumber(myRank.score, snapshot.locale));
+      const summaryPrizePosition = getDesktopRankingPrizeTextPosition(this.leaderboardMyRankPlate!, myRank.rank);
+      this.leaderboardMyRankPrizeText
+        ?.setVisible(myRank.rank <= 30)
+        .setPosition(summaryPrizePosition.x, summaryPrizePosition.y)
+        .setText(this.getLeaderboardPrizeLabel(myRank.rank, myRank.prizeName))
+        .setColor(myRank.rank <= 3 ? "#149fe4" : "#8d98a1");
       this.leaderboardMyRankText?.setVisible(false).setText("");
     } else {
       this.leaderboardMyRankPlate?.setVisible(false);
       this.leaderboardMyRankPlayerText?.setVisible(false).setText("");
       this.leaderboardMyRankScoreText?.setVisible(false).setText("");
+      this.leaderboardMyRankPrizeText?.setVisible(false).setText("");
       this.leaderboardMyRankText
         ?.setVisible(true)
         .setText(snapshot.isBootstrapping ? "Loading leaderboard..." : "");
@@ -1156,6 +1220,7 @@ export class DesktopMainScene extends DesktopPageScene {
       const visible = Boolean(prize);
       row.rankBadge.setVisible(visible);
       row.rewardZone.setVisible(visible);
+      row.prizeArt.setVisible(false);
       row.prizeLabel.setVisible(visible);
       row.prizeDescription.setVisible(visible);
 
@@ -1167,7 +1232,21 @@ export class DesktopMainScene extends DesktopPageScene {
       row.prizeDescription.setText(
         prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
+      row.rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
+      syncPrizeArtImage(this, row.prizeArt, prize.imageUrl, 220, 138);
     });
+  }
+
+  private getLeaderboardPrizeLabel(rank: number, prizeName: string | null) {
+    if (prizeName) {
+      return prizeName;
+    }
+
+    const configuredPrize = prototypeState
+      .getSnapshot()
+      .prizes.find((prize) => rank >= prize.rankFrom && rank <= prize.rankTo);
+
+    return configuredPrize?.prizeLabel ?? `Rank #${rank}`;
   }
 
   private refreshLeaderboardFooterText() {
@@ -1351,7 +1430,7 @@ export class DesktopMainScene extends DesktopPageScene {
     this.button.setLabel(snapshot.eligibility.buttonLabel);
     this.button.setBackground(
       this.currentEligibility === EligibilityStatus.GoToDeposit
-        ? COLORS.accent
+        ? COLORS.disabled
         : this.currentEligibility === EligibilityStatus.EventEnded
           ? COLORS.disabled
           : COLORS.primary,
@@ -1362,7 +1441,7 @@ export class DesktopMainScene extends DesktopPageScene {
         this.currentEligibility !== EligibilityStatus.EventEnded,
     );
     this.button.label.setColor(
-      this.currentEligibility === EligibilityStatus.GoToDeposit ? "#0a2942" : "#ffffff",
+      "#ffffff",
     );
   }
 
@@ -1920,6 +1999,7 @@ export class DesktopMainScene extends DesktopPageScene {
         face.setTexture("Desktop_SpinExpired");
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
+        label.setColor("#ffffff");
         return;
       }
 

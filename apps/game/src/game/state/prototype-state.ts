@@ -15,9 +15,19 @@ import type {
   PlayerSpinHistoryResponse,
   SpinSuccessResponse,
 } from "@lucky-wheel/contracts";
-import { FALLBACK_LOCALE, persistLocale, resolveLaunchLocale, translate } from "../i18n";
+import {
+  FALLBACK_LOCALE,
+  persistLocale,
+  resolveLaunchAccessToken,
+  resolveLaunchLocale,
+  translate,
+} from "../i18n";
 import { createClientUuid } from "../helpers";
-import { LuckyWheelApi, type LuckyWheelRealtimeEventMap } from "../services/lucky-wheel-api";
+import {
+  isHttpUnauthorizedError,
+  LuckyWheelApi,
+  type LuckyWheelRealtimeEventMap,
+} from "../services/lucky-wheel-api";
 
 type RealtimeStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -40,6 +50,7 @@ type Snapshot = {
   isBootstrapping: boolean;
   isSpinning: boolean;
   errorMessage?: string;
+  errorKind?: "generic" | "sessionExpired";
   lastSpin?: SpinSuccessResponse;
 };
 
@@ -68,6 +79,7 @@ class PrototypeState {
     isBootstrapping: false,
     isSpinning: false,
     errorMessage: undefined,
+    errorKind: undefined,
     lastSpin: undefined,
   };
 
@@ -95,12 +107,14 @@ class PrototypeState {
       ...this.snapshot,
       isBootstrapping: true,
       errorMessage: undefined,
+      errorKind: undefined,
     };
     this.emit("change");
 
     try {
       const localizationConfig = await this.api.getLocalizationConfig(resolveLaunchLocale());
       this.api.setLocale(localizationConfig.resolvedLocale);
+      this.api.setAccessToken(resolveLaunchAccessToken());
 
       const [currentEvent, eventList, eventHistory] = await Promise.all([
         this.api.getCurrentEvent(),
@@ -148,8 +162,7 @@ class PrototypeState {
       this.snapshot = {
         ...this.snapshot,
         isBootstrapping: false,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to load prototype data.",
+        ...this.mapRequestFailure(error, "Unable to load prototype data."),
       };
       this.emit("change");
       this.emit("error");
@@ -167,6 +180,7 @@ class PrototypeState {
       ...this.snapshot,
       isBootstrapping: true,
       errorMessage: undefined,
+      errorKind: undefined,
       lastSpin: undefined,
     };
     this.emit("change");
@@ -211,8 +225,7 @@ class PrototypeState {
       this.snapshot = {
         ...this.snapshot,
         isBootstrapping: false,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to switch event.",
+        ...this.mapRequestFailure(error, "Unable to switch event."),
       };
       this.emit("change");
       this.emit("error");
@@ -243,8 +256,7 @@ class PrototypeState {
     } catch (error) {
       this.snapshot = {
         ...this.snapshot,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to update eligibility state.",
+        ...this.mapRequestFailure(error, "Unable to update eligibility state."),
       };
       this.emit("change");
       this.emit("error");
@@ -262,6 +274,7 @@ class PrototypeState {
       ...this.snapshot,
       isBootstrapping: true,
       errorMessage: undefined,
+      errorKind: undefined,
     };
     this.emit("change");
 
@@ -320,8 +333,7 @@ class PrototypeState {
       this.snapshot = {
         ...this.snapshot,
         isBootstrapping: false,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to switch language.",
+        ...this.mapRequestFailure(error, "Unable to switch language."),
       };
       this.emit("change");
       this.emit("error");
@@ -349,8 +361,7 @@ class PrototypeState {
     } catch (error) {
       this.snapshot = {
         ...this.snapshot,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to load spin history.",
+        ...this.mapRequestFailure(error, "Unable to load spin history."),
       };
       this.emit("change");
       this.emit("error");
@@ -369,8 +380,7 @@ class PrototypeState {
     } catch (error) {
       this.snapshot = {
         ...this.snapshot,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to load event history.",
+        ...this.mapRequestFailure(error, "Unable to load event history."),
       };
       this.emit("change");
       this.emit("error");
@@ -388,6 +398,7 @@ class PrototypeState {
       ...this.snapshot,
       isSpinning: true,
       errorMessage: undefined,
+      errorKind: undefined,
     };
     this.emit("spin-start");
     this.emit("change");
@@ -448,8 +459,7 @@ class PrototypeState {
       this.snapshot = {
         ...this.snapshot,
         isSpinning: false,
-        errorMessage:
-          error instanceof Error ? error.message : "Unable to complete spin.",
+        ...this.mapRequestFailure(error, "Unable to complete spin."),
       };
       this.emit("change");
       this.emit("error");
@@ -467,8 +477,23 @@ class PrototypeState {
     this.snapshot = {
       ...this.snapshot,
       errorMessage: undefined,
+      errorKind: undefined,
     };
     this.emit("change");
+  }
+
+  private mapRequestFailure(
+    error: unknown,
+    fallbackMessage: string,
+  ): { errorMessage?: string; errorKind?: Snapshot["errorKind"] } {
+    if (isHttpUnauthorizedError(error)) {
+      return { errorMessage: undefined, errorKind: "sessionExpired" };
+    }
+
+    return {
+      errorMessage: error instanceof Error ? error.message : fallbackMessage,
+      errorKind: "generic",
+    };
   }
 
   private connectRealtime() {
@@ -602,8 +627,15 @@ class PrototypeState {
         eligibility,
       };
       this.emit("change");
-    } catch {
-      // Ignore background refresh errors for realtime transitions.
+    } catch (error) {
+      if (isHttpUnauthorizedError(error)) {
+        this.snapshot = {
+          ...this.snapshot,
+          ...this.mapRequestFailure(error, ""),
+        };
+        this.emit("change");
+        this.emit("error");
+      }
     }
   }
 
@@ -622,8 +654,15 @@ class PrototypeState {
         spinHistory,
       };
       this.emit("change");
-    } catch {
-      // Ignore background refresh errors for realtime updates.
+    } catch (error) {
+      if (isHttpUnauthorizedError(error)) {
+        this.snapshot = {
+          ...this.snapshot,
+          ...this.mapRequestFailure(error, ""),
+        };
+        this.emit("change");
+        this.emit("error");
+      }
     }
   }
 
@@ -643,8 +682,15 @@ class PrototypeState {
         player,
       };
       this.emit("change");
-    } catch {
-      // Ignore background refresh errors for realtime transitions.
+    } catch (error) {
+      if (isHttpUnauthorizedError(error)) {
+        this.snapshot = {
+          ...this.snapshot,
+          ...this.mapRequestFailure(error, ""),
+        };
+        this.emit("change");
+        this.emit("error");
+      }
     }
   }
 

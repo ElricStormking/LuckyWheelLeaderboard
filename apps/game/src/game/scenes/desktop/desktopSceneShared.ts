@@ -39,6 +39,41 @@ export const DESKTOP_RANKING_PLATE_KEYS = [
   "Desktop_RankingPlate_30",
 ] as const;
 
+const DESKTOP_RANKING_PRIZE_BADGE_SOURCE_OFFSETS = [
+  { x: -890, y: 104 },
+  { x: -890, y: 99.5 },
+  { x: -890, y: 99.5 },
+  { x: -890, y: 104 },
+  { x: -890, y: 107.5 },
+  { x: -890, y: 107.5 },
+  { x: -890, y: 118 },
+  { x: -882, y: 113.5 },
+  { x: -890, y: 112 },
+  { x: -890, y: 102 },
+  { x: -857, y: 135 },
+  { x: -884.5, y: 105.5 },
+  { x: -890, y: 102 },
+  { x: -856, y: 120.5 },
+  { x: -865, y: 113 },
+  { x: -890, y: 70.5 },
+  { x: -890, y: 104.5 },
+  { x: -874.5, y: 112.5 },
+  { x: -871, y: 104.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+  { x: -865.5, y: 150.5 },
+] as const;
+
+const DESKTOP_RANKING_NOT_LISTED_PRIZE_BADGE_SOURCE_OFFSET = { x: -591, y: 109.5 } as const;
+
 export const DESKTOP_RANKING_BUTTON_KEYS = [
   "Desktop_RankingButton_01",
   "Desktop_RankingButton_02",
@@ -77,6 +112,20 @@ export function wireImageButton(
     image.setScale(baseScaleX, baseScaleY);
   });
   image.on("pointerup", onClick);
+}
+
+export function getDesktopRankingPrizeTextPosition(
+  plate: Phaser.GameObjects.Image,
+  rank: number,
+) {
+  const sourceOffset =
+    DESKTOP_RANKING_PRIZE_BADGE_SOURCE_OFFSETS[rank - 1] ??
+    DESKTOP_RANKING_NOT_LISTED_PRIZE_BADGE_SOURCE_OFFSET;
+
+  return {
+    x: plate.x + sourceOffset.x * plate.scaleX,
+    y: plate.y + sourceOffset.y * plate.scaleY,
+  };
 }
 
 export function navigateToDesktopPage(scene: Phaser.Scene, targetKey: string) {

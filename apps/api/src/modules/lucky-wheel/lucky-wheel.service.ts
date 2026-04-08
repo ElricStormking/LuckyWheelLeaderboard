@@ -142,6 +142,7 @@ const EVENT_CACHE_TTL_MS = 15_000;
 const RANKED_SCORE_CACHE_TTL_MS = 2_000;
 const TEST_LEADERBOARD_STARTING_SCORE = 6200;
 const TEST_LEADERBOARD_SCORE_STEP = 150;
+const REALTIME_HEARTBEAT_INTERVAL_MS = 25_000;
 
 @Injectable()
 export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
@@ -195,13 +196,16 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getCurrentEvent(locale: AppLocale): Promise<CurrentEventResponse> {
+  async getCurrentEvent(
+    locale: AppLocale,
+    playerId = DEMO_PLAYER_ID,
+  ): Promise<CurrentEventResponse> {
     const event = await this.getLiveEventOrThrow();
     const prizes = this.toPrizeDtos(event.prizes, locale);
 
     return {
       event: this.toEventCampaignDto(event, locale),
-      player: await this.buildPlayerSummary(event, prizes, true, locale),
+      player: await this.buildPlayerSummary(event, prizes, true, locale, true, playerId),
     };
   }
 
@@ -245,6 +249,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     limit = 30,
     locale: AppLocale,
     enforceResultVisibility = true,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<LeaderboardResponse> {
     const event = await this.getEventOrThrow(eventId);
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
@@ -270,7 +275,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     const leaderboardLimit = Math.min(Math.max(limit, 1), 30);
     const realLeaderboard = rankedScores
       .slice(0, leaderboardLimit)
-      .map((entry, index) => this.toLeaderboardEntry(entry, index + 1, prizes));
+      .map((entry, index) => this.toLeaderboardEntry(entry, index + 1, prizes, playerId));
     const leaderboard = this.applyExampleLeaderboardScores(
       this.fillLeaderboardWithTesterPlayers(
         realLeaderboard,
@@ -279,7 +284,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       ),
     );
     const selfEntry = leaderboard.find((entry) => entry.isSelf) ?? null;
-    const selfRank = rankedScores.findIndex((entry) => entry.playerId === DEMO_PLAYER_ID);
+    const selfRank = rankedScores.findIndex((entry) => entry.playerId === playerId);
 
     return {
       eventId,
@@ -287,7 +292,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       myRank:
         selfEntry || selfRank < 0
           ? null
-          : this.toLeaderboardEntry(rankedScores[selfRank], selfRank + 1, prizes),
+          : this.toLeaderboardEntry(rankedScores[selfRank], selfRank + 1, prizes, playerId),
       totalDisplayed: leaderboard.length,
       lastSyncedAt: this.resolveLastSyncedAt(event.updatedAt, rankedScores),
       resultsVisible: true,
@@ -303,6 +308,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     locale: AppLocale,
     enforceResultVisibility = true,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<PlayerEventSummaryDto> {
     const event = await this.getEventOrThrow(eventId);
     return this.buildPlayerSummary(
@@ -311,6 +317,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       false,
       locale,
       enforceResultVisibility,
+      playerId,
     );
   }
 
@@ -318,6 +325,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     page = 1,
     _locale?: AppLocale,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<PlayerSpinHistoryResponse> {
     await this.getEventOrThrow(eventId);
 
@@ -325,13 +333,13 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       this.prisma.spinTransaction.count({
         where: {
           eventCampaignId: eventId,
-          playerId: DEMO_PLAYER_ID,
+          playerId,
         },
       }),
       this.prisma.spinTransaction.findMany({
         where: {
           eventCampaignId: eventId,
-          playerId: DEMO_PLAYER_ID,
+          playerId,
         },
         orderBy: {
           createdAt: "desc",
@@ -353,16 +361,17 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   async getPlayerEventHistory(
     page = 1,
     locale: AppLocale,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<PlayerEventHistoryResponse> {
     const [total, rows] = await Promise.all([
       this.prisma.playerEventSummary.count({
         where: {
-          playerId: DEMO_PLAYER_ID,
+          playerId,
         },
       }),
       this.prisma.playerEventSummary.findMany({
         where: {
-          playerId: DEMO_PLAYER_ID,
+          playerId,
         },
         include: {
           eventCampaign: {
@@ -396,6 +405,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     locale: AppLocale,
     override?: EligibilityStatus,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<EligibilityResponse> {
     const event = await this.getEventOrThrow(eventId);
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
@@ -404,15 +414,19 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       eventStatus,
       this.prisma,
       eventStatus === EventStatus.Live,
+      playerId,
     );
     const usedSpinCount = await this.countUsedSpinsForCurrentDay(
       event.id,
       event.timezone,
+      this.prisma,
+      playerId,
     );
     const spinAllowance = await this.resolveSpinAllowance(
       event.id,
       eventStatus,
       usedSpinCount,
+      playerId,
     );
     const eligibilityStatus = this.resolveEligibility(eventStatus, spinAllowance, override);
 
@@ -437,13 +451,29 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  getRealtimeStream(eventId: string, locale: AppLocale): Observable<MessageEvent> {
+  getRealtimeStream(
+    eventId: string,
+    locale: AppLocale,
+    playerId = DEMO_PLAYER_ID,
+  ): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
       let isActive = true;
-      const stream = this.getOrCreateRealtimeStream(eventId, locale);
+      const stream = this.getOrCreateRealtimeStream(eventId, locale, playerId);
       stream.subscribers += 1;
+      const heartbeatTimer = setInterval(() => {
+        if (!isActive) {
+          return;
+        }
 
-      void this.buildInitialRealtimeMessages(eventId, locale)
+        subscriber.next(
+          this.createMessage("stream:heartbeat", {
+            eventId,
+            emittedAt: new Date().toISOString(),
+          }),
+        );
+      }, REALTIME_HEARTBEAT_INTERVAL_MS);
+
+      void this.buildInitialRealtimeMessages(eventId, locale, playerId)
         .then((messages) => {
           if (!isActive) {
             return;
@@ -460,8 +490,9 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
 
       return () => {
         isActive = false;
+        clearInterval(heartbeatTimer);
         subscription.unsubscribe();
-        this.releaseRealtimeStream(eventId, locale);
+        this.releaseRealtimeStream(eventId, locale, playerId);
       };
     });
   }
@@ -469,6 +500,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   async spin(
     request: SpinRequest,
     override?: EligibilityStatus,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<SpinResponse> {
     const event = await this.getEventOrThrow(request.eventId);
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
@@ -490,6 +522,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           eventStatus,
           transaction,
           true,
+          playerId,
         );
 
         if (!playerScore) {
@@ -497,16 +530,18 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         }
 
         const previousRankedScores = await this.getRankedScores(event.id, transaction);
-        const previousRank = this.findPlayerRank(previousRankedScores, DEMO_PLAYER_ID);
+        const previousRank = this.findPlayerRank(previousRankedScores, playerId);
         const usedSpinCount = await this.countUsedSpinsForCurrentDay(
           event.id,
           event.timezone,
           transaction,
+          playerId,
         );
         const spinAllowance = await this.resolveSpinAllowance(
           event.id,
           eventStatus,
           usedSpinCount,
+          playerId,
         );
         const eligibilityStatus = this.resolveEligibility(eventStatus, spinAllowance, override);
 
@@ -518,7 +553,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
               id: `spin-request-${randomUUID()}`,
               idempotencyKey: request.idempotencyKey,
               eventCampaignId: event.id,
-              playerId: DEMO_PLAYER_ID,
+              playerId,
               success: false,
               eligibilityStatus,
               depositUrl: failure.depositUrl,
@@ -552,7 +587,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           data: {
             id: `spin-${randomUUID()}`,
             eventCampaignId: event.id,
-            playerId: DEMO_PLAYER_ID,
+            playerId,
             segmentIndex: segment.segmentIndex,
             segmentLabel: segment.label,
             scoreDelta: scoreResult.scoreDelta,
@@ -563,7 +598,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         });
 
         const rankedScores = await this.getRankedScores(event.id, transaction);
-        const rank = this.findPlayerRank(rankedScores, DEMO_PLAYER_ID);
+        const rank = this.findPlayerRank(rankedScores, playerId);
         const response: SpinResponse = {
           success: true,
           segmentIndex: segment.segmentIndex,
@@ -580,7 +615,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
             id: `spin-request-${randomUUID()}`,
             idempotencyKey: request.idempotencyKey,
             eventCampaignId: event.id,
-            playerId: DEMO_PLAYER_ID,
+            playerId,
             success: true,
             segmentIndex: response.segmentIndex,
             scoreDelta: response.scoreDelta,
@@ -606,6 +641,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           event.id,
           transactionResult.previousRank,
           transactionResult.nextRank,
+          playerId,
         );
       }
 
@@ -636,24 +672,25 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     createLiveScore: boolean,
     locale: AppLocale,
     enforceResultVisibility = true,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<PlayerEventSummaryDto> {
-    await this.ensureDemoPlayer();
+    await this.ensurePlayerExists(playerId);
 
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
     const [player, playerScore, rankedScores, summaryRecord, spinHistory, usedSpinCount, eventHistory] =
       await Promise.all([
         this.prisma.player.findUnique({
           where: {
-            id: DEMO_PLAYER_ID,
+            id: playerId,
           },
         }),
-        this.getPlayerScoreRecord(event.id, eventStatus, this.prisma, createLiveScore),
+        this.getPlayerScoreRecord(event.id, eventStatus, this.prisma, createLiveScore, playerId),
         this.getRankedScores(event.id),
         this.prisma.playerEventSummary.findUnique({
           where: {
             eventCampaignId_playerId: {
               eventCampaignId: event.id,
-              playerId: DEMO_PLAYER_ID,
+              playerId,
             },
           },
           include: {
@@ -672,17 +709,17 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         this.prisma.spinTransaction.findMany({
           where: {
             eventCampaignId: event.id,
-            playerId: DEMO_PLAYER_ID,
+            playerId,
           },
           orderBy: {
             createdAt: "desc",
           },
           take: HISTORY_PAGE_SIZE,
         }),
-        this.countUsedSpinsForCurrentDay(event.id, event.timezone),
+        this.countUsedSpinsForCurrentDay(event.id, event.timezone, this.prisma, playerId),
         this.prisma.playerEventSummary.findMany({
           where: {
-            playerId: DEMO_PLAYER_ID,
+            playerId,
           },
           include: {
             eventCampaign: {
@@ -704,10 +741,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       ]);
 
     if (!player) {
-      throw new NotFoundException(`Unknown player: ${DEMO_PLAYER_ID}`);
+      throw new NotFoundException(`Unknown player: ${playerId}`);
     }
 
-    const selfIndex = rankedScores.findIndex((entry) => entry.playerId === DEMO_PLAYER_ID);
+    const selfIndex = rankedScores.findIndex((entry) => entry.playerId === playerId);
     const resultVisibility = this.resolveResultVisibility(
       eventStatus,
       locale,
@@ -720,6 +757,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       event.id,
       eventStatus,
       usedSpinCount,
+      playerId,
     );
 
     return {
@@ -859,14 +897,17 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return event;
   }
 
-  private async ensureDemoPlayer(client: DatabaseClient = this.prisma) {
-    if (this.demoPlayerReady) {
+  private async ensurePlayerExists(
+    playerId: string,
+    client: DatabaseClient = this.prisma,
+  ) {
+    if (playerId === DEMO_PLAYER_ID && this.demoPlayerReady) {
       return;
     }
 
-    if (client === this.prisma) {
+    if (playerId === DEMO_PLAYER_ID && client === this.prisma) {
       if (!this.demoPlayerReadyPromise) {
-        this.demoPlayerReadyPromise = this.ensureDemoPlayerExists(client).finally(() => {
+        this.demoPlayerReadyPromise = this.ensurePlayerExistsInDatabase(playerId, client).finally(() => {
           this.demoPlayerReadyPromise = undefined;
         });
       }
@@ -875,7 +916,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.ensureDemoPlayerExists(client);
+    await this.ensurePlayerExistsInDatabase(playerId, client);
   }
 
   private async getPlayerScoreRecord(
@@ -883,22 +924,23 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventStatus: EventStatus,
     client: DatabaseClient = this.prisma,
     createIfMissing = false,
+    playerId = DEMO_PLAYER_ID,
   ) {
-    await this.ensureDemoPlayer(client);
+    await this.ensurePlayerExists(playerId, client);
 
     if (eventStatus === EventStatus.Live && createIfMissing) {
       return client.playerEventScore.upsert({
         where: {
           eventCampaignId_playerId: {
             eventCampaignId: eventId,
-            playerId: DEMO_PLAYER_ID,
+            playerId,
           },
         },
         update: {},
         create: {
-          id: `score-${eventId}-${DEMO_PLAYER_ID}`,
+          id: `score-${eventId}-${playerId}`,
           eventCampaignId: eventId,
-          playerId: DEMO_PLAYER_ID,
+          playerId,
           totalScore: 0,
           hasSpun: false,
         },
@@ -909,7 +951,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       where: {
         eventCampaignId_playerId: {
           eventCampaignId: eventId,
-          playerId: DEMO_PLAYER_ID,
+          playerId,
         },
       },
     });
@@ -919,13 +961,14 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     timezone: string,
     client: DatabaseClient = this.prisma,
+    playerId = DEMO_PLAYER_ID,
   ) {
     const { start, end } = resolveCurrentDayWindow(timezone);
 
     return client.spinTransaction.count({
       where: {
         eventCampaignId: eventId,
-        playerId: DEMO_PLAYER_ID,
+        playerId,
         createdAt: {
           gte: start,
           lt: end,
@@ -1070,13 +1113,14 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     score: RankedScoreRecord,
     rank: number,
     prizes: EventPrizeDto[],
+    selfPlayerId = DEMO_PLAYER_ID,
   ): LeaderboardEntryDto {
     return {
       rank,
       playerName: score.player.displayName,
       score: score.totalScore,
       prizeName: this.resolvePrizeName(rank, prizes),
-      isSelf: score.playerId === DEMO_PLAYER_ID,
+      isSelf: score.playerId === selfPlayerId,
     };
   }
 
@@ -1250,6 +1294,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     eventStatus: EventStatus,
     usedSpinCount: number,
+    playerId = DEMO_PLAYER_ID,
   ): Promise<NormalizedSpinAllowance> {
     if (eventStatus !== EventStatus.Live) {
       return {
@@ -1260,7 +1305,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
 
     const dailySpinAllowance = createServerDailySpinAllowance(usedSpinCount);
     const merchantEligibility = await this.merchantApiClientService.getEligibilitySnapshot(
-      DEMO_PLAYER_ID,
+      playerId,
       eventId,
     );
 
@@ -1489,8 +1534,12 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private getOrCreateRealtimeStream(eventId: string, locale: AppLocale) {
-    const streamKey = this.toRealtimeStreamKey(eventId, locale);
+  private getOrCreateRealtimeStream(
+    eventId: string,
+    locale: AppLocale,
+    playerId: string,
+  ) {
+    const streamKey = this.toRealtimeStreamKey(eventId, locale, playerId);
     let stream = this.realtimeStreams.get(streamKey);
 
     if (!stream) {
@@ -1504,8 +1553,12 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return stream;
   }
 
-  private releaseRealtimeStream(eventId: string, locale: AppLocale) {
-    const streamKey = this.toRealtimeStreamKey(eventId, locale);
+  private releaseRealtimeStream(
+    eventId: string,
+    locale: AppLocale,
+    playerId: string,
+  ) {
+    const streamKey = this.toRealtimeStreamKey(eventId, locale, playerId);
     const stream = this.realtimeStreams.get(streamKey);
 
     if (!stream) {
@@ -1521,14 +1574,18 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     this.realtimeStreams.delete(streamKey);
   }
 
-  private async buildInitialRealtimeMessages(eventId: string, locale: AppLocale) {
+  private async buildInitialRealtimeMessages(
+    eventId: string,
+    locale: AppLocale,
+    playerId: string,
+  ) {
     const event = await this.getEventOrThrow(eventId);
     const prizes = this.toPrizeDtos(event.prizes, locale);
     const status = this.parseEnumValue(EventStatus, event.status, "event status");
     const emittedAt = new Date().toISOString();
     const [leaderboard, player] = await Promise.all([
-      this.getLeaderboard(eventId, 30, locale),
-      this.buildRealtimePlayerState(event, status, prizes),
+      this.getLeaderboard(eventId, 30, locale, true, playerId),
+      this.buildRealtimePlayerState(event, status, prizes, playerId),
     ]);
     const messages: MessageEvent[] = [
       this.createMessage<EventStatusChangedEventDto>("event:statusChanged", {
@@ -1573,23 +1630,26 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventId: string,
     previousRank: number | null,
     nextRank: number | null,
+    spinningPlayerId: string,
   ) {
     const event = await this.getEventOrThrow(eventId);
     const status = this.parseEnumValue(EventStatus, event.status, "event status");
     const emittedAt = new Date().toISOString();
-    const playerStateByLocale = new Map<AppLocale, RealtimePlayerState>();
+    const leaderboardByLocale = new Map<AppLocale, LeaderboardResponse>();
+    const playerStateByStream = new Map<string, RealtimePlayerState>();
 
-    for (const locale of this.getRealtimeLocalesForEvent(eventId)) {
+    for (const streamEntry of this.getRealtimeStreamsForEvent(eventId)) {
+      const { locale, playerId, stream } = streamEntry;
       const prizes = this.toPrizeDtos(event.prizes, locale);
-      const leaderboard = await this.getLeaderboard(eventId, 30, locale);
+      const leaderboard =
+        leaderboardByLocale.get(locale) ??
+        (await this.getLeaderboard(eventId, 30, locale, true, playerId));
+      leaderboardByLocale.set(locale, leaderboard);
+      const streamKey = this.toRealtimeStreamKey(eventId, locale, playerId);
       const player =
-        playerStateByLocale.get(locale) ??
-        (await this.buildRealtimePlayerState(event, status, prizes));
-      playerStateByLocale.set(locale, player);
-      const stream = this.realtimeStreams.get(this.toRealtimeStreamKey(eventId, locale));
-      if (!stream || stream.subscribers === 0) {
-        continue;
-      }
+        playerStateByStream.get(streamKey) ??
+        (await this.buildRealtimePlayerState(event, status, prizes, playerId));
+      playerStateByStream.set(streamKey, player);
 
       stream.subject.next(
         this.createMessage<LeaderboardTop30EventDto>("leaderboard:top30", {
@@ -1606,7 +1666,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         }),
       );
 
-      if (previousRank !== nextRank) {
+      if (playerId === spinningPlayerId && previousRank !== nextRank) {
         stream.subject.next(
           this.createMessage<PlayerRankChangedEventDto>("player:rankChanged", {
             eventId,
@@ -1629,11 +1689,13 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
 
     const emittedAt = new Date().toISOString();
 
-    for (const locale of this.getRealtimeLocalesForEvent(liveEvent.id)) {
-      const stream = this.realtimeStreams.get(this.toRealtimeStreamKey(liveEvent.id, locale));
-      if (!stream || stream.subscribers === 0) {
-        continue;
-      }
+    const leaderboardByLocale = new Map<AppLocale, LeaderboardResponse>();
+    for (const streamEntry of this.getRealtimeStreamsForEvent(liveEvent.id)) {
+      const { locale, playerId, stream } = streamEntry;
+      const leaderboard =
+        leaderboardByLocale.get(locale) ??
+        (await this.getLeaderboard(liveEvent.id, 30, locale, true, playerId));
+      leaderboardByLocale.set(locale, leaderboard);
 
       stream.subject.next(
         this.createMessage<CountdownSyncEventDto>("event:countdownSync", {
@@ -1647,7 +1709,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
         this.createMessage<LeaderboardTop30EventDto>("leaderboard:top30", {
           eventId: liveEvent.id,
           emittedAt,
-          leaderboard: await this.getLeaderboard(liveEvent.id, 30, locale),
+          leaderboard,
         }),
       );
     }
@@ -1707,25 +1769,37 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private toRealtimeStreamKey(eventId: string, locale: AppLocale) {
-    return `${eventId}::${locale}`;
+  private toRealtimeStreamKey(eventId: string, locale: AppLocale, playerId: string) {
+    return `${eventId}::${locale}::${playerId}`;
   }
 
-  private getRealtimeLocalesForEvent(eventId: string) {
-    const locales = new Set<AppLocale>();
+  private getRealtimeStreamsForEvent(eventId: string) {
+    const entries: Array<{
+      locale: AppLocale;
+      playerId: string;
+      stream: RealtimeStreamEntry;
+    }> = [];
 
     this.realtimeStreams.forEach((stream, key) => {
       if (stream.subscribers === 0) {
         return;
       }
 
-      const [streamEventId, locale] = key.split("::");
-      if (streamEventId === eventId && SUPPORTED_LOCALES.includes(locale as AppLocale)) {
-        locales.add(locale as AppLocale);
+      const [streamEventId, locale, playerId] = key.split("::");
+      if (
+        streamEventId === eventId &&
+        playerId &&
+        SUPPORTED_LOCALES.includes(locale as AppLocale)
+      ) {
+        entries.push({
+          locale: locale as AppLocale,
+          playerId,
+          stream,
+        });
       }
     });
 
-    return [...locales];
+    return entries;
   }
 
   private getButtonLabel(status: EligibilityStatus, locale: AppLocale) {
@@ -1746,10 +1820,13 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async ensureDemoPlayerExists(client: DatabaseClient) {
+  private async ensurePlayerExistsInDatabase(
+    playerId: string,
+    client: DatabaseClient,
+  ) {
     const existingPlayer = await client.player.findUnique({
       where: {
-        id: DEMO_PLAYER_ID,
+        id: playerId,
       },
       select: {
         id: true,
@@ -1757,16 +1834,18 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (existingPlayer) {
-      this.demoPlayerReady = true;
+      if (playerId === DEMO_PLAYER_ID) {
+        this.demoPlayerReady = true;
+      }
       return;
     }
 
     try {
       await client.player.create({
         data: {
-          id: DEMO_PLAYER_ID,
-          externalUserId: DEMO_PLAYER_ID,
-          displayName: DEMO_PLAYER_NAME,
+          id: playerId,
+          externalUserId: playerId,
+          displayName: playerId === DEMO_PLAYER_ID ? DEMO_PLAYER_NAME : playerId,
           status: "active",
         },
       });
@@ -1779,37 +1858,41 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    this.demoPlayerReady = true;
+    if (playerId === DEMO_PLAYER_ID) {
+      this.demoPlayerReady = true;
+    }
   }
 
   private async buildRealtimePlayerState(
     event: EventWithRelations,
     eventStatus: EventStatus,
     prizes: EventPrizeDto[],
+    playerId = DEMO_PLAYER_ID,
   ): Promise<RealtimePlayerState> {
-    await this.ensureDemoPlayer();
+    await this.ensurePlayerExists(playerId);
 
     const [player, playerScore, rankedScores, usedSpinCount] = await Promise.all([
       this.prisma.player.findUnique({
         where: {
-          id: DEMO_PLAYER_ID,
+          id: playerId,
         },
       }),
-      this.getPlayerScoreRecord(event.id, eventStatus, this.prisma, false),
+      this.getPlayerScoreRecord(event.id, eventStatus, this.prisma, false, playerId),
       this.getRankedScores(event.id),
-      this.countUsedSpinsForCurrentDay(event.id, event.timezone),
+      this.countUsedSpinsForCurrentDay(event.id, event.timezone, this.prisma, playerId),
     ]);
 
     if (!player) {
-      throw new NotFoundException(`Unknown player: ${DEMO_PLAYER_ID}`);
+      throw new NotFoundException(`Unknown player: ${playerId}`);
     }
 
     const spinAllowance = await this.resolveSpinAllowance(
       event.id,
       eventStatus,
       usedSpinCount,
+      playerId,
     );
-    const rank = this.findPlayerRank(rankedScores, DEMO_PLAYER_ID);
+    const rank = this.findPlayerRank(rankedScores, playerId);
 
     return {
       totalScore: playerScore?.totalScore ?? 0,

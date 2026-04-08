@@ -23,6 +23,7 @@ import {
   maskLeaderboardPlayerName,
   openExternalLink,
 } from "../helpers";
+import { syncPrizeArtImage } from "../prizeImageLoader";
 
 type ActivityBubble = {
   container: Phaser.GameObjects.Container;
@@ -55,6 +56,7 @@ type InlineLeaderboardRow = {
 type PrizeSectionRow = {
   rankBadge: Phaser.GameObjects.Image;
   rewardZone: Phaser.GameObjects.Image;
+  prizeArt: Phaser.GameObjects.Image;
   prizeLabel: Phaser.GameObjects.Text;
   prizeDescription: Phaser.GameObjects.Text;
 };
@@ -695,6 +697,7 @@ export class LobbyScene extends Phaser.Scene {
     yValues.forEach((y, index) => {
       const rankBadge = this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(1);
       const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(1);
+      const prizeArt = this.add.image(rewardXs[index], y, "Prize_RewardZone").setVisible(false);
       const textAlign = index % 2 === 0 ? 0 : 1;
       const textX = rewardXs[index] + (index % 2 === 0 ? -180 : 180);
 
@@ -719,7 +722,7 @@ export class LobbyScene extends Phaser.Scene {
         })
         .setOrigin(textAlign, 0.5);
 
-      this.inlinePrizeRows.push({ rankBadge, rewardZone, prizeLabel, prizeDescription });
+      this.inlinePrizeRows.push({ rankBadge, rewardZone, prizeArt, prizeLabel, prizeDescription });
     });
   }
 
@@ -1036,6 +1039,7 @@ export class LobbyScene extends Phaser.Scene {
       const visible = Boolean(prize);
       row.rankBadge.setVisible(visible);
       row.rewardZone.setVisible(visible);
+       row.prizeArt.setVisible(false);
       row.prizeLabel.setVisible(visible);
       row.prizeDescription.setVisible(visible);
 
@@ -1047,6 +1051,8 @@ export class LobbyScene extends Phaser.Scene {
       row.prizeDescription.setText(
         prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
+      row.rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
+      syncPrizeArtImage(this, row.prizeArt, prize.imageUrl, 180, 120);
     });
   }
 

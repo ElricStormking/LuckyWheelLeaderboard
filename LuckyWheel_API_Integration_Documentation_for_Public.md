@@ -56,14 +56,28 @@ All public integration endpoints use **HTTP POST** and exchange **JSON** payload
 - allowed request timestamp tolerance
 - Merchant API egress IP information for Customer Platform SOAP allow-listing when needed
 
+### Network Allowlist Clarification
+
+Two different network values matter during integration:
+
+- inbound Merchant API endpoint for Customer Platform launch requests:
+  - example test endpoint: `http://34.81.237.79:4003/merchant-api/integration/launch`
+- outbound Merchant API egress IP for Customer Platform SOAP/WCF allow-listing:
+  - example test egress IP: `34.81.237.79`
+
+Important:
+
+- Customer Platform should call the Merchant API launch endpoint using the full host and port
+- Customer Platform should allow-list only the Merchant API source IP for server-to-server deposit eligibility requests
+- the Merchant API egress allow-list entry is the IP only, not `IP:port`
+
 ---
 
 ## Base URL
 
 | Environment | Base URL |
 |------------|----------|
-| Production | `https://merchant-api.luckywheel.example.com/merchant-api` |
-| Sandbox | `https://sandbox-merchant-api.luckywheel.example.com/merchant-api` |
+| Current UAT | `http://34.81.237.79:4003/merchant-api` |
 
 All public integration endpoints are prefixed with `/integration/`.
 
@@ -192,7 +206,7 @@ X-Integration-Guid: 11111111-1111-1111-1111-111111111111
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `url` | string | Lucky Wheel launch URL |
+| `url` | string | Lucky Wheel launch URL. Treat this as an opaque value and open it directly without parsing or rewriting query parameters. |
 | `sessionId` | string | Generated Lucky Wheel session ID |
 | `expiresAt` | string | Launch session expiry time in ISO 8601 format |
 
@@ -224,6 +238,17 @@ Lucky Wheel uses a server-to-server deposit eligibility check during gameplay.
 5. Customer Platform returns the deposit-rule decision.
 6. Merchant API returns the normalized eligibility result to Lucky Wheel Platform.
 7. Lucky Wheel Platform combines that deposit decision with its own event and daily-spin checks before allowing spin.
+
+### Allow-listing Note
+
+For Customer Platform SOAP/WCF allow-listing, use the Merchant API server's outbound source IP, not the public Merchant API listening port.
+
+Example for the current GCP test environment:
+
+- Customer Platform launch endpoint:
+  - `http://34.81.237.79:4003/merchant-api/integration/launch`
+- Merchant API outbound source IP to allow-list for SOAP/WCF:
+  - `34.81.237.79`
 
 ### Important Notes
 

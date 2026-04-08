@@ -24,14 +24,19 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const RETRY_DELAYS_MS = [350, 900, 1800];
 
-class HttpRequestError extends Error {
+export class HttpRequestError extends Error {
   constructor(readonly status: number) {
     super(`Request failed with status ${status}`);
   }
 }
 
+export function isHttpUnauthorizedError(error: unknown): error is HttpRequestError {
+  return error instanceof HttpRequestError && error.status === 401;
+}
+
 export class LuckyWheelApi {
   private locale: AppLocale = "en";
+  private accessToken?: string;
 
   setLocale(locale: AppLocale) {
     this.locale = locale;
@@ -39,6 +44,10 @@ export class LuckyWheelApi {
 
   getLocale() {
     return this.locale;
+  }
+
+  setAccessToken(accessToken?: string) {
+    this.accessToken = accessToken;
   }
 
   getLocalizationConfig(requestedLocale?: string) {
@@ -103,8 +112,15 @@ export class LuckyWheelApi {
   }
 
   createRealtimeSource(eventId: string) {
+    const requestUrl = `${API_BASE_URL}/v2/events/${eventId}/realtime`;
+    const url = new URL(requestUrl, window.location.href);
+    url.searchParams.set("locale", this.locale);
+    if (this.accessToken) {
+      url.searchParams.set("accessToken", this.accessToken);
+    }
+
     return new EventSource(
-      `${API_BASE_URL}/v2/events/${eventId}/realtime?locale=${encodeURIComponent(this.locale)}`,
+      url.toString(),
     );
   }
 
@@ -121,6 +137,10 @@ export class LuckyWheelApi {
 
     if (options.eligibilityOverride) {
       headers.set("x-lucky-eligibility-override", options.eligibilityOverride);
+    }
+
+    if (this.accessToken) {
+      headers.set("Authorization", `Bearer ${this.accessToken}`);
     }
 
     const method = (options.method ?? "GET").toUpperCase();
