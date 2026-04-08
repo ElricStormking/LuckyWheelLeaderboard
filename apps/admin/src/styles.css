@@ -564,6 +564,11 @@ button {
   vertical-align: top;
 }
 
+.admin-table th:nth-child(6),
+.admin-table td:nth-child(6) {
+  min-width: 420px;
+}
+
 .admin-table th {
   font-size: 13px;
   color: var(--muted);
@@ -598,7 +603,7 @@ button {
 .prize-upload {
   display: grid;
   gap: 10px;
-  min-width: 220px;
+  min-width: 380px;
 }
 
 .prize-upload__preview {
@@ -629,48 +634,18 @@ button {
   align-items: center;
 }
 
-.prize-upload__status {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
 .prize-upload__hint {
   font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
 }
 
-.prize-upload__meta {
+.prize-upload__url {
+  width: 100%;
+  min-width: 0;
   font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--ink);
-}
-
-.prize-upload__warning {
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: #b36c00;
-}
-
-.prize-upload__progress {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e5ebf4;
-}
-
-.prize-upload__progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--brand), var(--blue));
-}
-
-.prize-upload__input {
-  display: none;
+  font-family: Consolas, "SFMono-Regular", "Liberation Mono", monospace;
+  letter-spacing: -0.01em;
 }
 
 .link-grid {

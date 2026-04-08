@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 import {
+  AdminEventPrizesUpdateRequest,
   AdminEventTermsUpdateRequest,
   AdminEventUpsertRequest,
   AdminPlatformLinksUpdateRequest,
@@ -85,6 +86,21 @@ export class AdminController {
     @Headers("accept-language") acceptLanguage?: string,
   ) {
     return this.adminService.updateEventTerms(
+      eventId,
+      request,
+      resolveRequestedLocale(locale, localeHeader, acceptLanguage),
+    );
+  }
+
+  @Patch("events/:eventId/prizes")
+  updateEventPrizes(
+    @Param("eventId") eventId: string,
+    @Body() request: AdminEventPrizesUpdateRequest,
+    @Query("locale") locale?: string,
+    @Headers("x-lucky-locale") localeHeader?: string,
+    @Headers("accept-language") acceptLanguage?: string,
+  ) {
+    return this.adminService.updateEventPrizes(
       eventId,
       request,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),

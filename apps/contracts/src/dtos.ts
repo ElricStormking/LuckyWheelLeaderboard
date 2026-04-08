@@ -413,6 +413,10 @@ export interface AdminPlatformLinksUpdateRequest {
   platformLinks: Omit<AdminPlatformLinkConfigDto, "id">[];
 }
 
+export interface AdminEventPrizesUpdateRequest {
+  prizes: Omit<AdminPrizeConfigDto, "id">[];
+}
+
 export interface AdminPrizeImageUploadResponse {
   storageKey: string;
   publicUrl: string;

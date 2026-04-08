@@ -12,6 +12,7 @@ import {
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
   AdminEventLocalizationDto,
+  AdminEventPrizesUpdateRequest,
   AdminEventTermsUpdateRequest,
   AdminEventUpsertRequest,
   AdminEligibilityRecordsResponse,
@@ -300,6 +301,41 @@ export class AdminService {
         summary: `Updated terms and rules for event ${event.code}.`,
         payloadJson: JSON.stringify({
           locales: request.localizations.map((entry) => entry.locale),
+        }),
+      });
+    });
+
+    return this.getEventEditor(eventId, locale);
+  }
+
+  async updateEventPrizes(
+    eventId: string,
+    request: AdminEventPrizesUpdateRequest,
+    locale: AppLocale,
+  ): Promise<AdminEventEditorResponse> {
+    const event = await this.getEventRecordOrThrow(eventId);
+    this.validatePrizeConfigs(request.prizes);
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.eventPrize.deleteMany({
+        where: { eventCampaignId: eventId },
+      });
+      await transaction.eventCampaign.update({
+        where: { id: eventId },
+        data: {
+          prizes: {
+            create: this.buildPrizeCreateInput(eventId, request.prizes),
+          },
+        },
+      });
+      await this.createAuditLog(transaction, {
+        eventCampaignId: eventId,
+        action: "update_prizes",
+        entityType: "event_campaign",
+        entityId: eventId,
+        summary: `Updated prize settings for event ${event.code}.`,
+        payloadJson: JSON.stringify({
+          prizeCount: request.prizes.length,
         }),
       });
     });
@@ -825,11 +861,21 @@ export class AdminService {
       );
     });
 
-    if (request.prizes.length === 0) {
+    this.validatePrizeConfigs(request.prizes);
+
+    this.validatePlatformLinks(request.platformLinks);
+  }
+
+  private validatePrizeConfigs(
+    prizes: Array<
+      Pick<AdminEventUpsertRequest["prizes"][number], "rankFrom" | "rankTo" | "localizations">
+    >,
+  ) {
+    if (prizes.length === 0) {
       throw new BadRequestException("At least one prize tier is required.");
     }
 
-    request.prizes.forEach((entry, index) => {
+    prizes.forEach((entry, index) => {
       if (entry.rankFrom > entry.rankTo) {
         throw new BadRequestException(
           `Prize tier ${index + 1} has an invalid rank range.`,
@@ -840,8 +886,6 @@ export class AdminService {
         `prize ${index + 1} localizations`,
       );
     });
-
-    this.validatePlatformLinks(request.platformLinks);
   }
 
   private validateEventLocalizations(localizations: AdminEventLocalizationDto[]) {
@@ -1300,6 +1344,38 @@ export class AdminService {
           })),
         },
       }));
+  }
+
+  private buildPrizeCreateInput(
+    eventId: string,
+    prizes: AdminEventPrizesUpdateRequest["prizes"],
+  ) {
+    return prizes
+      .slice()
+      .sort((left, right) => left.displayOrder - right.displayOrder)
+      .map((entry, index) => {
+        const englishPrize = this.getEnglishPrizeContent(entry.localizations);
+
+        return {
+          id: `${eventId}-prize-${index + 1}`,
+          rankFrom: entry.rankFrom,
+          rankTo: entry.rankTo,
+          prizeLabel: englishPrize.prizeLabel,
+          prizeDescription: englishPrize.prizeDescription,
+          accentLabel: englishPrize.accentLabel ?? null,
+          imageUrl: entry.imageUrl,
+          displayOrder: entry.displayOrder,
+          localizations: {
+            create: entry.localizations.map((translation) => ({
+              id: `${eventId}-prize-${index + 1}-${translation.locale}`,
+              locale: translation.locale,
+              prizeLabel: translation.prizeLabel,
+              prizeDescription: translation.prizeDescription,
+              accentLabel: translation.accentLabel ?? null,
+            })),
+          },
+        };
+      });
   }
 
   private async getMerchantApiStatus(): Promise<MerchantApiStatusDto> {
