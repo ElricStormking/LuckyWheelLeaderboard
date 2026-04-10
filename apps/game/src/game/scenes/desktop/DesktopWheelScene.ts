@@ -8,6 +8,7 @@ import {
 import { playWinningEffect } from "../../audio";
 import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../../constants";
 import { addTextButton, openExternalLink } from "../../helpers";
+import { createRibbonsBurst } from "../../ribbonsFx";
 import { prototypeState } from "../../state/prototype-state";
 
 const WHEEL_CENTER_X = 960;
@@ -20,6 +21,7 @@ const POINTER_SCALE = 0.78;
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
+const FIREWORK_EFFECT_DEPTH = 6;
 const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
 const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
@@ -223,7 +225,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    this.launchCelebrationFireworks();
+    this.launchCelebrationFireworks(segmentIndex);
 
     this.celebrationTimer?.remove(false);
     this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
@@ -534,12 +536,12 @@ export class DesktopWheelScene extends Phaser.Scene {
     this.pointer.setAlpha(1);
   }
 
-  private launchCelebrationFireworks() {
+  private launchCelebrationFireworks(segmentIndex: number) {
     this.clearCelebrationBursts();
 
     for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
       const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
-        const point = this.getRandomFireworkPoint();
+        const point = this.getWinningSegmentFireworkPoint(segmentIndex);
         const isHeroBurst = index % 4 === 0;
         this.createFireworkBurst(
           point.x,
@@ -566,16 +568,21 @@ export class DesktopWheelScene extends Phaser.Scene {
     this.celebrationBursts = [];
   }
 
-  private getRandomFireworkPoint() {
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const radius = Phaser.Math.Between(280, 520);
+  private getWinningSegmentFireworkPoint(segmentIndex: number) {
+    const wheelRadius = (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2;
+    const segmentAngle =
+      this.wheelRotation +
+      Phaser.Math.DegToRad(-90 + segmentIndex * 60 + Phaser.Math.FloatBetween(-34, 34));
+    const tangentAngle = segmentAngle + Math.PI / 2;
+    const radius = wheelRadius * Phaser.Math.FloatBetween(0.42, 1.28);
+    const tangentOffset = wheelRadius * Phaser.Math.FloatBetween(-0.34, 0.34);
     const x = Phaser.Math.Clamp(
-      WHEEL_CENTER_X + Math.cos(angle) * radius + Phaser.Math.Between(-40, 40),
+      WHEEL_CENTER_X + Math.cos(segmentAngle) * radius + Math.cos(tangentAngle) * tangentOffset,
       340,
       1580,
     );
     const y = Phaser.Math.Clamp(
-      WHEEL_CENTER_Y + Math.sin(angle) * radius + Phaser.Math.Between(-35, 35),
+      WHEEL_CENTER_Y + Math.sin(segmentAngle) * radius + Math.sin(tangentAngle) * tangentOffset,
       300,
       930,
     );
@@ -585,8 +592,8 @@ export class DesktopWheelScene extends Phaser.Scene {
 
   private getNearbyFireworkPoint(origin: { x: number; y: number }) {
     return {
-      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-110, 110), 340, 1580),
-      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-95, 95), 300, 930),
+      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-128, 128), 340, 1580),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 300, 930),
     };
   }
 
@@ -605,6 +612,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     const burstBaseColor = colors[Phaser.Math.Between(0, colors.length - 1)];
 
     const flash = this.add.circle(x, y, 20 * scale, burstBaseColor, 0.5);
+    flash.setDepth(FIREWORK_EFFECT_DEPTH);
     this.tweens.add({
       targets: flash,
       scale: 3.9,
@@ -616,6 +624,7 @@ export class DesktopWheelScene extends Phaser.Scene {
 
     const ring = this.add.circle(x, y, 30 * scale);
     ring.setStrokeStyle(6 * scale, burstBaseColor, 0.92);
+    ring.setDepth(FIREWORK_EFFECT_DEPTH);
     this.tweens.add({
       targets: ring,
       scale: 4.2,
@@ -626,6 +635,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     });
 
     const spokes = this.add.graphics({ x, y });
+    spokes.setDepth(FIREWORK_EFFECT_DEPTH);
     for (let index = 0; index < 6; index += 1) {
       const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.12, 0.12);
       const inner = 18 * scale;
@@ -647,6 +657,12 @@ export class DesktopWheelScene extends Phaser.Scene {
       onComplete: () => spokes.destroy(),
     });
 
+    createRibbonsBurst(this, x, y, {
+      depth: FIREWORK_EFFECT_DEPTH,
+      scale: scale * Phaser.Math.FloatBetween(0.74, 0.94),
+      alpha: Phaser.Math.FloatBetween(0.94, 1),
+    });
+
     const particleCount = Phaser.Math.Between(8, 12);
     for (let index = 0; index < particleCount; index += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
@@ -662,6 +678,7 @@ export class DesktopWheelScene extends Phaser.Scene {
           particleColor,
           Phaser.Math.FloatBetween(0.86, 1),
         );
+      particle.setDepth(FIREWORK_EFFECT_DEPTH);
 
       this.tweens.add({
         targets: particle,

@@ -727,29 +727,58 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawInlineRulesSection() {
-    addRoundedPanel(this, 540, 6370, 900, 1060, {
-      fillColor: COLORS.white,
-      radius: 30,
-    });
+    const stripeBandTop = 6760;
+    const stripeBandHeight = 340;
+    const stripeBandBottom = stripeBandTop + stripeBandHeight;
+    const stripeBand = this.add.graphics();
+    const stripeSpacing = 24;
+    const stripeSegments = 10;
+    const stripeColor = 0xe9f8ff;
+    const stripeWidth = 5;
 
-    this.add
-      .text(540, 5798, "《Terms and conditions》", {
+    for (let offset = -220; offset < STAGE_WIDTH + 220; offset += stripeSpacing) {
+      for (let segment = 0; segment < stripeSegments; segment += 1) {
+        const progressStart = segment / stripeSegments;
+        const progressEnd = (segment + 1) / stripeSegments;
+        const startX = offset + stripeBandHeight * progressStart;
+        const startY = stripeBandBottom - stripeBandHeight * progressStart;
+        const endX = offset + stripeBandHeight * progressEnd;
+        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
+        const alpha = Phaser.Math.Linear(0.92, 0.18, progressStart);
+
+        stripeBand.lineStyle(stripeWidth, stripeColor, alpha);
+        stripeBand.lineBetween(startX, startY, endX, endY);
+      }
+    }
+    stripeBand.setDepth(0);
+
+    const termsPanel = this.add.graphics();
+    termsPanel.fillStyle(COLORS.white, 0.98);
+    termsPanel.fillRect(90, 5840, 900, 1060);
+    termsPanel.lineStyle(2, COLORS.line, 0.65);
+    termsPanel.strokeRect(90, 5840, 900, 1060);
+    termsPanel.setDepth(1);
+
+    const termsTitle = this.add
+      .text(540, 5906, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
-        fontSize: "34px",
-        fontStyle: "700",
+        fontSize: "42px",
+        fontStyle: "800",
         color: "#18aef5",
       })
       .setOrigin(0.5);
+    termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
-      .text(110, 5865, "", {
+      .text(120, 5978, "", {
         fontFamily: FONTS.body,
         fontSize: "28px",
         color: "#253a4e",
-        lineSpacing: 12,
-        wordWrap: { width: 860, useAdvancedWrap: true },
+        lineSpacing: 10,
+        wordWrap: { width: 796, useAdvancedWrap: true },
       })
       .setOrigin(0, 0);
+    this.rulesBodyText.setDepth(2);
 
     const depositButton = addTextButton(
       this,
@@ -768,6 +797,7 @@ export class LobbyScene extends Phaser.Scene {
       },
     );
     depositButton.label.setFontSize(34);
+    depositButton.container.setDepth(3);
   }
 
   private drawDevPanel() {

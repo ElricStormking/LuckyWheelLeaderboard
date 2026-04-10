@@ -28,6 +28,7 @@ import {
 } from "../../constants";
 import { prototypeState } from "../../state/prototype-state";
 import { syncPrizeArtImage } from "../../prizeImageLoader";
+import { createRibbonsBurst } from "../../ribbonsFx";
 import { DesktopPageScene } from "./DesktopPageScene";
 import {
   DESKTOP_RANKING_PLATE_KEYS,
@@ -204,6 +205,7 @@ const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
+const FIREWORK_EFFECT_DEPTH = 6;
 const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
 const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
@@ -970,11 +972,37 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createTermsSection() {
-    const termsPlate = this.add.graphics();
-    termsPlate.fillStyle(0xe4e4e4, 1);
-    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
+    const stripeBandTop = TERMS_SECTION_TOP + 620;
+    const stripeBandHeight = CONTENT_HEIGHT - stripeBandTop;
+    const stripeBandBottom = stripeBandTop + stripeBandHeight;
+    const stripeBand = this.add.graphics();
+    const stripeSpacing = 36;
+    const stripeSegments = 10;
+    const stripeColor = 0xe9f8ff;
+    const stripeWidth = 6;
 
-    this.add
+    for (let offset = -360; offset < STAGE_WIDTH + 360; offset += stripeSpacing) {
+      for (let segment = 0; segment < stripeSegments; segment += 1) {
+        const progressStart = segment / stripeSegments;
+        const progressEnd = (segment + 1) / stripeSegments;
+        const startX = offset + stripeBandHeight * progressStart;
+        const startY = stripeBandBottom - stripeBandHeight * progressStart;
+        const endX = offset + stripeBandHeight * progressEnd;
+        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
+        const alpha = Phaser.Math.Linear(0.92, 0.18, progressStart);
+
+        stripeBand.lineStyle(stripeWidth, stripeColor, alpha);
+        stripeBand.lineBetween(startX, startY, endX, endY);
+      }
+    }
+    stripeBand.setDepth(0);
+
+    const termsPlate = this.add.graphics();
+    termsPlate.fillStyle(0xf4f4f4, 1);
+    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
+    termsPlate.setDepth(1);
+
+    const termsTitle = this.add
       .text(960, TERMS_SECTION_TOP + 208, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
         fontSize: "68px",
@@ -982,6 +1010,7 @@ export class DesktopMainScene extends DesktopPageScene {
         color: "#47bdf6",
       })
       .setOrigin(0.5);
+    termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
       .text(250, TERMS_SECTION_TOP + 350, "", {
@@ -992,6 +1021,7 @@ export class DesktopMainScene extends DesktopPageScene {
         wordWrap: { width: 1420, useAdvancedWrap: true },
       })
       .setOrigin(0, 0);
+    this.rulesBodyText.setDepth(2);
 
   }
 
@@ -1497,7 +1527,7 @@ export class DesktopMainScene extends DesktopPageScene {
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    this.launchCelebrationFireworks();
+    this.launchCelebrationFireworks(segmentIndex);
 
     this.celebrationTimer?.remove(false);
     this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
@@ -1809,12 +1839,12 @@ export class DesktopMainScene extends DesktopPageScene {
     this.pointer.setAlpha(1);
   }
 
-  private launchCelebrationFireworks() {
+  private launchCelebrationFireworks(segmentIndex: number) {
     this.clearCelebrationBursts();
 
     for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
       const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
-        const point = this.getRandomFireworkPoint();
+        const point = this.getWinningSegmentFireworkPoint(segmentIndex);
         const isHeroBurst = index % 4 === 0;
         this.createFireworkBurst(
           point.x,
@@ -1841,16 +1871,21 @@ export class DesktopMainScene extends DesktopPageScene {
     this.celebrationBursts = [];
   }
 
-  private getRandomFireworkPoint() {
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const radius = Phaser.Math.Between(280, 520);
+  private getWinningSegmentFireworkPoint(segmentIndex: number) {
+    const wheelRadius = (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2;
+    const segmentAngle =
+      this.wheelRotation +
+      Phaser.Math.DegToRad(-90 + segmentIndex * 60 + Phaser.Math.FloatBetween(-34, 34));
+    const tangentAngle = segmentAngle + Math.PI / 2;
+    const radius = wheelRadius * Phaser.Math.FloatBetween(0.42, 1.28);
+    const tangentOffset = wheelRadius * Phaser.Math.FloatBetween(-0.34, 0.34);
     const x = Phaser.Math.Clamp(
-      WHEEL_CENTER_X + Math.cos(angle) * radius + Phaser.Math.Between(-40, 40),
+      WHEEL_CENTER_X + Math.cos(segmentAngle) * radius + Math.cos(tangentAngle) * tangentOffset,
       340,
       1580,
     );
     const y = Phaser.Math.Clamp(
-      WHEEL_CENTER_Y + Math.sin(angle) * radius + Phaser.Math.Between(-35, 35),
+      WHEEL_CENTER_Y + Math.sin(segmentAngle) * radius + Math.sin(tangentAngle) * tangentOffset,
       360,
       1440,
     );
@@ -1860,8 +1895,8 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private getNearbyFireworkPoint(origin: { x: number; y: number }) {
     return {
-      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-110, 110), 340, 1580),
-      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-95, 95), 360, 1440),
+      x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-128, 128), 340, 1580),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 360, 1440),
     };
   }
 
@@ -1880,6 +1915,7 @@ export class DesktopMainScene extends DesktopPageScene {
     const burstBaseColor = colors[Phaser.Math.Between(0, colors.length - 1)];
 
     const flash = this.add.circle(x, y, 20 * scale, burstBaseColor, 0.5);
+    flash.setDepth(FIREWORK_EFFECT_DEPTH);
     this.tweens.add({
       targets: flash,
       scale: 3.9,
@@ -1891,6 +1927,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
     const ring = this.add.circle(x, y, 30 * scale);
     ring.setStrokeStyle(6 * scale, burstBaseColor, 0.92);
+    ring.setDepth(FIREWORK_EFFECT_DEPTH);
     this.tweens.add({
       targets: ring,
       scale: 4.2,
@@ -1901,6 +1938,7 @@ export class DesktopMainScene extends DesktopPageScene {
     });
 
     const spokes = this.add.graphics({ x, y });
+    spokes.setDepth(FIREWORK_EFFECT_DEPTH);
     for (let index = 0; index < 6; index += 1) {
       const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.12, 0.12);
       const inner = 18 * scale;
@@ -1922,6 +1960,12 @@ export class DesktopMainScene extends DesktopPageScene {
       onComplete: () => spokes.destroy(),
     });
 
+    createRibbonsBurst(this, x, y, {
+      depth: FIREWORK_EFFECT_DEPTH,
+      scale: scale * Phaser.Math.FloatBetween(0.74, 0.94),
+      alpha: Phaser.Math.FloatBetween(0.94, 1),
+    });
+
     const particleCount = Phaser.Math.Between(8, 12);
     for (let index = 0; index < particleCount; index += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
@@ -1937,6 +1981,7 @@ export class DesktopMainScene extends DesktopPageScene {
           particleColor,
           Phaser.Math.FloatBetween(0.86, 1),
         );
+      particle.setDepth(FIREWORK_EFFECT_DEPTH);
 
       this.tweens.add({
         targets: particle,
