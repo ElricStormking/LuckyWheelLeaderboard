@@ -4,8 +4,8 @@
             {
                 "url": "assets/ribbons/ribbons.png",
                 "frameConfig": {
-                    "frameWidth": 1058,
-                    "frameHeight": 829,
+                    "frameWidth": 455,
+                    "frameHeight": 356,
                     "startFrame": 0,
                     "endFrame": -1,
                     "spacing": 0,

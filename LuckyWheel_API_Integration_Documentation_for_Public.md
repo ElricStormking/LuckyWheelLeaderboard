@@ -1,7 +1,7 @@
 # Lucky Wheel Public Integration API Documentation
 
 **Version:** 1.9  
-**Last Updated:** April 1, 2026
+**Last Updated:** April 12, 2026
 
 ---
 
@@ -51,7 +51,7 @@ All public integration endpoints use **HTTP POST** and exchange **JSON** payload
 
 ### Information Returned by Lucky Wheel Provider
 
-- shared `X-Integration-Guid` credential
+- shared `X-Integration-Guid` credentials for close beta/UAT and production
 - production and sandbox Merchant API base URLs
 - allowed request timestamp tolerance
 - Merchant API egress IP information for Customer Platform SOAP allow-listing when needed
@@ -92,6 +92,15 @@ Every public Lucky Wheel API request must include:
 3. a caller IP that is allowlisted for the merchant
 
 `X-Integration-Guid` is the shared customer-platform credential assigned during onboarding. `timestamp` is used for freshness validation only.
+
+### Environment Credentials
+
+Use the credential that matches the target environment. `X-Integration-Guid` is shared per customer-platform environment, not per player. The `SiteID` mapping below is included only to align with the customer platform's own environment naming; `SiteID` is not sent to the public launch API.
+
+| Environment | Customer Platform SiteID | X-Integration-Guid |
+|-------------|--------------------------|--------------------|
+| Close Beta / UAT | `A` | `f549b22d-b2f6-4224-aabb-0489a2cb7390` |
+| Production | `C` | `0f16f1d2-445b-49f2-ac80-6a092818f122` |
 
 ### Timestamp Rules
 
@@ -174,7 +183,7 @@ Lucky Wheel also does not require a separate player display name from Customer P
 #### Header Example
 
 ```text
-X-Integration-Guid: 11111111-1111-1111-1111-111111111111
+X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
 ```
 
 #### Request Example

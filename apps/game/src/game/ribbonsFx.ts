@@ -3,11 +3,12 @@ import ribbonsSpriteSheetUrl from "../FX/ribbons/ribbons.png";
 
 const RIBBONS_TEXTURE_KEY = "fx-ribbons";
 const RIBBONS_ANIMATION_KEY = "fx-ribbons-burst";
-const RIBBONS_FRAME_WIDTH = 1058;
-const RIBBONS_FRAME_HEIGHT = 829;
+const RIBBONS_FRAME_WIDTH = 455;
+const RIBBONS_FRAME_HEIGHT = 356;
 const RIBBONS_LAST_FRAME = 26;
 const RIBBONS_FRAME_RATE = 24;
-const BASE_RIBBONS_SCALE = 0.52;
+const BASE_RIBBONS_DISPLAY_WIDTH = 1058 * 0.52;
+const BASE_RIBBONS_DISPLAY_HEIGHT = 829 * 0.52;
 
 export function preloadRibbonsFx(scene: Phaser.Scene) {
   if (scene.textures.exists(RIBBONS_TEXTURE_KEY)) {
@@ -59,7 +60,10 @@ export function createRibbonsBurst(
 
   const ribbon = scene.add
     .sprite(x, y, RIBBONS_TEXTURE_KEY, 0)
-    .setScale(BASE_RIBBONS_SCALE * (options.scale ?? 1))
+    .setDisplaySize(
+      BASE_RIBBONS_DISPLAY_WIDTH * (options.scale ?? 1),
+      BASE_RIBBONS_DISPLAY_HEIGHT * (options.scale ?? 1),
+    )
     .setAlpha(options.alpha ?? 1)
     .setRotation(Phaser.Math.FloatBetween(-Math.PI, Math.PI))
     .setFlipX(Phaser.Math.Between(0, 1) === 1)
