@@ -79,12 +79,13 @@ const INLINE_LEADERBOARD_HEADER_UNDERLINE_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y 
 const INLINE_LEADERBOARD_ROW_OFFSET_Y = 60;
 const INLINE_LEADERBOARD_PLATE_SCALE = 0.32;
 const INLINE_LEADERBOARD_SELF_PLATE_SCALE = 0.34;
+const INLINE_LEADERBOARD_LAYOUT_OFFSET_X = -29;
 const INLINE_LEADERBOARD_PLATE_BASE_X = 404;
-const INLINE_LEADERBOARD_RANK_COLUMN_X = 182;
-const INLINE_LEADERBOARD_USERNAME_COLUMN_X = 375;
-const INLINE_LEADERBOARD_TOTAL_HEADER_X = 584;
+const INLINE_LEADERBOARD_RANK_COLUMN_X = 190;
+const INLINE_LEADERBOARD_USERNAME_COLUMN_X = 404;
+const INLINE_LEADERBOARD_TOTAL_HEADER_X = 601;
 const INLINE_LEADERBOARD_PRIZE_TEXT_X = 194;
-const INLINE_LEADERBOARD_SCORE_TEXT_X = 598;
+const INLINE_LEADERBOARD_SCORE_TEXT_X = 645;
 const INLINE_LEADERBOARD_PAGE_BUTTON_SCALE = 0.72;
 const INLINE_LEADERBOARD_PAGE_BUTTON_Y = 3524;
 const INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y = 3566;
@@ -488,9 +489,9 @@ export class LobbyScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.add
-      .text(
-        this.fromEditorX(INLINE_LEADERBOARD_RANK_COLUMN_X),
+      this.add
+        .text(
+        this.getInlineLeaderboardX(INLINE_LEADERBOARD_RANK_COLUMN_X),
         INLINE_LEADERBOARD_COLUMN_LABEL_Y,
         prototypeState.t("leaderboard.columnRank"),
         {
@@ -502,9 +503,9 @@ export class LobbyScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    this.add
-      .text(
-        this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X),
+      this.add
+        .text(
+        this.getInlineLeaderboardX(INLINE_LEADERBOARD_USERNAME_COLUMN_X),
         INLINE_LEADERBOARD_COLUMN_LABEL_Y,
         prototypeState.t("leaderboard.columnUsername"),
         {
@@ -516,9 +517,9 @@ export class LobbyScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    this.add
-      .text(
-        this.fromEditorX(INLINE_LEADERBOARD_TOTAL_HEADER_X),
+      this.add
+        .text(
+        this.getInlineLeaderboardX(INLINE_LEADERBOARD_TOTAL_HEADER_X),
         INLINE_LEADERBOARD_COLUMN_LABEL_Y,
         prototypeState.t("leaderboard.columnTotalPoints"),
         {
@@ -531,11 +532,13 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const headerUnderline = this.add.graphics();
+    const headerUnderlineCenterX = this.fromEditorX(379);
+    const headerUnderlineHalfWidth = this.fromEditorX((678 - 72) / 2);
     headerUnderline.lineStyle(3, 0x21b7f7, 0.96);
     headerUnderline.lineBetween(
-      this.fromEditorX(72),
+      headerUnderlineCenterX - headerUnderlineHalfWidth,
       INLINE_LEADERBOARD_HEADER_UNDERLINE_Y,
-      this.fromEditorX(678),
+      headerUnderlineCenterX + headerUnderlineHalfWidth,
       INLINE_LEADERBOARD_HEADER_UNDERLINE_Y,
     );
 
@@ -555,11 +558,11 @@ export class LobbyScene extends Phaser.Scene {
       const highlightArrow = this.add.graphics();
       highlightArrow.fillStyle(COLORS.primary, 1);
       highlightArrow.fillTriangle(
-        this.fromEditorX(42),
+        this.getInlineLeaderboardX(42),
         y - 18,
-        this.fromEditorX(64),
+        this.getInlineLeaderboardX(64),
         y,
-        this.fromEditorX(42),
+        this.getInlineLeaderboardX(42),
         y + 18,
       );
       highlightArrow.setDepth(1);
@@ -571,7 +574,7 @@ export class LobbyScene extends Phaser.Scene {
         .setScale(plateScale);
 
       const playerText = this.add
-        .text(this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), y - 4, "-", {
+        .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), y - 4, "-", {
           fontFamily: FONTS.body,
           fontSize: "30px",
           fontStyle: "700",
@@ -580,18 +583,18 @@ export class LobbyScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5);
 
       const prizeText = this.add
-        .text(this.fromEditorX(INLINE_LEADERBOARD_PRIZE_TEXT_X), this.getLeaderboardPrizeTextY(y, index + 1), "", {
+        .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_PRIZE_TEXT_X), this.getLeaderboardPrizeTextY(y, index + 1), "", {
           fontFamily: FONTS.body,
-          fontSize: "22px",
+          fontSize: "33px",
           fontStyle: "700",
           color: "#5d7d97",
         })
         .setOrigin(0.5, 0.5);
 
       const scoreText = this.add
-        .text(this.fromEditorX(INLINE_LEADERBOARD_SCORE_TEXT_X), y - 4, "-", {
+        .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_SCORE_TEXT_X), y - 4, "-", {
           fontFamily: FONTS.display,
-          fontSize: "32px",
+          fontSize: "42px",
           fontStyle: "700",
           color: "#10a7eb",
         })
@@ -616,12 +619,12 @@ export class LobbyScene extends Phaser.Scene {
     this.add.image(this.fromEditorX(374), INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y, "Divider").setScale(1);
 
     this.myRankSummaryPlate = this.add
-      .image(540, INLINE_LEADERBOARD_SUMMARY_Y, "RankingPlate_Notl")
+      .image(this.getInlineLeaderboardX(INLINE_LEADERBOARD_PLATE_BASE_X), INLINE_LEADERBOARD_SUMMARY_Y, "RankingPlate_Notl")
       .setScale(INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE)
       .setVisible(false);
 
     this.myRankSummaryPlayerText = this.add
-      .text(this.fromEditorX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
+      .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_USERNAME_COLUMN_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
         fontFamily: FONTS.body,
         fontSize: "30px",
         fontStyle: "700",
@@ -631,9 +634,9 @@ export class LobbyScene extends Phaser.Scene {
       .setVisible(false);
 
     this.myRankSummaryPrizeText = this.add
-      .text(this.fromEditorX(INLINE_LEADERBOARD_PRIZE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y, "", {
+      .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_PRIZE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y, "", {
         fontFamily: FONTS.body,
-        fontSize: "22px",
+        fontSize: "33px",
         fontStyle: "700",
         color: "#5d7d97",
       })
@@ -641,9 +644,9 @@ export class LobbyScene extends Phaser.Scene {
       .setVisible(false);
 
     this.myRankSummaryScoreText = this.add
-      .text(this.fromEditorX(INLINE_LEADERBOARD_SCORE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
+      .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_SCORE_TEXT_X), INLINE_LEADERBOARD_SUMMARY_Y - 4, "", {
         fontFamily: FONTS.display,
-        fontSize: "32px",
+        fontSize: "42px",
         fontStyle: "700",
         color: "#10a7eb",
       })
@@ -1031,7 +1034,7 @@ export class LobbyScene extends Phaser.Scene {
         : summarySlotBaseY;
       const summaryPlateX = showTopRankSummaryPlate
         ? this.getLeaderboardPlateX(myRank.rank, INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE)
-        : 540;
+        : this.getInlineLeaderboardX(INLINE_LEADERBOARD_PLATE_BASE_X);
 
       this.myRankSummaryPlate
         ?.setTexture(showTopRankSummaryPlate ? this.getLeaderboardPlateKey(myRank.rank) : "RankingPlate_Notl")
@@ -1288,10 +1291,14 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private getLeaderboardPlateX(rank: number, scaleX: number) {
-    const baseX = this.fromEditorX(INLINE_LEADERBOARD_PLATE_BASE_X);
+    const baseX = this.getInlineLeaderboardX(INLINE_LEADERBOARD_PLATE_BASE_X);
     const baselineVisualCenterOffset = -0.5;
     const visualCenterOffset = LEADERBOARD_PLATE_VISUAL_CENTER_OFFSETS[rank] ?? baselineVisualCenterOffset;
     return baseX + (baselineVisualCenterOffset - visualCenterOffset) * scaleX;
+  }
+
+  private getInlineLeaderboardX(editorX: number) {
+    return this.fromEditorX(editorX + INLINE_LEADERBOARD_LAYOUT_OFFSET_X);
   }
 
   private getLeaderboardRowY(baseRowY: number, rank: number) {
