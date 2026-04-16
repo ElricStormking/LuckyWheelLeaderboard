@@ -17,7 +17,9 @@ const WHEEL_SCALE = 0.85;
 const WHEEL_BACKDROP_SCALE = 0.86;
 const WHEEL_BACKDROP_SIZE = 972;
 const POINTER_SCALE = 0.58;
-const POINTER_GAP = -14 * WHEEL_SCALE;
+// Negative gap lets the pointer overlap the wheel rim; this value places roughly
+// half of the mobile triangle into the wheel.
+const POINTER_GAP = -40 * WHEEL_SCALE;
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
@@ -336,18 +338,18 @@ export class WheelScene extends Phaser.Scene {
       );
 
       const label = this.add
-        .text(0, -22, segment.label, {
+        .text(0, -29, segment.label, {
           fontFamily: FONTS.displayName,
-          fontSize: "76px",
+          fontSize: "99px",
           fontStyle: "800",
           color: labelColor,
         })
         .setOrigin(0.5);
 
       const unit = this.add
-        .text(0, 36, "points", {
+        .text(0, 47, "points", {
           fontFamily: FONTS.bodyName,
-          fontSize: "30px",
+          fontSize: "39px",
           fontStyle: "700",
           color: labelColor,
         })

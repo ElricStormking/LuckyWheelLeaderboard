@@ -525,26 +525,32 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createHero() {
+    const tutorialScale = 0.44;
+    const tutorialTextureWidth = 990;
+    const tutorialIconXs = [161, 498, 830];
+
     this.add.image(960, HERO_TITLE_Y, "Desktop_MainTitle").setScale(0.9);
-    this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(0.44);
+    this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(tutorialScale);
 
     const stepCopy = [
       `${prototypeState.t("lobby.stepDepositTitle")}\n${prototypeState.t("lobby.stepDepositCopy")}`,
       `${prototypeState.t("lobby.stepSpinTitle")}\n${prototypeState.t("lobby.stepSpinCopy")}`,
       `${prototypeState.t("lobby.stepRankTitle")}\n${prototypeState.t("lobby.stepRankCopy")}`,
     ];
-    const stepXs = [819, 960, 1101];
+    const stepXs = tutorialIconXs.map(
+      (iconX) => 960 + (iconX - tutorialTextureWidth / 2) * tutorialScale,
+    );
 
     stepXs.forEach((x, index) => {
       this.add
-        .text(x, HERO_TUTORIAL_Y + 28, stepCopy[index], {
+        .text(x, HERO_TUTORIAL_Y + 32, stepCopy[index], {
           fontFamily: FONTS.body,
-          fontSize: "17px",
+          fontSize: "26px",
           fontStyle: "700",
           color: "#179fe7",
           align: "center",
-          lineSpacing: 2,
-          wordWrap: { width: 132, useAdvancedWrap: true },
+          lineSpacing: 3,
+          wordWrap: { width: 142, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
     });

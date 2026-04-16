@@ -355,11 +355,17 @@ export class LobbyScene extends Phaser.Scene {
     };
 
     const stepSectionOffsetY = 20;
+    const tutorialCenterX = 540;
+    const tutorialScale = 0.86;
+    const tutorialTextureWidth = 990;
+    const tutorialIconXs = [161, 498, 830];
     this.add.image(540, 286, "Title_01").setScale(0.86);
-    this.add.image(540, 454 + stepSectionOffsetY, "GameTutorial").setScale(0.86);
+    this.add.image(tutorialCenterX, 454 + stepSectionOffsetY, "GameTutorial").setScale(tutorialScale);
 
     const stepTextY = 502 + stepSectionOffsetY;
-    const textPositions = [this.fromEditorX(160), this.fromEditorX(375), this.fromEditorX(590)];
+    const textPositions = tutorialIconXs.map(
+      (iconX) => tutorialCenterX + (iconX - tutorialTextureWidth / 2) * tutorialScale,
+    );
     const steps = [
       `${copy.depositTitle}\n${copy.depositCopy}`,
       `${copy.spinTitle}\n${copy.spinCopy}`,
@@ -370,7 +376,7 @@ export class LobbyScene extends Phaser.Scene {
       this.add
         .text(x, stepTextY, steps[index], {
           fontFamily: FONTS.body,
-          fontSize: "24px",
+          fontSize: "36px",
           fontStyle: "700",
           color: "#119ae0",
           align: "center",
