@@ -172,8 +172,11 @@ const WHEEL_CENTER_Y = 978;
 const WHEEL_SCALE = 0.705;
 const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
-const POINTER_Y = WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + 2;
 const POINTER_SCALE = 0.76;
+const POINTER_ASSET_HEIGHT = 138;
+// Drop roughly half the desktop pointer into the wheel rim.
+const POINTER_Y =
+  WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + (POINTER_ASSET_HEIGHT * POINTER_SCALE) / 2;
 const SUMMARY_PANEL_Y = 1450;
 
 const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
@@ -525,7 +528,7 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createHero() {
-    const tutorialScale = 0.44;
+    const tutorialScale = 0.484;
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
 
@@ -545,12 +548,12 @@ export class DesktopMainScene extends DesktopPageScene {
       this.add
         .text(x, HERO_TUTORIAL_Y + 32, stepCopy[index], {
           fontFamily: FONTS.body,
-          fontSize: "26px",
+          fontSize: "18px",
           fontStyle: "700",
           color: "#179fe7",
           align: "center",
           lineSpacing: 3,
-          wordWrap: { width: 142, useAdvancedWrap: true },
+          wordWrap: { width: 156, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
     });
