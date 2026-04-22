@@ -61,7 +61,8 @@ export function createLuckyWheelGame(parent: string, layout: GameLayout = "mobil
     backgroundColor: `#${COLORS.pageTop.toString(16).padStart(6, "0")}`,
     scale: {
       mode: Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
+      autoCenter:
+        layout === "desktop" ? Phaser.Scale.CENTER_BOTH : Phaser.Scale.NO_CENTER,
     },
     scene: scenes,
     render: {

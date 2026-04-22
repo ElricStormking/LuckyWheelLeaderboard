@@ -302,25 +302,25 @@ export class LobbyScene extends Phaser.Scene {
 
     this.add.image(this.fromEditorX(83), 110, "Button_iBET").setScale(0.86);
 
-    this.periodPanel = this.add.image(centeredPeriodX, 110, "Frame_time_01").setScale(0.38);
+    this.periodPanel = this.add.image(centeredPeriodX, 110, "Frame_time_01").setScale(0.44);
     this.periodPanel.setInteractive({ useHandCursor: true });
-    this.periodPanel.on("pointerover", () => this.periodPanel?.setScale(0.392));
-    this.periodPanel.on("pointerout", () => this.periodPanel?.setScale(0.38));
+    this.periodPanel.on("pointerover", () => this.periodPanel?.setScale(0.452));
+    this.periodPanel.on("pointerout", () => this.periodPanel?.setScale(0.44));
     this.periodPanel.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.PeriodOverlay)));
 
     this.add
-      .text(this.fromEditorX(207) + headerClusterOffsetX, 92, prototypeState.t("lobby.selectPeriod"), {
+      .text(this.fromEditorX(188) + headerClusterOffsetX, 88, prototypeState.t("lobby.selectPeriod"), {
         fontFamily: FONTS.body,
-        fontSize: "16px",
+        fontSize: "24px",
         fontStyle: "700",
         color: "#5f8098",
       })
       .setOrigin(0, 0.5);
 
     this.periodPill = this.add
-      .text(centeredPeriodX, 120, prototypeState.t("lobby.loadingLiveEvent"), {
+      .text(centeredPeriodX, 122, prototypeState.t("lobby.loadingLiveEvent"), {
         fontFamily: FONTS.body,
-        fontSize: "24px",
+        fontSize: "36px",
         fontStyle: "700",
         color: "#415f77",
       })

@@ -68,6 +68,22 @@ export const DEV_ELIGIBILITY_OPTIONS = [
   { label: "Ended", value: "EVENT_ENDED" },
 ] as const;
 
+function resolveMobileStageHeight() {
+  if (typeof window === "undefined") {
+    return STAGE_DIMENSIONS.mobile.height;
+  }
+
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+
+  if (!viewportWidth || !viewportHeight) {
+    return STAGE_DIMENSIONS.mobile.height;
+  }
+
+  const resolvedHeight = Math.round((STAGE_DIMENSIONS.mobile.width * viewportHeight) / viewportWidth);
+  return Math.max(STAGE_DIMENSIONS.mobile.height, resolvedHeight);
+}
+
 export function shouldShowDevEligibilitySwitch() {
   return new URL(window.location.href).searchParams.get("dev") === "1";
 }
@@ -75,7 +91,8 @@ export function shouldShowDevEligibilitySwitch() {
 export function configureStageLayout(layout: GameLayout) {
   ACTIVE_GAME_LAYOUT = layout;
   STAGE_WIDTH = STAGE_DIMENSIONS[layout].width;
-  STAGE_HEIGHT = STAGE_DIMENSIONS[layout].height;
+  STAGE_HEIGHT =
+    layout === "mobile" ? resolveMobileStageHeight() : STAGE_DIMENSIONS.desktop.height;
 }
 
 export function isDesktopLayout() {

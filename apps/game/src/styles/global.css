@@ -23,11 +23,14 @@
 }
 
 html.mobile-immersive {
-  --shell-pad-top: var(--safe-top);
-  --shell-pad-right: var(--safe-right);
-  --shell-pad-bottom: var(--safe-bottom);
-  --shell-pad-left: var(--safe-left);
-  --shell-background: #020b11;
+  --shell-pad-top: 0px;
+  --shell-pad-right: 0px;
+  --shell-pad-bottom: 0px;
+  --shell-pad-left: 0px;
+  --shell-background:
+    radial-gradient(circle at top left, rgba(116, 225, 255, 0.22), transparent 26%),
+    radial-gradient(circle at 82% 85%, rgba(79, 206, 255, 0.14), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f5fdff 34%, #daf5ff 72%, #c4f0ff 100%);
   --game-radius: 0px;
   --game-shadow: none;
 }
@@ -66,6 +69,11 @@ body {
   position: relative;
   overflow: hidden;
   background: var(--shell-background);
+}
+
+#app-shell[data-layout="mobile"] {
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 #app-shell[data-layout="mobile"] #game-root,
@@ -115,6 +123,18 @@ body {
     calc((100dvw - var(--shell-pad-left) - var(--shell-pad-right)) * 1080 / 1920)
   );
   aspect-ratio: 1920 / 1080;
+}
+
+#app-shell[data-layout="mobile"] #game-root {
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  margin: 0;
+  background: transparent;
 }
 
 #game-root canvas {

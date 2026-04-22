@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  BadGatewayException,
   Injectable,
   InternalServerErrorException,
   MessageEvent,
@@ -39,6 +40,7 @@ import {
 } from "@lucky-wheel/contracts";
 import { Observable, Subject } from "rxjs";
 import { PrismaService } from "../../prisma/prisma.service";
+import { resolveUploadPublicBaseUrl } from "../admin/upload-storage";
 import {
   createArchivedDailySpinAllowance,
   createServerDailySpinAllowance,
@@ -149,6 +151,10 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   private readonly realtimeStreams = new Map<string, RealtimeStreamEntry>();
   private readonly eventCache = new Map<string, CacheEntry<EventWithRelations>>();
   private readonly rankedScoresCache = new Map<string, CacheEntry<RankedScoreRecord[]>>();
+  private readonly clientBaseUrl =
+    process.env.LUCKY_WHEEL_CLIENT_BASE_URL ?? "http://localhost:3000";
+  private readonly uploadPublicBaseUrl = resolveUploadPublicBaseUrl();
+  private readonly clientOrigin = this.safeResolveOrigin(this.clientBaseUrl);
   private readonly fillTestLeaderboard =
     (process.env.LUCKY_WHEEL_FILL_TEST_LEADERBOARD ?? "true").toLowerCase() !==
     "false";
@@ -302,6 +308,52 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
   async getPrizes(eventId: string, locale: AppLocale): Promise<EventPrizeDto[]> {
     const event = await this.getEventOrThrow(eventId);
     return this.toPrizeDtos(event.prizes, locale);
+  }
+
+  async getPrizeImageAsset(eventId: string, prizeId: string) {
+    const prize = await this.prisma.eventPrize.findFirst({
+      where: {
+        id: prizeId,
+        eventCampaignId: eventId,
+      },
+      select: {
+        imageUrl: true,
+      },
+    });
+
+    if (!prize?.imageUrl?.trim()) {
+      throw new NotFoundException(`Missing prize image for ${prizeId}.`);
+    }
+
+    const sourceUrl = this.safeParseUrl(prize.imageUrl.trim());
+    if (!sourceUrl || !["http:", "https:"].includes(sourceUrl.protocol)) {
+      throw new BadGatewayException("Prize image URL is invalid.");
+    }
+
+    const upstreamResponse = await fetch(sourceUrl, {
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      },
+      redirect: "follow",
+    });
+
+    if (!upstreamResponse.ok) {
+      throw new BadGatewayException(
+        `Prize image upstream returned status ${upstreamResponse.status}.`,
+      );
+    }
+
+    const contentType =
+      upstreamResponse.headers.get("content-type") ?? "application/octet-stream";
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      throw new BadGatewayException("Prize image upstream did not return an image.");
+    }
+
+    return {
+      body: Buffer.from(await upstreamResponse.arrayBuffer()),
+      contentType,
+      cacheControl: "public, max-age=300",
+    };
   }
 
   async getPlayer(
@@ -1101,12 +1153,67 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       prizeDescription:
         this.resolvePrizeTranslation(prize, locale)?.prizeDescription ??
         prize.prizeDescription,
-      imageUrl: prize.imageUrl,
+      imageUrl: this.resolvePrizeImageUrl(prize.eventCampaignId, prize.id, prize.imageUrl),
       accentLabel:
         this.resolvePrizeTranslation(prize, locale)?.accentLabel ??
         prize.accentLabel ??
         undefined,
     }));
+  }
+
+  private resolvePrizeImageUrl(
+    eventId: string,
+    prizeId: string,
+    imageUrl: string | null | undefined,
+  ) {
+    const normalizedUrl = imageUrl?.trim();
+    if (!normalizedUrl) {
+      return null;
+    }
+
+    const parsedImageUrl = this.safeParseUrl(normalizedUrl);
+    if (!parsedImageUrl) {
+      return normalizedUrl;
+    }
+
+    if (this.isSameOriginImage(parsedImageUrl) || this.isManagedUploadUrl(parsedImageUrl)) {
+      return normalizedUrl;
+    }
+
+    return `/api/v2/events/${encodeURIComponent(eventId)}/prizes/${encodeURIComponent(prizeId)}/image`;
+  }
+
+  private isSameOriginImage(imageUrl: URL) {
+    return Boolean(this.clientOrigin) && imageUrl.origin === this.clientOrigin;
+  }
+
+  private isManagedUploadUrl(imageUrl: URL) {
+    const uploadBaseUrl = this.safeParseUrl(this.uploadPublicBaseUrl);
+    if (!uploadBaseUrl) {
+      return false;
+    }
+
+    const normalizedUploadPath = uploadBaseUrl.pathname.replace(/\/+$/, "");
+    return (
+      imageUrl.origin === uploadBaseUrl.origin &&
+      imageUrl.pathname.startsWith(normalizedUploadPath)
+    );
+  }
+
+  private safeParseUrl(value: string) {
+    try {
+      return new URL(value, this.clientBaseUrl);
+    } catch {
+      return null;
+    }
+  }
+
+  private safeResolveOrigin(value: string) {
+    try {
+      return new URL(value).origin;
+    } catch {
+      return null;
+    }
   }
 
   private toLeaderboardEntry(

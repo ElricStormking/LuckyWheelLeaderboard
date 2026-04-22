@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, Sse } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res, Sse } from "@nestjs/common";
 import {
   EligibilityStatus,
   EventStatus,
@@ -8,6 +8,11 @@ import {
 import { LuckyWheelService } from "./lucky-wheel.service";
 import { PlayerSessionService } from "./player-session.service";
 import { resolveRequestedLocale } from "./lucky-wheel.localization";
+
+type BinaryHttpResponse = {
+  setHeader(name: string, value: string): unknown;
+  send(body: Buffer): unknown;
+};
 
 @Controller("v2")
 export class LuckyWheelController {
@@ -128,6 +133,18 @@ export class LuckyWheelController {
     );
   }
 
+  @Get("events/:eventId/prizes/:prizeId/image")
+  async getPrizeImage(
+    @Param("eventId") eventId: string,
+    @Param("prizeId") prizeId: string,
+    @Res() response: BinaryHttpResponse,
+  ) {
+    const asset = await this.luckyWheelService.getPrizeImageAsset(eventId, prizeId);
+    response.setHeader("Content-Type", asset.contentType);
+    response.setHeader("Cache-Control", asset.cacheControl);
+    response.send(asset.body);
+  }
+
   @Get("events/:eventId/me")
   getPlayer(
     @Param("eventId") eventId: string,
@@ -216,11 +233,15 @@ export class LuckyWheelController {
   @Post("spins")
   spin(
     @Body() request: SpinRequest,
+    @Headers("idempotency-key") idempotencyKey?: string,
     @Headers("x-lucky-eligibility-override") eligibilityOverride?: string,
     @Headers("authorization") authorization?: string,
   ) {
     return this.luckyWheelService.spin(
-      request,
+      {
+        ...request,
+        idempotencyKey: request.idempotencyKey ?? idempotencyKey ?? "",
+      },
       parseEligibilityOverride(eligibilityOverride),
       this.resolvePlayerId(authorization),
     );
