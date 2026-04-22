@@ -74,8 +74,11 @@ export function mountMobileShellController() {
 
   const applyShellState = () => {
     const mobile = isMobileBrowser();
-    const rotateRequired = mobile && isLandscapeOrientation();
-    const fullscreenActive = isFullscreenActive();
+    const skipMobileShell =
+      new URL(window.location.href).searchParams.get("skipShell") === "1";
+    const rotateRequired =
+      mobile && !skipMobileShell && isLandscapeOrientation();
+    const fullscreenActive = isFullscreenActive() || skipMobileShell;
     const standaloneActive = isStandaloneMode();
 
     applyGameLayout(mobile ? "mobile" : "desktop");

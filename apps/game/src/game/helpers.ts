@@ -100,6 +100,21 @@ export function formatTime(
   }).format(new Date(value));
 }
 
+/** Short label for the mobile header period pill (sample: "01/04 - 30/04 ..."). */
+export function formatEventSelectorPillLabel(periodLabel: string, maxLen = 22) {
+  const normalized = periodLabel.trim();
+  const withYears = normalized.match(
+    /^(\d{1,2}\/\d{1,2})\/\d{2,4}\s*[-–—]\s*(\d{1,2}\/\d{1,2})\/\d{2,4}$/u,
+  );
+  if (withYears) {
+    return `${withYears[1]} - ${withYears[2]} ...`;
+  }
+  if (normalized.length <= maxLen) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(1, maxLen - 3)).trimEnd()}...`;
+}
+
 export function openExternalLink(url?: string) {
   if (!url) {
     return;

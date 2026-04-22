@@ -98,3 +98,6 @@ export function configureStageLayout(layout: GameLayout) {
 export function isDesktopLayout() {
   return ACTIVE_GAME_LAYOUT === "desktop";
 }
+
+/** Backdrop ring outer width in mobile layout; keep in sync with WheelScene `WHEEL_*` constants. */
+export const MOBILE_WHEEL_BACKDROP_DIAMETER = 972 * 0.86 * 1.05;

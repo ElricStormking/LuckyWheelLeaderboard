@@ -7,6 +7,15 @@ export function isMobileBrowser() {
     return false;
   }
 
+  const url = new URL(window.location.href);
+  const override = url.searchParams.get("layout");
+  if (override === "mobile") {
+    return true;
+  }
+  if (override === "desktop") {
+    return false;
+  }
+
   const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
   const viewportWidth = window.screen?.width ?? window.innerWidth;
   const viewportHeight = window.screen?.height ?? window.innerHeight;

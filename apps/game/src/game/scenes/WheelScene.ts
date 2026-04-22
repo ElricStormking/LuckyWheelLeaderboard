@@ -12,8 +12,8 @@ import { createRibbonsBurst } from "../ribbonsFx";
 import { prototypeState } from "../state/prototype-state";
 
 const WHEEL_CENTER_X = 540;
-const WHEEL_CENTER_Y = 1180;
-const WHEEL_SCALE = 0.85;
+const WHEEL_CENTER_Y = 1410;
+const WHEEL_SCALE = 1.05;
 const WHEEL_BACKDROP_SCALE = 0.86;
 const WHEEL_BACKDROP_SIZE = 972;
 const POINTER_SCALE = 0.58;
@@ -78,7 +78,7 @@ export class WheelScene extends Phaser.Scene {
       this.testSpinButton = addTextButton(
         this,
         192,
-        786,
+        936,
         196,
         64,
         "Test_Spins",
@@ -653,8 +653,8 @@ export class WheelScene extends Phaser.Scene {
     );
     const y = Phaser.Math.Clamp(
       centerY + Math.sin(segmentAngle) * radius + Math.sin(tangentAngle) * tangentOffset,
-      700,
-      1545,
+      850,
+      1695,
     );
 
     return { x, y };
@@ -663,7 +663,7 @@ export class WheelScene extends Phaser.Scene {
   private getNearbyFireworkPoint(origin: { x: number; y: number }) {
     return {
       x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-128, 128), 90, 990),
-      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 700, 1545),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 850, 1695),
     };
   }
 
@@ -773,7 +773,7 @@ export class WheelScene extends Phaser.Scene {
 
   private createWheelCenterButton() {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
-    const face = this.add.image(0, 0, "Spin_Red").setScale(0.88);
+    const face = this.add.image(0, 0, "Spin_Blue").setScale(0.88);
     const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.9);
     const label = this.add
       .text(0, 4, "SPIN NOW", {
@@ -791,6 +791,7 @@ export class WheelScene extends Phaser.Scene {
       spinArrows.clearTint();
       face.setAlpha(1);
       spinArrows.setAlpha(1);
+      label.setColor("#ffffff");
 
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
@@ -846,7 +847,7 @@ export class WheelScene extends Phaser.Scene {
         label.setText(nextLabel);
       },
       setBackground(color: number) {
-        drawFace(color === COLORS.primary ? 0xe15693 : color);
+        drawFace(color);
       },
       setEnabled(enabled: boolean) {
         face.disableInteractive();

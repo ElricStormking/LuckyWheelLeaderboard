@@ -60,6 +60,7 @@ const MOBILE_EDITOR_UI_TEXTURES: Record<string, string> = {
   Reminder: "../UI/PrizeArea/Reminder.png",
   Roulette: "../UI/Roulette.png",
   RouletteArrow: "../UI/RouletteArrow.png",
+  Spin_Blue: "../UI/Spin_Blue.png",
   Spin_Red: "../UI/Spin_Red.png",
   SpinArrow: "../UI/SpinArrow.png",
   Title_01: "../UI/Title_01.png",
