@@ -3,7 +3,7 @@ import { COLORS, FONTS, STAGE_HEIGHT, STAGE_WIDTH } from "../constants";
 import { addRoundedPanel, addTextButton } from "../helpers";
 
 export class BaseOverlayScene extends Phaser.Scene {
-  protected createFrame(title: string, subtitle?: string, height = 1250) {
+  protected createFrame(title: string, subtitle?: string, height = 1250, closeOnBackdrop = true) {
     const backdrop = this.add
       .rectangle(
         STAGE_WIDTH / 2,
@@ -15,7 +15,21 @@ export class BaseOverlayScene extends Phaser.Scene {
       )
       .setInteractive();
 
-    backdrop.on("pointerdown", () => this.closeOverlay());
+    const swallowBackdropTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    if (closeOnBackdrop) {
+      backdrop.on("pointerdown", () => this.closeOverlay());
+    } else {
+      backdrop.on("pointerdown", swallowBackdropTap);
+      backdrop.on("pointerup", swallowBackdropTap);
+    }
 
     const panel = addRoundedPanel(this, STAGE_WIDTH / 2, STAGE_HEIGHT / 2 + 30, 970, height, {
       fillColor: COLORS.panel,
@@ -58,22 +72,42 @@ export class BaseOverlayScene extends Phaser.Scene {
         .setOrigin(0.5);
     }
 
+    const closeX = STAGE_WIDTH / 2 + 970 / 2 - 80;
+    const closeY = STAGE_HEIGHT / 2 - height / 2 + 88;
     const closeButton = addTextButton(
       this,
-      STAGE_WIDTH / 2 + 970 / 2 - 80,
-      STAGE_HEIGHT / 2 - height / 2 + 88,
-      96,
-      96,
+      closeX,
+      closeY,
+      76,
+      76,
       "X",
       () => this.closeOverlay(),
       {
         backgroundColor: COLORS.panelSoft,
+        hitAreaHeight: 124,
+        hitAreaWidth: 124,
         labelColor: "#0a2942",
-        radius: 48,
+        hitRadius: 62,
+        radius: 38,
+        strokeColor: COLORS.line,
+        strokeWidth: 4,
       },
     );
 
-    closeButton.label.setFontSize("30px");
+    closeButton.label.setFontSize("28px");
+    closeButton.container.setDepth(10);
+
+    const closeZone = this.add.zone(closeX, closeY, 180, 150).setDepth(11);
+    closeZone.setInteractive({ useHandCursor: true });
+    closeZone.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      this.closeOverlay();
+    });
 
     return {
       centerX: STAGE_WIDTH / 2,

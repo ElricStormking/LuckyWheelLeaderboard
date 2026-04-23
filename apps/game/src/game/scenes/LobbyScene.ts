@@ -244,6 +244,43 @@ const LEADERBOARD_PLATE_VISUAL_CENTER_Y_OFFSETS: Partial<Record<number, number>>
   29: 48,
   30: 48,
 };
+/**
+ * Image-space offset from plate PNG's bbox center to the white data row's
+ * visual center. Measured per rank via alpha sampling at x=0.75*w. Multiply
+ * by plate scale to get the screen-space Y adjustment for text centering.
+ */
+const LEADERBOARD_PLATE_TEXT_CENTER_IMG_OFFSETS: Record<number, number> = {
+  1: 34,
+  2: 29,
+  3: 29,
+  4: 34,
+  5: 37,
+  6: 37,
+  7: 48,
+  8: 43,
+  9: 42,
+  10: 32,
+  11: 65,
+  12: 35,
+  13: 32,
+  14: 50,
+  15: 43,
+  16: 0,
+  17: 34,
+  18: 42,
+  19: 34,
+  20: 80,
+  21: 80,
+  22: 80,
+  23: 80,
+  24: 80,
+  25: 80,
+  26: 80,
+  27: 80,
+  28: 80,
+  29: 80,
+  30: 80,
+};
 const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_01",
   "Prize_Ranking_02",
@@ -668,11 +705,11 @@ export class LobbyScene extends Phaser.Scene {
       const highlightArrow = this.add.graphics();
       highlightArrow.fillStyle(COLORS.primary, 1);
       highlightArrow.fillTriangle(
-        this.getInlineLeaderboardX(42),
+        this.getInlineLeaderboardX(82),
         y - 18,
-        this.getInlineLeaderboardX(64),
+        this.getInlineLeaderboardX(104),
         y,
-        this.getInlineLeaderboardX(42),
+        this.getInlineLeaderboardX(82),
         y + 18,
       );
       highlightArrow.setDepth(1);
@@ -693,7 +730,7 @@ export class LobbyScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5);
 
       const prizeText = this.add
-        .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_PRIZE_TEXT_X), this.getLeaderboardPrizeTextY(y, index + 1), "", {
+        .text(this.getInlineLeaderboardX(INLINE_LEADERBOARD_PRIZE_TEXT_X), this.getLeaderboardPrizeTextY(y, index + 1, INLINE_LEADERBOARD_PLATE_SCALE), "", {
           fontFamily: FONTS.body,
           fontSize: "33px",
           fontStyle: "700",
@@ -1127,9 +1164,10 @@ export class LobbyScene extends Phaser.Scene {
       row.plate.setY(rowY);
       row.plate.setScale(plateScale);
       row.plate.setX(this.getLeaderboardPlateX(entry.rank, plateScale));
-      row.playerText.setY(slotBaseY - 4);
-      row.scoreText.setY(slotBaseY - 4);
-      row.prizeText.setY(this.getLeaderboardPrizeTextY(rowY, entry.rank));
+      const textCenterY = this.getLeaderboardTextCenterY(rowY, entry.rank, plateScale);
+      row.playerText.setY(textCenterY);
+      row.scoreText.setY(textCenterY);
+      row.prizeText.setY(this.getLeaderboardPrizeTextY(rowY, entry.rank, plateScale));
       row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
       row.prizeText.setText(entry.prizeName ?? `Rank #${entry.rank}`);
@@ -1167,16 +1205,20 @@ export class LobbyScene extends Phaser.Scene {
         .setY(summaryPlateY)
         .setScale(INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE);
 
+      const summaryTextCenterY = showTopRankSummaryPlate
+        ? this.getLeaderboardTextCenterY(summaryPlateY, myRank.rank, INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE)
+        : summarySlotBaseY - 4;
+
       this.myRankSummaryPlayerText
-        ?.setY(summarySlotBaseY - 4)
+        ?.setY(summaryTextCenterY)
         .setText(myRank.playerName);
 
       this.myRankSummaryScoreText
-        ?.setY(summarySlotBaseY - 4)
+        ?.setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
 
       this.myRankSummaryPrizeText
-        ?.setY(this.getLeaderboardPrizeTextY(summaryPlateY, myRank.rank))
+        ?.setY(this.getLeaderboardPrizeTextY(summaryPlateY, myRank.rank, INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE))
         .setText(myRank.prizeName ?? `Rank #${myRank.rank}`);
 
       this.myRankSummaryText?.setVisible(false).setText("");
@@ -1439,7 +1481,16 @@ export class LobbyScene extends Phaser.Scene {
     return baseRowY + (targetVisualCenterOffset - visualCenterOffset) * INLINE_LEADERBOARD_PLATE_SCALE;
   }
 
-  private getLeaderboardPrizeTextY(rowY: number, rank: number) {
+  /**
+   * Vertical center of the plate's white data cell on screen; use this for
+   * username / total-points text so they sit in the row's visual middle.
+   */
+  private getLeaderboardTextCenterY(rowY: number, rank: number, plateScale: number) {
+    const offset = LEADERBOARD_PLATE_TEXT_CENTER_IMG_OFFSETS[rank] ?? 0;
+    return rowY + offset * plateScale;
+  }
+
+  private getLeaderboardPrizeTextY(rowY: number, rank: number, _plateScale: number) {
     if (rank >= 21) {
       return rowY + 48;
     }

@@ -45,6 +45,7 @@ export class PeriodOverlayScene extends BaseOverlayScene {
       prototypeState.t("period.title"),
       prototypeState.t("period.subtitle"),
       1460,
+      false,
     );
     const snapshot = prototypeState.getSnapshot();
 
@@ -152,7 +153,7 @@ export class PeriodOverlayScene extends BaseOverlayScene {
       hitArea.disableInteractive();
 
       void prototypeState.selectEvent(entry.id)
-        .then(() => this.closeOverlay())
+        .then(() => this.scene.restart())
         .catch(() => {
           this.isSelectingEvent = false;
           hitArea.setInteractive({ useHandCursor: true });

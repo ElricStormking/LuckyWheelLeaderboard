@@ -2295,9 +2295,18 @@ export class DesktopMainScene extends DesktopPageScene {
     const backdrop = this.pinToViewport(
       this.add
         .rectangle(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, STAGE_WIDTH, STAGE_HEIGHT, COLORS.overlay, 0.72)
-        .setInteractive({ useHandCursor: true }),
+        .setInteractive(),
     );
-    backdrop.on("pointerdown", () => this.closePicker());
+    const swallowBackdropTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+    backdrop.on("pointerdown", swallowBackdropTap);
+    backdrop.on("pointerup", swallowBackdropTap);
     modal.add(backdrop);
 
     const panel = this.pinToViewport(
@@ -2370,6 +2379,23 @@ export class DesktopMainScene extends DesktopPageScene {
     subtitleText.setOrigin(0.5);
     modal.add(subtitleText);
 
+    const closeFrame = this.pinToViewport(
+      addRoundedPanel(
+        this,
+        DESKTOP_PAGE_CENTER_X + DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2 - 54,
+        DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58,
+        44,
+        44,
+        {
+          fillColor: COLORS.panelSoft,
+          strokeColor: COLORS.line,
+          radius: 15,
+          skipHighlight: true,
+        },
+      ),
+    );
+    modal.add(closeFrame);
+
     const closeLabel = this.pinToViewport(
       this.add.text(
         DESKTOP_PAGE_CENTER_X + DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2 - 54,
@@ -2391,8 +2417,8 @@ export class DesktopMainScene extends DesktopPageScene {
         .rectangle(
           DESKTOP_PAGE_CENTER_X + DESKTOP_EVENT_PICKER_PANEL_WIDTH / 2 - 54,
           DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58,
-          52,
-          52,
+          68,
+          68,
           0xffffff,
           0,
         )
@@ -2548,7 +2574,10 @@ export class DesktopMainScene extends DesktopPageScene {
       hitArea.disableInteractive();
 
       void prototypeState.selectEvent(entry.id)
-        .then(() => this.closePicker())
+        .then(() => {
+          const snapshot = prototypeState.getSnapshot();
+          this.showEventPicker(snapshot.events as DesktopEventPickerEntry[], snapshot.currentEvent?.id);
+        })
         .catch(() => {
           this.pickerBusy = false;
           hitArea.setInteractive({ useHandCursor: true });

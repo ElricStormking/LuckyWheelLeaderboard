@@ -26,6 +26,12 @@ type ButtonOptions = {
   backgroundColor?: number;
   labelColor?: string;
   radius?: number;
+  strokeColor?: number;
+  strokeAlpha?: number;
+  strokeWidth?: number;
+  hitAreaWidth?: number;
+  hitAreaHeight?: number;
+  hitRadius?: number;
   shape?: "rounded-rect" | "circle";
   /** When true, no semi-transparent highlight band (flat fill). */
   skipHighlight?: boolean;
@@ -239,7 +245,13 @@ export function addTextButton(
   const labelColor = options.labelColor ?? "#ffffff";
   const shape = options.shape ?? "rounded-rect";
   const circleRadius = Math.min(width, height) / 2;
+  const hitAreaWidth = options.hitAreaWidth ?? width;
+  const hitAreaHeight = options.hitAreaHeight ?? height;
+  const hitRadius = options.hitRadius ?? Math.min(hitAreaWidth, hitAreaHeight) / 2;
   const skipHighlight = options.skipHighlight ?? false;
+  const strokeColor = options.strokeColor;
+  const strokeAlpha = options.strokeAlpha ?? 1;
+  const strokeWidth = options.strokeWidth ?? 0;
 
   const drawBackground = (color: number) => {
     graphics.clear();
@@ -250,6 +262,10 @@ export function addTextButton(
       if (!skipHighlight) {
         graphics.fillStyle(COLORS.white, 0.14);
         graphics.fillEllipse(0, -height * 0.18, width * 0.76, height * 0.28);
+      }
+      if (strokeColor !== undefined && strokeWidth > 0) {
+        graphics.lineStyle(strokeWidth, strokeColor, strokeAlpha);
+        graphics.strokeCircle(0, 0, circleRadius - strokeWidth / 2);
       }
       return;
     }
@@ -266,6 +282,17 @@ export function addTextButton(
         radius,
       );
     }
+    if (strokeColor !== undefined && strokeWidth > 0) {
+      const inset = strokeWidth / 2;
+      graphics.lineStyle(strokeWidth, strokeColor, strokeAlpha);
+      graphics.strokeRoundedRect(
+        -width / 2 + inset,
+        -height / 2 + inset,
+        width - strokeWidth,
+        height - strokeWidth,
+        Math.max(0, radius - inset),
+      );
+    }
   };
 
   drawBackground(backgroundColor);
@@ -280,20 +307,20 @@ export function addTextButton(
     .setOrigin(0.5);
 
   container.add([graphics, text]);
-  container.setSize(width, height);
+  container.setSize(hitAreaWidth, hitAreaHeight);
   const setInteractiveShape = () => {
     container.disableInteractive();
 
     if (shape === "circle") {
       container.setInteractive(
-        new Phaser.Geom.Circle(0, 0, circleRadius),
+        new Phaser.Geom.Circle(0, 0, hitRadius),
         Phaser.Geom.Circle.Contains,
       );
       return;
     }
 
     container.setInteractive(
-      new Phaser.Geom.Rectangle(-width / 2, -height / 2, width, height),
+      new Phaser.Geom.Rectangle(-hitAreaWidth / 2, -hitAreaHeight / 2, hitAreaWidth, hitAreaHeight),
       Phaser.Geom.Rectangle.Contains,
     );
   };

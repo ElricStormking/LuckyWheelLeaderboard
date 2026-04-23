@@ -76,8 +76,6 @@ export function mountMobileShellController() {
     const mobile = isMobileBrowser();
     const skipMobileShell =
       new URL(window.location.href).searchParams.get("skipShell") === "1";
-    const rotateRequired =
-      mobile && !skipMobileShell && isLandscapeOrientation();
     const fullscreenActive = isFullscreenActive() || skipMobileShell;
     const standaloneActive = isStandaloneMode();
 
@@ -85,31 +83,8 @@ export function mountMobileShellController() {
     document.documentElement.classList.toggle("fullscreen-active", fullscreenActive);
     document.documentElement.classList.toggle("standalone-active", standaloneActive);
 
-    if (!mobile) {
-      hideOverlay(elements);
-      return;
-    }
-
-    if (rotateRequired) {
-      showOverlay("rotate");
-      return;
-    }
-
-    if (fullscreenActive || standaloneActive || dismissed) {
-      hideOverlay(elements);
-      return;
-    }
-
-    if (isIosBrowser()) {
-      showOverlay(overlayMode === "ios-steps" ? "ios-steps" : "ios-intro");
-      return;
-    }
-
-    if (canRequestFullscreen()) {
-      showOverlay("android");
-      return;
-    }
-
+    // The game should launch directly; do not block startup behind the
+    // fullscreen/orientation helper overlay.
     dismissed = true;
     hideOverlay(elements);
   };
