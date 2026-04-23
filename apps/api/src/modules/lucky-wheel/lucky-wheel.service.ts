@@ -458,6 +458,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     locale: AppLocale,
     override?: EligibilityStatus,
     playerId = DEMO_PLAYER_ID,
+    launchDepositUrl?: string,
   ): Promise<EligibilityResponse> {
     const event = await this.getEventOrThrow(eventId);
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
@@ -479,6 +480,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       eventStatus,
       usedSpinCount,
       playerId,
+      launchDepositUrl,
     );
     const eligibilityStatus = this.resolveEligibility(eventStatus, spinAllowance, override);
 
@@ -553,6 +555,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     request: SpinRequest,
     override?: EligibilityStatus,
     playerId = DEMO_PLAYER_ID,
+    launchDepositUrl?: string,
   ): Promise<SpinResponse> {
     const event = await this.getEventOrThrow(request.eventId);
     const eventStatus = this.parseEnumValue(EventStatus, event.status, "event status");
@@ -594,6 +597,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
           eventStatus,
           usedSpinCount,
           playerId,
+          launchDepositUrl,
         );
         const eligibilityStatus = this.resolveEligibility(eventStatus, spinAllowance, override);
 
@@ -1402,6 +1406,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     eventStatus: EventStatus,
     usedSpinCount: number,
     playerId = DEMO_PLAYER_ID,
+    launchDepositUrl?: string,
   ): Promise<NormalizedSpinAllowance> {
     if (eventStatus !== EventStatus.Live) {
       return {
@@ -1419,7 +1424,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return {
       ...dailySpinAllowance,
       depositEligible: merchantEligibility.depositQualified,
-      depositUrl: merchantEligibility.depositUrl,
+      depositUrl: launchDepositUrl ?? merchantEligibility.depositUrl,
     };
   }
 

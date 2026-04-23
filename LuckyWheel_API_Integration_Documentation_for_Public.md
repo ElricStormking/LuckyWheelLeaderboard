@@ -1,7 +1,7 @@
 # Lucky Wheel Public Integration API Documentation
 
-**Version:** 1.9  
-**Last Updated:** April 12, 2026
+**Version:** 1.10  
+**Last Updated:** April 23, 2026
 
 ---
 
@@ -31,6 +31,8 @@ The public integration supports:
 - returning a Lucky Wheel game URL
 
 Deposit eligibility for gameplay is resolved server-to-server after launch. Merchant API calls the Customer Platform SOAP/WCF service on behalf of Lucky Wheel Platform; player browsers never call that SOAP service directly.
+
+Customer Platform may also pass the current-domain deposit page URL during launch. Lucky Wheel uses that URL only as the session deposit redirect when the SOAP/WCF eligibility decision says the player must deposit.
 
 
 
@@ -172,6 +174,7 @@ Required header:
 |-----------|------|----------|-------------|
 | `playerId` | string | Yes | Customer-platform player identifier |
 | `initialEligibility` | object | Yes | Customer-platform bootstrap eligibility snapshot used only for launch-time UX |
+| `depositUrl` | string | No | Current-domain deposit page URL for this player session. Must be an absolute `http` or `https` URL. `DepositURL` is also accepted as a compatibility alias, but `depositUrl` is preferred. |
 | `timestamp` | integer | Yes | Unix timestamp in seconds used for freshness validation |
 
 Lucky Wheel also does not require a separate player display name from Customer Platform. The game uses `playerId` as the player label for this integration flow.
@@ -194,6 +197,7 @@ X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
   "initialEligibility": {
     "depositQualified": true
   },
+  "depositUrl": "https://www.customer-current-domain.com/deposit",
   "timestamp": 1761216000
 }
 ```
@@ -228,7 +232,9 @@ Lucky Wheel accepts customer-platform `initialEligibility` during launch as boot
 - Lucky Wheel Platform derives the daily-spin portion of eligibility from its own gameplay state and the player's used spins
 - Lucky Wheel Platform also calls Merchant API, which resolves Customer Platform deposit eligibility through the Customer Platform SOAP/WCF operation `LuckyWheel_Deposit_isEligible`
 - Merchant API currently uses configured `SiteID`, `CompAccesskey`, and the Lucky Wheel event-day date to call Customer Platform server-to-server
-- the current live WSDL exposes the eligibility decision but does not currently publish a deposit URL, so Merchant API uses the configured Customer Platform deposit page URL when the player must deposit
+- the current live WSDL exposes the eligibility decision but does not currently publish the current-domain deposit URL
+- if the launch request includes `depositUrl`, Lucky Wheel keeps that URL on the signed player session and returns it when the player must deposit
+- if `depositUrl` is omitted, Lucky Wheel falls back to the normalized deposit URL returned by Merchant API, which currently comes from the configured Customer Platform deposit page URL unless a future SOAP/WCF response publishes `DepositUrl`
 - if Customer Platform says the player has not met the deposit rule, Lucky Wheel returns a `GO_TO_DEPOSIT` state and the Customer Platform deposit URL
 - Lucky Wheel re-checks both daily-spin usage and deposit eligibility again before processing a spin
 
@@ -247,6 +253,7 @@ Lucky Wheel uses a server-to-server deposit eligibility check during gameplay.
 5. Customer Platform returns the deposit-rule decision.
 6. Merchant API returns the normalized eligibility result to Lucky Wheel Platform.
 7. Lucky Wheel Platform combines that deposit decision with its own event and daily-spin checks before allowing spin.
+8. If the result is `GO_TO_DEPOSIT`, Lucky Wheel returns the launch-time `depositUrl` for that player session when it was provided; otherwise it returns the Merchant API fallback deposit URL.
 
 ### Allow-listing Note
 
@@ -264,6 +271,8 @@ Example for the current GCP test environment:
 - this Customer Platform call is server-to-server only
 - player browsers do not call the Customer Platform SOAP/WCF API directly
 - launch-time `initialEligibility` is bootstrap data only and is not the authoritative gameplay decision
+- launch-time `depositUrl` is not an eligibility decision; it is only the redirect target used if the server-to-server eligibility decision says deposit is required
+- do not include secrets or one-time tokens in `depositUrl`; use a normal deposit page URL on the current customer domain
 - Lucky Wheel re-checks deposit eligibility again before processing a spin request
 
 ---
@@ -276,7 +285,7 @@ The public integration flow is shown below.
 
 ### Public Flow Summary
 
-1. Customer Platform calls `POST /integration/launch` with `playerId`, `initialEligibility`, `timestamp`, and the required `X-Integration-Guid` header
+1. Customer Platform calls `POST /integration/launch` with `playerId`, `initialEligibility`, optional `depositUrl`, `timestamp`, and the required `X-Integration-Guid` header
 2. Merchant API creates a Lucky Wheel session
 3. Merchant API returns the Lucky Wheel game URL
 4. Customer Platform opens the Lucky Wheel frontend and may use its own `initialEligibility` as launch-time bootstrap data
@@ -298,3 +307,20 @@ Customer Platform sends `initialEligibility` on launch as a bootstrap object. Th
 | `depositQualified` | boolean | Customer Platform's latest deposit-rule decision at launch time |
 
 No additional bootstrap fields are required. `initialEligibility` is not part of launch authentication and is not authoritative for Lucky Wheel gameplay decisions.
+
+### Launch Deposit URL
+
+Customer Platform may send a top-level `depositUrl` on launch so Lucky Wheel can redirect the player back to the correct current-domain deposit page when the server-to-server deposit rule says the player must deposit.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `depositUrl` | string | No | Absolute `http` or `https` URL to the current-domain deposit page for this launched session |
+| `DepositURL` | string | No | Compatibility alias accepted for customer platforms that already use this casing. Prefer `depositUrl` for new integrations. |
+
+Rules:
+
+- `depositUrl` is top-level in the launch request, not inside `initialEligibility`
+- maximum accepted length is 2048 characters
+- only absolute `http` and `https` URLs are accepted
+- when both `depositUrl` and `DepositURL` are sent, `depositUrl` takes precedence
+- Lucky Wheel stores this value only inside the signed player session token for the launch flow

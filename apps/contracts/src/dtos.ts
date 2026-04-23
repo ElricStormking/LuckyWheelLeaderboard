@@ -127,6 +127,7 @@ export interface LuckyWheelPlayerSessionLaunchRequestDto {
   playerDisplayName?: string;
   locale?: AppLocale;
   eventId?: string;
+  depositUrl?: string;
   device?: LuckyWheelPlayerSessionDeviceDto;
 }
 
@@ -152,6 +153,8 @@ export interface InitialEligibilityBootstrapDto {
 export interface MerchantIntegrationLaunchRequestDto {
   playerId: string;
   initialEligibility: InitialEligibilityBootstrapDto;
+  depositUrl?: string;
+  DepositURL?: string;
   timestamp: number;
 }
 

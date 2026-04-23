@@ -14,12 +14,16 @@ const MERCHANT_INACTIVE_CODE = 1004;
 const IP_NOT_ALLOWED_CODE = 1005;
 const INVALID_REQUEST_CODE = 4000;
 const PLATFORM_LAUNCH_FAILED_CODE = 7001;
+const MAX_DEPOSIT_URL_LENGTH = 2048;
 
 @Injectable()
 export class MerchantIntegrationService {
   private readonly logger = new Logger(MerchantIntegrationService.name);
   private readonly timestampToleranceSec = this.parseTolerance(
     process.env.MERCHANT_INTEGRATION_TIMESTAMP_TOLERANCE_SEC,
+  );
+  private readonly allowedDepositUrlOrigins = this.parseAllowedDepositUrlOrigins(
+    process.env.MERCHANT_INTEGRATION_ALLOWED_DEPOSIT_URL_ORIGINS ?? "",
   );
 
   constructor(
@@ -60,10 +64,13 @@ export class MerchantIntegrationService {
       return validationError;
     }
 
+    const depositUrl = this.resolveLaunchDepositUrl(request);
+
     try {
       const playerSession =
         await this.luckyWheelPlatformClientService.launchPlayerSession(merchant, {
           merchantPlayerId: request.playerId.trim(),
+          depositUrl,
           device: {
             platform: "web",
           },
@@ -103,6 +110,12 @@ export class MerchantIntegrationService {
       );
     }
 
+    const depositUrl = this.resolveLaunchDepositUrl(request);
+    const depositUrlValidationError = this.validateDepositUrl(depositUrl);
+    if (depositUrlValidationError) {
+      return depositUrlValidationError;
+    }
+
     if (!Number.isInteger(request.timestamp)) {
       return this.buildError(TIMESTAMP_EXPIRED_CODE, "Timestamp is invalid.");
     }
@@ -124,6 +137,58 @@ export class MerchantIntegrationService {
     }
 
     return undefined;
+  }
+
+  private resolveLaunchDepositUrl(request: MerchantIntegrationLaunchRequestDto) {
+    return request.depositUrl?.trim() || request.DepositURL?.trim() || undefined;
+  }
+
+  private validateDepositUrl(depositUrl?: string) {
+    if (!depositUrl) {
+      return undefined;
+    }
+
+    const parsedUrl = this.parseAbsoluteHttpUrl(depositUrl);
+    if (!parsedUrl) {
+      return this.buildError(
+        INVALID_REQUEST_CODE,
+        "depositUrl must be an absolute http(s) URL.",
+      );
+    }
+
+    if (
+      this.allowedDepositUrlOrigins.size > 0 &&
+      !this.allowedDepositUrlOrigins.has(parsedUrl.origin)
+    ) {
+      return this.buildError(
+        INVALID_REQUEST_CODE,
+        "depositUrl origin is not allowed.",
+      );
+    }
+
+    return undefined;
+  }
+
+  private parseAbsoluteHttpUrl(value: string) {
+    if (value.length > MAX_DEPOSIT_URL_LENGTH) {
+      return null;
+    }
+
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private parseAllowedDepositUrlOrigins(value: string) {
+    return new Set(
+      value
+        .split(",")
+        .map((entry) => this.parseAbsoluteHttpUrl(entry.trim())?.origin)
+        .filter((origin): origin is string => Boolean(origin)),
+    );
   }
 
   private guidEquals(expectedGuid: string, actualGuid?: string) {

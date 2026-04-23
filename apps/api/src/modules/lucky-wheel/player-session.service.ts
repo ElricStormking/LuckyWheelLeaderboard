@@ -35,10 +35,13 @@ export interface PlayerAccessTokenClaims {
   scope: string;
   locale?: string;
   eventId?: string;
+  depositUrl?: string;
   iat: number;
   exp: number;
   jti: string;
 }
+
+const MAX_DEPOSIT_URL_LENGTH = 2048;
 
 @Injectable()
 export class PlayerSessionService {
@@ -79,6 +82,7 @@ export class PlayerSessionService {
     const playerDisplayName =
       request.playerDisplayName?.trim() || request.merchantPlayerId.trim();
     const event = await this.resolveLaunchEvent(request.eventId);
+    const depositUrl = this.normalizeDepositUrl(request.depositUrl);
 
     await this.prisma.player.upsert({
       where: {
@@ -104,6 +108,7 @@ export class PlayerSessionService {
       scope: "player",
       locale: request.locale,
       eventId: event.id,
+      depositUrl,
     }, this.accessTokenTtlSec);
     const refreshToken = this.createSignedToken({
       sub: request.merchantPlayerId,
@@ -112,6 +117,7 @@ export class PlayerSessionService {
       scope: "refresh",
       locale: request.locale,
       eventId: event.id,
+      depositUrl,
     }, this.refreshTokenTtlSec);
     const expiresAt = new Date(Date.now() + this.accessTokenTtlSec * 1000).toISOString();
     const launchUrl = this.buildLaunchUrl(request, sessionId, event.id, accessToken);
@@ -128,6 +134,26 @@ export class PlayerSessionService {
   private validateLaunchRequest(request: LuckyWheelPlayerSessionLaunchRequestDto) {
     if (!request.merchantPlayerId?.trim()) {
       throw new BadRequestException("merchantPlayerId is required.");
+    }
+
+    if (request.depositUrl && !this.normalizeDepositUrl(request.depositUrl)) {
+      throw new BadRequestException("depositUrl must be an absolute http(s) URL.");
+    }
+  }
+
+  private normalizeDepositUrl(depositUrl?: string) {
+    const value = depositUrl?.trim();
+    if (!value || value.length > MAX_DEPOSIT_URL_LENGTH) {
+      return undefined;
+    }
+
+    try {
+      const url = new URL(value);
+      return url.protocol === "http:" || url.protocol === "https:"
+        ? url.toString()
+        : undefined;
+    } catch {
+      return undefined;
     }
   }
 

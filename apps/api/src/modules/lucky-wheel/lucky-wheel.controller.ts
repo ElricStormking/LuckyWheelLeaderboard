@@ -13,6 +13,10 @@ type BinaryHttpResponse = {
   setHeader(name: string, value: string): unknown;
   send(body: Buffer): unknown;
 };
+type PlayerRequestContext = {
+  playerId?: string;
+  launchDepositUrl?: string;
+};
 
 @Controller("v2")
 export class LuckyWheelController {
@@ -206,11 +210,13 @@ export class LuckyWheelController {
     @Headers("x-lucky-locale") localeHeader?: string,
     @Headers("accept-language") acceptLanguage?: string,
   ) {
+    const playerContext = this.resolvePlayerContext(authorization, accessToken);
     return this.luckyWheelService.getEligibility(
       eventId,
       resolveRequestedLocale(locale, localeHeader, acceptLanguage),
       parseEligibilityOverride(eligibilityOverride),
-      this.resolvePlayerId(authorization, accessToken),
+      playerContext.playerId,
+      playerContext.launchDepositUrl,
     );
   }
 
@@ -237,19 +243,32 @@ export class LuckyWheelController {
     @Headers("x-lucky-eligibility-override") eligibilityOverride?: string,
     @Headers("authorization") authorization?: string,
   ) {
+    const playerContext = this.resolvePlayerContext(authorization);
     return this.luckyWheelService.spin(
       {
         ...request,
         idempotencyKey: request.idempotencyKey ?? idempotencyKey ?? "",
       },
       parseEligibilityOverride(eligibilityOverride),
-      this.resolvePlayerId(authorization),
+      playerContext.playerId,
+      playerContext.launchDepositUrl,
     );
   }
 
   private resolvePlayerId(authorization?: string, accessToken?: string) {
+    return this.resolvePlayerContext(authorization, accessToken).playerId;
+  }
+
+  private resolvePlayerContext(
+    authorization?: string,
+    accessToken?: string,
+  ): PlayerRequestContext {
     const token = this.extractBearerToken(authorization) ?? accessToken;
-    return this.playerSessionService.resolvePlayerClaims(token)?.sub;
+    const claims = this.playerSessionService.resolvePlayerClaims(token);
+    return {
+      playerId: claims?.sub,
+      launchDepositUrl: claims?.depositUrl,
+    };
   }
 
   private extractBearerToken(authorization?: string) {
