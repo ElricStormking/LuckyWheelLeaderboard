@@ -70,20 +70,23 @@ type SectionBand = {
   overscan: number;
 };
 
-const CONTENT_HEIGHT = 7832;
+const CONTENT_HEIGHT = 7776;
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_TOP_GAP_BELOW_QUICK = 100;
 const LEADERBOARD_ROW_PITCH = 150;
+const LEADERBOARD_HEADER_BLOCK_SHIFT = 64;
 const PREV_LEADERBOARD_LAST_ROW_BASE_Y = 3678;
 const LEADERBOARD_ROW_YS: number[] = (() => {
-  const first = 2560 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
+  const first = 2560 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_HEADER_BLOCK_SHIFT;
   return Array.from({ length: 10 }, (_, i) => first + i * LEADERBOARD_ROW_PITCH);
 })();
 const LEADERBOARD_LIST_HEIGHT_DELTA = LEADERBOARD_ROW_YS[9] - PREV_LEADERBOARD_LAST_ROW_BASE_Y;
 const INLINE_LEADERBOARD_TITLE_SCALE = 0.88;
-const INLINE_LEADERBOARD_SUBTITLE_Y = 2432 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
-const INLINE_LEADERBOARD_HEADER_PANEL_Y = 2498 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
+const INLINE_LEADERBOARD_HEADER_PANEL_Y = 2498 + LEADERBOARD_TOP_GAP_BELOW_QUICK + 64;
 const INLINE_LEADERBOARD_COLUMN_LABEL_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y + 1;
+/** ~half line height of column header labels (26px) for top-edge Y. */
+const INLINE_LEADERBOARD_COLUMN_HEADER_TEXT_HALF = 16;
+const INLINE_LEADERBOARD_SUBTITLE_INNER_PAD = 4;
 const INLINE_LEADERBOARD_HEADER_UNDERLINE_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y + 22;
 const INLINE_LEADERBOARD_ROW_OFFSET_Y = 60;
 const INLINE_LEADERBOARD_PLATE_SCALE = 0.32;
@@ -96,17 +99,64 @@ const INLINE_LEADERBOARD_TOTAL_HEADER_X = 601;
 const INLINE_LEADERBOARD_PRIZE_TEXT_X = 194;
 const INLINE_LEADERBOARD_SCORE_TEXT_X = 645;
 const INLINE_LEADERBOARD_PAGE_BUTTON_SCALE = 0.72;
-const INLINE_LEADERBOARD_PAGE_BUTTON_Y = 3844 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
-const INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y = 3886 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
-const INLINE_LEADERBOARD_SUMMARY_Y = 3968 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
+const INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT = 70;
+/** Extra space below the page tabs/divider; does not move pagination. */
+const INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP = 30;
+const INLINE_LEADERBOARD_PAGE_BUTTON_Y =
+  3844 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA - INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
+const INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y =
+  3886 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA - INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
+const INLINE_LEADERBOARD_SUMMARY_Y =
+  3968 +
+  LEADERBOARD_TOP_GAP_BELOW_QUICK +
+  LEADERBOARD_LIST_HEIGHT_DELTA -
+  INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT +
+  INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP;
 const INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE = 0.34;
-const INLINE_LEADERBOARD_FOOTER_Y = 4098 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
+const INLINE_LEADERBOARD_FOOTER_Y =
+  4098 +
+  LEADERBOARD_TOP_GAP_BELOW_QUICK +
+  LEADERBOARD_LIST_HEIGHT_DELTA -
+  INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT +
+  INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP;
 const MY_TOTAL_POINTS_Y = 1990;
 const HISTORY_AND_TEST_SPIN_Y = 2188;
 const LEADERBOARD_TITLE_IMAGE_Y = 2340 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
 const PRIZE_EXTEND = LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
+/** Scroll section: gray from midpoint (History row ↔ title) through footer sync lines. */
+const INLINE_LEADERBOARD_SECTION_TOP = Math.round(
+  (HISTORY_AND_TEST_SPIN_Y + LEADERBOARD_TITLE_IMAGE_Y) / 2,
+);
+const INLINE_LEADERBOARD_SECTION_HEIGHT =
+  4125 - 2340 + PRIZE_EXTEND + (LEADERBOARD_TITLE_IMAGE_Y - INLINE_LEADERBOARD_SECTION_TOP);
+const INLINE_LEADERBOARD_SECTION_BG = 0xf2f4f9; // rgb(242,244,249)
+/** Must match `drawHero` eligibility line: `y = 612 + stepSectionOffsetY` (20). */
+const LOBBY_ELIGIBILITY_TEXT_CENTER_Y = 612 + 20;
+const ACTIVITY_PILL_ITEM_HEIGHT = 60;
+/**
+ * Activity bubbles lerp to `endY` (pill center, origin 0.5). Min Y so pill top
+ * (center − height/2) stays below wrapped "Promotion Period" (26px, wordWrap 820)
+ * with a small gap; do not lower this without checking overlap on device.
+ */
+const ACTIVITY_BUBBLE_END_Y_MIN =
+  LOBBY_ELIGIBILITY_TEXT_CENTER_Y + 44 + 10 + Math.ceil(ACTIVITY_PILL_ITEM_HEIGHT / 2);
+const ACTIVITY_BUBBLE_END_Y_MAX = ACTIVITY_BUBBLE_END_Y_MIN + 32;
 const PRIZE_SECTION_TITLE_Y = 4276 + PRIZE_EXTEND;
 const PRIZE_SECTION_SUBTITLE_Y = 4346 + PRIZE_EXTEND;
+/** Terms + deposit + bottom stripe: shift up (closer to prize). */
+const INLINE_RULES_SECTION_LIFT = 150;
+/** 22px + lineSpacing 8 + 22px; `leaderboardLastSyncedText` is origin 0.5,0.5 at `INLINE_LEADERBOARD_FOOTER_Y`. */
+const LEADERBOARD_FOOTER_TEXT_BLOCK_HALF_HEIGHT = (22 + 8 + 22) / 2;
+/** `Title_PrizeArea` at scale 1, origin 0.5,0.5 at `PRIZE_SECTION_TITLE_Y` – tune if asset size changes. */
+const PRIZE_AREA_TITLE_IMAGE_HALF_HEIGHT = 50;
+/** White page band: horizontal boundary midway between footer's bottom ("Next refresh…" line) and title image top. */
+const PRIZE_AND_TERMS_PAGE_BG_TOP = Math.round(
+  (INLINE_LEADERBOARD_FOOTER_Y +
+    LEADERBOARD_FOOTER_TEXT_BLOCK_HALF_HEIGHT +
+    PRIZE_SECTION_TITLE_Y -
+    PRIZE_AREA_TITLE_IMAGE_HALF_HEIGHT) /
+    2,
+);
 const LEADERBOARD_PENDING_TEXT_Y = 2666 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
 const LEADERBOARD_PLATE_KEYS = [
   "RankingPlate_01",
@@ -246,15 +296,20 @@ export class LobbyScene extends Phaser.Scene {
     this.drawBackground();
     this.captureSection(0, 180, () => this.drawHeader());
     this.captureSection(220, 720, () => this.drawHero());
-    this.activitySection = this.captureSection(620, 1020, () => this.drawActionRow(), 220);
-    this.captureSection(1900, 2440, () => {
+    this.activitySection = this.captureSection(620, 1020, () => this.drawActionRow(), 360);
+    this.captureSection(1900, INLINE_LEADERBOARD_SECTION_TOP, () => {
       this.drawSummaryArea();
       this.drawQuickActions();
       this.drawDevPanel();
     });
-    this.captureSection(2440, 2440 + (4125 - 2340) + PRIZE_EXTEND, () => this.drawInlineLeaderboardSection(), 260);
+    this.captureSection(
+      INLINE_LEADERBOARD_SECTION_TOP,
+      INLINE_LEADERBOARD_SECTION_TOP + INLINE_LEADERBOARD_SECTION_HEIGHT,
+      () => this.drawInlineLeaderboardSection(),
+      260,
+    );
     this.captureSection(4276 + PRIZE_EXTEND, 5960 + PRIZE_EXTEND, () => this.drawInlinePrizeSection(), 260);
-    this.captureSection(6090 + PRIZE_EXTEND, CONTENT_HEIGHT, () => this.drawInlineRulesSection(), 260);
+    this.captureSection(6090 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, CONTENT_HEIGHT, () => this.drawInlineRulesSection(), 260);
     this.setupScrollControls();
     this.refreshDynamicContent();
     const leaderboardFooterTimer = this.time.addEvent({
@@ -316,6 +371,10 @@ export class LobbyScene extends Phaser.Scene {
     gradient.fillCircle(150, 3000, 260);
     gradient.fillCircle(930, 4550, 280);
     gradient.fillCircle(260, 6440 + PRIZE_EXTEND, 220);
+
+    const prizeTermsBg = this.add.graphics();
+    prizeTermsBg.fillStyle(COLORS.white, 1);
+    prizeTermsBg.fillRect(0, PRIZE_AND_TERMS_PAGE_BG_TOP, STAGE_WIDTH, CONTENT_HEIGHT - PRIZE_AND_TERMS_PAGE_BG_TOP);
   }
 
   private drawHeader() {
@@ -506,19 +565,39 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawInlineLeaderboardSection() {
-    this.add
+    const sectionBg = this.add.graphics();
+    sectionBg.fillStyle(INLINE_LEADERBOARD_SECTION_BG, 1);
+    // Stop gray at white transition (not full SECTION_HEIGHT) — `prizeTermsBg` is beneath this section and would be fully covered.
+    const leaderGrayEndY = Math.min(
+      INLINE_LEADERBOARD_SECTION_TOP + INLINE_LEADERBOARD_SECTION_HEIGHT,
+      PRIZE_AND_TERMS_PAGE_BG_TOP,
+    );
+    const leaderGrayHeight = Math.max(0, leaderGrayEndY - INLINE_LEADERBOARD_SECTION_TOP);
+    sectionBg.fillRect(0, INLINE_LEADERBOARD_SECTION_TOP, STAGE_WIDTH, leaderGrayHeight);
+    sectionBg.setDepth(-1);
+
+    const titleImage = this.add
       .image(this.fromEditorX(379), LEADERBOARD_TITLE_IMAGE_Y, "Title_Ranking")
       .setScale(INLINE_LEADERBOARD_TITLE_SCALE);
+    const titleBottomY = titleImage.getBounds().bottom;
+    const columnHeaderRowTopY = INLINE_LEADERBOARD_COLUMN_LABEL_Y - INLINE_LEADERBOARD_COLUMN_HEADER_TEXT_HALF;
+    const spanTop = titleBottomY + INLINE_LEADERBOARD_SUBTITLE_INNER_PAD;
+    const spanBottom = columnHeaderRowTopY - INLINE_LEADERBOARD_SUBTITLE_INNER_PAD;
+    const subtitleCenterY =
+      spanBottom > spanTop
+        ? (spanTop + spanBottom) / 2
+        : (titleBottomY + columnHeaderRowTopY) / 2;
     this.add
-      .text(540, INLINE_LEADERBOARD_SUBTITLE_Y, prototypeState.t("leaderboard.sectionSubtitle"), {
+      .text(540, subtitleCenterY, prototypeState.t("leaderboard.sectionSubtitle"), {
         fontFamily: FONTS.body,
-        fontSize: "22px",
+        fontSize: "28px",
         fontStyle: "700",
         color: "#5a8099",
         align: "center",
+        lineSpacing: 4,
         wordWrap: { width: 840, useAdvancedWrap: true },
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5, 0.5);
 
       this.add
         .text(
@@ -767,7 +846,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawInlineRulesSection() {
-    const stripeBandTop = 7060 + PRIZE_EXTEND;
+    const stripeBandTop = 7060 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT;
     const stripeBandHeight = 340;
     const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
@@ -792,15 +871,27 @@ export class LobbyScene extends Phaser.Scene {
     }
     stripeBand.setDepth(0);
 
+    const termsX = 90;
+    const termsY = 6140 - INLINE_RULES_SECTION_LIFT;
+    const termsW = 900;
+    const termsH = 1060;
+    const termsOuterR = 20;
+    const termsInnerPad = 18;
+    const termsInnerGray = 0xf7f7f7; // rgb(247,247,247)
     const termsPanel = this.add.graphics();
     termsPanel.fillStyle(COLORS.white, 0.98);
-    termsPanel.fillRect(90, 6140 + PRIZE_EXTEND, 900, 1060);
-    termsPanel.lineStyle(2, COLORS.line, 0.65);
-    termsPanel.strokeRect(90, 6140 + PRIZE_EXTEND, 900, 1060);
+    termsPanel.fillRoundedRect(termsX, termsY + PRIZE_EXTEND, termsW, termsH, termsOuterR);
+    termsPanel.fillStyle(termsInnerGray, 1);
+    termsPanel.fillRect(
+      termsX + termsInnerPad,
+      termsY + termsInnerPad + PRIZE_EXTEND,
+      termsW - 2 * termsInnerPad,
+      termsH - 2 * termsInnerPad,
+    );
     termsPanel.setDepth(1);
 
     const termsTitle = this.add
-      .text(540, 6206 + PRIZE_EXTEND, prototypeState.t("rules.title"), {
+      .text(540, 6206 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
         fontSize: "42px",
         fontStyle: "800",
@@ -810,12 +901,12 @@ export class LobbyScene extends Phaser.Scene {
     termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
-      .text(120, 6278 + PRIZE_EXTEND, "", {
+      .text(132, 6296 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, "", {
         fontFamily: FONTS.body,
         fontSize: "28px",
-        color: "#253a4e",
+        color: "#000000",
         lineSpacing: 10,
-        wordWrap: { width: 796, useAdvancedWrap: true },
+        wordWrap: { width: 816, useAdvancedWrap: true },
       })
       .setOrigin(0, 0);
     this.rulesBodyText.setDepth(2);
@@ -823,7 +914,7 @@ export class LobbyScene extends Phaser.Scene {
     const depositButton = addTextButton(
       this,
       540,
-      7290 + PRIZE_EXTEND,
+      7290 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT,
       830,
       104,
       "Go to Deposit",
@@ -834,6 +925,7 @@ export class LobbyScene extends Phaser.Scene {
       {
         backgroundColor: COLORS.primary,
         radius: 46,
+        skipHighlight: true,
       },
     );
     depositButton.label.setFontSize(34);
@@ -1182,10 +1274,12 @@ export class LobbyScene extends Phaser.Scene {
       );
 
       let alpha = 0.96;
-      if (bubble.progress < 0.2) {
-        alpha = 0.96 * (bubble.progress / 0.2);
-      } else if (bubble.progress > 0.72) {
-        alpha = 0.96 * (1 - (bubble.progress - 0.72) / 0.28);
+      const FADE_IN_END = 0.18;
+      const FADE_OUT_START = 0.88;
+      if (bubble.progress < FADE_IN_END) {
+        alpha = 0.96 * (bubble.progress / FADE_IN_END);
+      } else if (bubble.progress > FADE_OUT_START) {
+        alpha = 0.96 * (1 - (bubble.progress - FADE_OUT_START) / (1 - FADE_OUT_START));
       }
       bubble.container.setAlpha(Phaser.Math.Clamp(alpha, 0, 0.96));
 
@@ -1222,7 +1316,7 @@ export class LobbyScene extends Phaser.Scene {
     bubble.duration = Phaser.Math.Between(2500, 3200);
     bubble.startX = this.getRandomBubbleX(bubble.width / 2);
     bubble.startY = Phaser.Math.Between(970, 1000);
-    bubble.endY = Phaser.Math.Between(790, 830);
+    bubble.endY = Phaser.Math.Between(ACTIVITY_BUBBLE_END_Y_MIN, ACTIVITY_BUBBLE_END_Y_MAX);
     bubble.startScale = Phaser.Math.FloatBetween(0.78, 0.88);
     bubble.endScale = bubble.startScale + Phaser.Math.FloatBetween(0.08, 0.15);
     bubble.container.setPosition(bubble.startX, bubble.startY);

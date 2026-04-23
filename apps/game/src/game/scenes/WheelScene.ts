@@ -180,15 +180,9 @@ export class WheelScene extends Phaser.Scene {
         this.currentEligibility !== EligibilityStatus.AlreadySpin &&
         this.currentEligibility !== EligibilityStatus.EventEnded,
     );
-    this.button.container.setAlpha(
-      this.currentEligibility === EligibilityStatus.EventEnded
-        ? 1
-        : !this.spinning && this.currentEligibility !== EligibilityStatus.AlreadySpin
-          ? 1
-          : 0.78,
-    );
+    this.button.container.setAlpha(1);
     this.button.label.setColor(
-      "#ffffff",
+      this.currentEligibility === EligibilityStatus.AlreadySpin ? "#ffe0ec" : "#ffffff",
     );
   }
 
@@ -773,7 +767,7 @@ export class WheelScene extends Phaser.Scene {
 
   private createWheelCenterButton() {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
-    const face = this.add.image(0, 0, "Spin_Blue").setScale(0.88);
+    const face = this.add.image(0, 0, "Spin_Red").setScale(0.88);
     const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.9);
     const label = this.add
       .text(0, 4, "SPIN NOW", {
@@ -792,6 +786,7 @@ export class WheelScene extends Phaser.Scene {
       face.setAlpha(1);
       spinArrows.setAlpha(1);
       label.setColor("#ffffff");
+      face.setTexture("Spin_Red");
 
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
@@ -805,6 +800,7 @@ export class WheelScene extends Phaser.Scene {
         spinArrows.setTintFill(0xf0f3f6);
         spinArrows.setAlpha(0.62);
         label.setColor("#ffffff");
+        return;
       }
     };
 
@@ -855,7 +851,7 @@ export class WheelScene extends Phaser.Scene {
           face.setInteractive({ useHandCursor: true });
         }
 
-        container.setAlpha(enabled ? 1 : 0.78);
+        container.setAlpha(1);
       },
     };
   }

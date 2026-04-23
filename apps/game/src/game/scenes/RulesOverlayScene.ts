@@ -37,20 +37,26 @@ export class RulesOverlayScene extends BaseOverlayScene {
       )
       .setOrigin(0.5);
 
+    const TERMS_INNER_PAD = 18;
     addRoundedPanel(this, 540, frame.top + 468, 860, 1030, {
       fillColor: COLORS.white,
       radius: 34,
+      innerFillColor: 0xf7f7f7, // rgb(247,247,247)
+      innerPadding: TERMS_INNER_PAD,
+      innerRadius: 0,
+      skipHighlight: true,
+      skipStroke: true,
     });
 
     const rules = prototypeState.getSnapshot().currentEvent?.rulesContent ?? "";
 
     this.add
-      .text(frame.left + 26, frame.top + 104, rules, {
+      .text(frame.left + 26 + TERMS_INNER_PAD, frame.top + 104 + TERMS_INNER_PAD, rules, {
         fontFamily: FONTS.body,
         fontSize: "28px",
-        color: "#253a4e",
+        color: "#000000",
         lineSpacing: 12,
-        wordWrap: { width: 808, useAdvancedWrap: true },
+        wordWrap: { width: 808 - TERMS_INNER_PAD * 2, useAdvancedWrap: true },
       })
       .setOrigin(0, 0);
   }

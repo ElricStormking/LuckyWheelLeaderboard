@@ -336,9 +336,9 @@ export class DesktopMainScene extends DesktopPageScene {
     const sectionBands = this.add.graphics();
     sectionBands.fillStyle(desktopMainBackground, 0.96);
     sectionBands.fillRect(0, LEADERBOARD_SECTION_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_SECTION_TOP);
-    sectionBands.fillStyle(desktopMainBackground, 0.96);
+    sectionBands.fillStyle(COLORS.white, 1);
     sectionBands.fillRect(0, PRIZE_SECTION_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_SECTION_TOP);
-    sectionBands.fillStyle(desktopMainBackground, 0.96);
+    sectionBands.fillStyle(COLORS.white, 1);
     sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
 
     const atmosphere = this.add.graphics();
@@ -1007,7 +1007,7 @@ export class DesktopMainScene extends DesktopPageScene {
     stripeBand.setDepth(0);
 
     const termsPlate = this.add.graphics();
-    termsPlate.fillStyle(0xf4f4f4, 1);
+    termsPlate.fillStyle(COLORS.white, 1);
     termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
     termsPlate.setDepth(1);
 

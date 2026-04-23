@@ -9,6 +9,17 @@ type PanelOptions = {
   strokeColor?: number;
   strokeAlpha?: number;
   radius?: number;
+  /** Inset fill on top of the main fill (e.g. light gray body area inside a white card). */
+  innerFillColor?: number;
+  innerFillAlpha?: number;
+  /** Pixels to inset the inner fill on each side. */
+  innerPadding?: number;
+  /** Inner corner radius; set to `0` for square corners. Omitted = auto (slightly less than panel radius). */
+  innerRadius?: number;
+  /** When true, skips the default top-left highlight gloss. */
+  skipHighlight?: boolean;
+  /** When true, no outline on the outer rounded rect. */
+  skipStroke?: boolean;
 };
 
 type ButtonOptions = {
@@ -16,6 +27,8 @@ type ButtonOptions = {
   labelColor?: string;
   radius?: number;
   shape?: "rounded-rect" | "circle";
+  /** When true, no semi-transparent highlight band (flat fill). */
+  skipHighlight?: boolean;
 };
 
 export function formatNumber(value: number, locale: AppLocale = "en") {
@@ -172,19 +185,38 @@ export function addRoundedPanel(
   const fillAlpha = options.fillAlpha ?? 0.96;
   const strokeColor = options.strokeColor ?? COLORS.line;
   const strokeAlpha = options.strokeAlpha ?? 0.9;
+  const innerPad = options.innerPadding ?? 0;
+  const innerColor = options.innerFillColor;
+  const innerAlpha = options.innerFillAlpha ?? 1;
 
   graphics.fillStyle(fillColor, fillAlpha);
   graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-  graphics.lineStyle(2, strokeColor, strokeAlpha);
-  graphics.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
-  graphics.fillStyle(COLORS.white, 0.14);
-  graphics.fillRoundedRect(
-    -width * 0.36,
-    -height * 0.37,
-    width * 0.72,
-    height * 0.28,
-    radius,
-  );
+  if (innerColor !== undefined && innerPad > 0) {
+    const innerW = width - innerPad * 2;
+    const innerH = height - innerPad * 2;
+    const ir =
+      options.innerRadius !== undefined ? options.innerRadius : Math.max(8, radius - 6);
+    graphics.fillStyle(innerColor, innerAlpha);
+    if (ir <= 0) {
+      graphics.fillRect(-innerW / 2, -innerH / 2, innerW, innerH);
+    } else {
+      graphics.fillRoundedRect(-innerW / 2, -innerH / 2, innerW, innerH, ir);
+    }
+  }
+  if (!options.skipStroke) {
+    graphics.lineStyle(2, strokeColor, strokeAlpha);
+    graphics.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
+  }
+  if (!options.skipHighlight) {
+    graphics.fillStyle(COLORS.white, 0.14);
+    graphics.fillRoundedRect(
+      -width * 0.36,
+      -height * 0.37,
+      width * 0.72,
+      height * 0.28,
+      radius,
+    );
+  }
 
   container.add(graphics);
   return container;
@@ -207,6 +239,7 @@ export function addTextButton(
   const labelColor = options.labelColor ?? "#ffffff";
   const shape = options.shape ?? "rounded-rect";
   const circleRadius = Math.min(width, height) / 2;
+  const skipHighlight = options.skipHighlight ?? false;
 
   const drawBackground = (color: number) => {
     graphics.clear();
@@ -214,21 +247,25 @@ export function addTextButton(
     if (shape === "circle") {
       graphics.fillStyle(color, 0.94);
       graphics.fillCircle(0, 0, circleRadius);
-      graphics.fillStyle(COLORS.white, 0.14);
-      graphics.fillEllipse(0, -height * 0.18, width * 0.76, height * 0.28);
+      if (!skipHighlight) {
+        graphics.fillStyle(COLORS.white, 0.14);
+        graphics.fillEllipse(0, -height * 0.18, width * 0.76, height * 0.28);
+      }
       return;
     }
 
     graphics.fillStyle(color, 1);
     graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-    graphics.fillStyle(COLORS.white, 0.18);
-    graphics.fillRoundedRect(
-      -width * 0.38,
-      -height * 0.34,
-      width * 0.76,
-      height * 0.24,
-      radius,
-    );
+    if (!skipHighlight) {
+      graphics.fillStyle(COLORS.white, 0.18);
+      graphics.fillRoundedRect(
+        -width * 0.38,
+        -height * 0.34,
+        width * 0.76,
+        height * 0.24,
+        radius,
+      );
+    }
   };
 
   drawBackground(backgroundColor);
