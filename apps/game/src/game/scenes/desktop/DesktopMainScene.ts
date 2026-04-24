@@ -124,11 +124,11 @@ type PrizeRowLayout = {
   align: "left" | "right";
 };
 
-const CONTENT_HEIGHT = 5780;
-const TOP_SECTION_END = 1600;
-const LEADERBOARD_SECTION_TOP = 1600;
-const PRIZE_SECTION_TOP = 3100;
-const TERMS_SECTION_TOP = 4840;
+const CONTENT_HEIGHT = 5600;
+const TOP_SECTION_END = 1420;
+const LEADERBOARD_SECTION_TOP = 1420;
+const PRIZE_SECTION_TOP = 2920;
+const TERMS_SECTION_TOP = 4660;
 
 const HEADER_Y = 74;
 const HEADER_FOREGROUND_DEPTH = 100;
@@ -185,20 +185,23 @@ const WHEEL_CENTER_Y = 875;
 const WHEEL_SCALE = 0.771;
 const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
-const POINTER_SCALE = 0.76;
+const POINTER_SCALE = 0.68;
 const POINTER_ASSET_HEIGHT = 138;
 // Drop roughly half the desktop pointer into the wheel rim.
 const POINTER_Y =
   WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + (POINTER_ASSET_HEIGHT * POINTER_SCALE) / 2;
 /** Sample design y≈1063 → stage y = 1063 * 1920/1540 = 1325. */
 const SUMMARY_PANEL_Y = 1325;
+const HISTORY_BUTTON_Y = SUMMARY_PANEL_Y + 88;
+const LEADERBOARD_TITLE_Y = LEADERBOARD_SECTION_TOP + 144;
+const LEADERBOARD_BACKGROUND_TOP = (HISTORY_BUTTON_Y + LEADERBOARD_TITLE_Y) / 2;
 
 const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
 const LEADERBOARD_ROW_WIDTH = 392;
 const LEADERBOARD_ROW_HEIGHT = 74;
 const LEADERBOARD_HEADER_LABEL_Y = LEADERBOARD_SECTION_TOP + 312;
 const LEADERBOARD_HEADER_DIVIDER_Y = LEADERBOARD_SECTION_TOP + 346;
-const LEADERBOARD_ROW_START_Y = 1998;
+const LEADERBOARD_ROW_START_Y = LEADERBOARD_SECTION_TOP + 398;
 const LEADERBOARD_ROW_SPACING = 92;
 const LEADERBOARD_PANEL_RADIUS = 24;
 const LEADERBOARD_PLATE_SCALE = 0.156;
@@ -210,13 +213,15 @@ const LEADERBOARD_PRIZE_TEXT_FONT_SIZE = "12px";
 const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 180;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
+const PRIZE_SECTION_CONTENT_LIFT = 92;
+const TERMS_SECTION_CONTENT_LIFT = 170;
 
 const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
-  { badgeX: 672, rewardX: 1100, y: 3498, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
-  { badgeX: 1248, rewardX: 820, y: 3788, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
-  { badgeX: 672, rewardX: 1100, y: 4078, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
-  { badgeX: 1248, rewardX: 820, y: 4368, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
-  { badgeX: 672, rewardX: 1100, y: 4658, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 672, rewardX: 1100, y: 3318 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 1248, rewardX: 820, y: 3608 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
+  { badgeX: 672, rewardX: 1100, y: 3898 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 1248, rewardX: 820, y: 4188 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
+  { badgeX: 672, rewardX: 1100, y: 4478 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
 ];
 
 const CELEBRATION_DURATION_MS = 6000;
@@ -351,13 +356,29 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private drawScrollableBackground() {
     const desktopMainBackground = 0xd8f4ff;
+    const leaderboardBackground = 0xf1f3f7;
+    const topGradientStart = 0xffffff;
+    const topGradientEnd = desktopMainBackground;
+    const topGradientSteps = 96;
     const gradient = this.add.graphics();
+    for (let step = 0; step < topGradientSteps; step += 1) {
+      const y = (LEADERBOARD_BACKGROUND_TOP * step) / topGradientSteps;
+      const nextY = (LEADERBOARD_BACKGROUND_TOP * (step + 1)) / topGradientSteps;
+      const color = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.IntegerToColor(topGradientStart),
+        Phaser.Display.Color.IntegerToColor(topGradientEnd),
+        topGradientSteps - 1,
+        step,
+      );
+      gradient.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
+      gradient.fillRect(0, y, STAGE_WIDTH, nextY - y + 1);
+    }
     gradient.fillStyle(desktopMainBackground, 1);
-    gradient.fillRect(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
+    gradient.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, CONTENT_HEIGHT - LEADERBOARD_BACKGROUND_TOP);
 
     const sectionBands = this.add.graphics();
-    sectionBands.fillStyle(desktopMainBackground, 0.96);
-    sectionBands.fillRect(0, LEADERBOARD_SECTION_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_SECTION_TOP);
+    sectionBands.fillStyle(leaderboardBackground, 1);
+    sectionBands.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_BACKGROUND_TOP);
     sectionBands.fillStyle(COLORS.white, 1);
     sectionBands.fillRect(0, PRIZE_SECTION_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_SECTION_TOP);
     sectionBands.fillStyle(COLORS.white, 1);
@@ -377,7 +398,7 @@ export class DesktopMainScene extends DesktopPageScene {
       .setAlpha(0.12);
 
     const leaderboardGlow = this.add.graphics();
-    leaderboardGlow.fillStyle(0xb7ecff, 0.18);
+    leaderboardGlow.fillStyle(0xdce3eb, 0.18);
     leaderboardGlow.fillEllipse(960, 2240, 1450, 520);
     leaderboardGlow.fillStyle(0xffffff, 0.34);
     leaderboardGlow.fillEllipse(960, 2420, 840, 280);
@@ -395,16 +416,14 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createHeader() {
-    const headerShadow = this.pinToViewport(
-      this.add.rectangle(960, HEADER_Y + 4, HEADER_SHADOW_WIDTH, 88, 0x58abd3, 0.08),
-    );
+    const headerShadow = this.add.rectangle(960, HEADER_Y + 4, HEADER_SHADOW_WIDTH, 88, 0x58abd3, 0.08);
     headerShadow.setDepth(HEADER_FOREGROUND_DEPTH - 2);
 
-    const header = this.pinToViewport(this.add.image(960, HEADER_Y, "Desktop_HudFrame"));
+    const header = this.add.image(960, HEADER_Y, "Desktop_HudFrame");
     header.setScale(HEADER_FRAME_SCALE_X, 1);
     header.setDepth(HEADER_FOREGROUND_DEPTH - 1);
 
-    const logo = this.pinToViewport(this.add.image(130, HEADER_Y + 1, "Desktop_LogoIBET"));
+    const logo = this.add.image(130, HEADER_Y + 1, "Desktop_LogoIBET");
     logo.setScale(1.08);
     logo.setDepth(HEADER_FOREGROUND_DEPTH);
 
@@ -413,48 +432,40 @@ export class DesktopMainScene extends DesktopPageScene {
       openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.Deposit));
     });
 
-    const periodFrame = this.pinToViewport(
-      this.add.image(EVENT_SELECTOR_X, HEADER_Y + 1, "Desktop_FrameTime"),
-    );
+    const periodFrame = this.add.image(EVENT_SELECTOR_X, HEADER_Y + 1, "Desktop_FrameTime");
     periodFrame.setScale(EVENT_SELECTOR_FRAME_SCALE_X, EVENT_SELECTOR_FRAME_SCALE_Y);
     periodFrame.setDepth(HEADER_FOREGROUND_DEPTH - 1);
 
-    this.periodLabel = this.pinToViewport(
-      this.add.text(
-        EVENT_SELECTOR_X + EVENT_SELECTOR_TEXT_OFFSET_X,
-        HEADER_Y + 1,
-        prototypeState.t("lobby.loadingLiveEvent"),
-        {
-          fontFamily: FONTS.body,
-          fontSize: "21px",
-          fontStyle: "700",
-          color: "#2f4254",
-          align: "center",
-          wordWrap: { width: EVENT_SELECTOR_LABEL_WIDTH, useAdvancedWrap: false },
-        },
-      ),
+    this.periodLabel = this.add.text(
+      EVENT_SELECTOR_X + EVENT_SELECTOR_TEXT_OFFSET_X,
+      HEADER_Y + 1,
+      prototypeState.t("lobby.loadingLiveEvent"),
+      {
+        fontFamily: FONTS.body,
+        fontSize: "21px",
+        fontStyle: "700",
+        color: "#2f4254",
+        align: "center",
+        wordWrap: { width: EVENT_SELECTOR_LABEL_WIDTH, useAdvancedWrap: false },
+      },
     );
     this.periodLabel.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const dropdownChevron = this.pinToViewport(
-      this.add.text(EVENT_SELECTOR_X + EVENT_SELECTOR_CHEVRON_OFFSET_X, HEADER_Y + 1, "v", {
-        fontFamily: FONTS.body,
-        fontSize: "25px",
-        fontStyle: "700",
-        color: "#1da8ee",
-      }),
-    );
+    const dropdownChevron = this.add.text(EVENT_SELECTOR_X + EVENT_SELECTOR_CHEVRON_OFFSET_X, HEADER_Y + 1, "v", {
+      fontFamily: FONTS.body,
+      fontSize: "25px",
+      fontStyle: "700",
+      color: "#1da8ee",
+    });
     dropdownChevron.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const dropdownHitArea = this.pinToViewport(
-      this.add.rectangle(
-        EVENT_SELECTOR_X + 8,
-        HEADER_Y + 1,
-        EVENT_SELECTOR_HIT_WIDTH,
-        EVENT_SELECTOR_HIT_HEIGHT,
-        0xffffff,
-        0,
-      ),
+    const dropdownHitArea = this.add.rectangle(
+      EVENT_SELECTOR_X + 8,
+      HEADER_Y + 1,
+      EVENT_SELECTOR_HIT_WIDTH,
+      EVENT_SELECTOR_HIT_HEIGHT,
+      0xffffff,
+      0,
     );
     dropdownHitArea.setDepth(HEADER_FOREGROUND_DEPTH + 1);
     dropdownHitArea.setInteractive({ useHandCursor: true });
@@ -476,42 +487,34 @@ export class DesktopMainScene extends DesktopPageScene {
       dropdownChevron.setScale(1);
     });
 
-    const myPointIcon = this.pinToViewport(this.add.image(1307, HEADER_Y, "Desktop_IconMyPoint"));
+    const myPointIcon = this.add.image(1307, HEADER_Y, "Desktop_IconMyPoint");
     myPointIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.headerPointsText = this.pinToViewport(
-      this.add.text(1333, HEADER_Y + 1, "MY POINTS : 0", {
-        fontFamily: FONTS.body,
-        fontSize: "18px",
-        fontStyle: "700",
-        color: "#1b2630",
-      }),
-    );
+    this.headerPointsText = this.add.text(1333, HEADER_Y + 1, "MY POINTS : 0", {
+      fontFamily: FONTS.body,
+      fontSize: "18px",
+      fontStyle: "700",
+      color: "#1b2630",
+    });
     this.headerPointsText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const diamondIcon = this.pinToViewport(this.add.image(1589, HEADER_Y, "Desktop_IconDiamond"));
+    const diamondIcon = this.add.image(1589, HEADER_Y, "Desktop_IconDiamond");
     diamondIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.playerText = this.pinToViewport(
-      this.add.text(1617, HEADER_Y + 1, "--------", {
-        fontFamily: FONTS.body,
-        fontSize: "18px",
-        fontStyle: "700",
-        color: "#1b2630",
-      }),
-    );
+    this.playerText = this.add.text(1617, HEADER_Y + 1, "--------", {
+      fontFamily: FONTS.body,
+      fontSize: "18px",
+      fontStyle: "700",
+      color: "#1b2630",
+    });
     this.playerText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const languageButton = this.pinToViewport(
-      this.add.image(1768, HEADER_Y, "Desktop_ButtonLanguage"),
-    );
+    const languageButton = this.add.image(1748, HEADER_Y, "Desktop_ButtonLanguage");
     languageButton.setScale(0.46);
     languageButton.setDepth(HEADER_FOREGROUND_DEPTH);
     wireImageButton(languageButton, 0.46, () => this.runTapAction(() => this.openLocalePicker()));
 
-    const supportButton = this.pinToViewport(
-      this.add.image(1815, HEADER_Y, "Desktop_ButtonSupport"),
-    );
+    const supportButton = this.add.image(1815, HEADER_Y, "Desktop_ButtonSupport");
     supportButton.setScale(0.46);
     supportButton.setDepth(HEADER_FOREGROUND_DEPTH);
     wireImageButton(supportButton, 0.46, () => {
@@ -527,15 +530,13 @@ export class DesktopMainScene extends DesktopPageScene {
     _active: boolean,
     _onClick?: () => void,
   ) {
-    const text = this.pinToViewport(
-      this.add.text(_x, HEADER_Y + 1, _label, {
-        fontFamily: FONTS.display,
-        fontSize: "18px",
-        fontStyle: "700",
-        color: _active ? "#18aef5" : "#171b1f",
-        letterSpacing: 1.2,
-      }),
-    );
+    const text = this.add.text(_x, HEADER_Y + 1, _label, {
+      fontFamily: FONTS.display,
+      fontSize: "18px",
+      fontStyle: "700",
+      color: _active ? "#18aef5" : "#171b1f",
+      letterSpacing: 1.2,
+    });
     text.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
     if (!_onClick) {
@@ -554,7 +555,22 @@ export class DesktopMainScene extends DesktopPageScene {
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
 
-    this.add.image(960, HERO_TITLE_Y, "Desktop_MainTitle").setScale(0.58);
+    this.add
+      .text(960, HERO_TITLE_Y - 16, "iBET LUCKY WHEEL", {
+        fontFamily: FONTS.display,
+        fontSize: "56px",
+        fontStyle: "900",
+        color: "#15a9e8",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(960, HERO_TITLE_Y + 32, "Spin Daily & Climb The Leaderboard For Cash Rewards!", {
+        fontFamily: FONTS.body,
+        fontSize: "26px",
+        fontStyle: "700",
+        color: "#119fe6",
+      })
+      .setOrigin(0.5);
     this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(tutorialScale);
 
     const stepCopy = [
@@ -948,10 +964,12 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createPrizeSection() {
-    this.add.image(960, PRIZE_SECTION_TOP + 126, "Desktop_PrizeTitle").setScale(1.08);
+    this.add
+      .image(960, PRIZE_SECTION_TOP + 126 - PRIZE_SECTION_CONTENT_LIFT, "Desktop_PrizeTitle")
+      .setScale(1.08);
 
     this.prizeSubtitleText = this.add
-      .text(960, PRIZE_SECTION_TOP + 206, prototypeState.t("prize.sectionSubtitle"), {
+      .text(960, PRIZE_SECTION_TOP + 206 - PRIZE_SECTION_CONTENT_LIFT, prototypeState.t("prize.sectionSubtitle"), {
         fontFamily: FONTS.body,
         fontSize: "21px",
         fontStyle: "700",
@@ -1003,7 +1021,7 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createTermsSection() {
-    const stripeBandTop = TERMS_SECTION_TOP + 620;
+    const stripeBandTop = TERMS_SECTION_TOP + 620 - TERMS_SECTION_CONTENT_LIFT;
     const stripeBandHeight = CONTENT_HEIGHT - stripeBandTop;
     const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
@@ -1031,11 +1049,11 @@ export class DesktopMainScene extends DesktopPageScene {
     /** Sample terms panel: rgb(247,247,247) content band, full-width inset. */
     const termsPlate = this.add.graphics();
     termsPlate.fillStyle(0xf7f7f7, 1);
-    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
+    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118 - TERMS_SECTION_CONTENT_LIFT, 1500, 690);
     termsPlate.setDepth(1);
 
     const termsTitle = this.add
-      .text(960, TERMS_SECTION_TOP + 208, prototypeState.t("rules.title"), {
+      .text(960, TERMS_SECTION_TOP + 208 - TERMS_SECTION_CONTENT_LIFT, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
         fontSize: "28px",
         fontStyle: "800",
@@ -1045,7 +1063,7 @@ export class DesktopMainScene extends DesktopPageScene {
     termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
-      .text(250, TERMS_SECTION_TOP + 350, "", {
+      .text(250, TERMS_SECTION_TOP + 350 - TERMS_SECTION_CONTENT_LIFT, "", {
         fontFamily: FONTS.body,
         fontSize: "20px",
         color: "#253a4e",

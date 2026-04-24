@@ -76,6 +76,11 @@ body {
   justify-content: flex-start;
 }
 
+#app-shell[data-layout="desktop"] {
+  --shell-pad-top: 0px;
+  align-items: flex-start;
+}
+
 #app-shell[data-layout="mobile"] #game-root,
 #game-root {
   width: min(
