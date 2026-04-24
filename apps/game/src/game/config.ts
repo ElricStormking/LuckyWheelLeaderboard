@@ -13,8 +13,6 @@ import { ResultPopupScene } from "./scenes/ResultPopupScene";
 import { RulesOverlayScene } from "./scenes/RulesOverlayScene";
 import { WheelScene } from "./scenes/WheelScene";
 import { DesktopMainScene } from "./scenes/desktop/DesktopMainScene";
-import { DesktopPrizeScene } from "./scenes/desktop/DesktopPrizeScene";
-import { DesktopRankingScene } from "./scenes/desktop/DesktopRankingScene";
 import { DesktopWheelScene } from "./scenes/desktop/DesktopWheelScene";
 import {
   COLORS,
@@ -32,8 +30,6 @@ export function createLuckyWheelGame(parent: string, layout: GameLayout = "mobil
           BootScene,
           PreloadScene,
           DesktopMainScene,
-          DesktopRankingScene,
-          DesktopPrizeScene,
           DesktopWheelScene,
           HistoryOverlayScene,
           ErrorOverlayScene,

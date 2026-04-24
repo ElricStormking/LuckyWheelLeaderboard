@@ -135,11 +135,13 @@ const HEADER_FOREGROUND_DEPTH = 100;
 const MODAL_DEPTH = 220;
 const HEADER_SHADOW_WIDTH = 1880;
 const HEADER_FRAME_SCALE_X = 1.095;
-const EVENT_SELECTOR_X = DESKTOP_PAGE_CENTER_X - 28;
-const EVENT_SELECTOR_FRAME_SCALE_X = 0.292;
-const EVENT_SELECTOR_FRAME_SCALE_Y = 0.182;
-const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.296;
-const EVENT_SELECTOR_FRAME_HOVER_SCALE_Y = 0.186;
+/** Sample event picker center sample x=1736 → stage = 1082 (DESKTOP_PAGE_CENTER_X + 122). */
+const EVENT_SELECTOR_X = DESKTOP_PAGE_CENTER_X + 122;
+/** Sample picker: 299 × 55 stage-px → scaleX = 299/1096 = 0.273, scaleY = 55/347 = 0.159. */
+const EVENT_SELECTOR_FRAME_SCALE_X = 0.273;
+const EVENT_SELECTOR_FRAME_SCALE_Y = 0.159;
+const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.277;
+const EVENT_SELECTOR_FRAME_HOVER_SCALE_Y = 0.163;
 const EVENT_SELECTOR_TEXT_OFFSET_X = -8;
 const EVENT_SELECTOR_CHEVRON_OFFSET_X = 122;
 const EVENT_SELECTOR_LABEL_WIDTH = 248;
@@ -153,23 +155,34 @@ const DESKTOP_EVENT_PICKER_STATUS_BAY_WIDTH = 92;
 const DESKTOP_EVENT_PICKER_POINTER_ACCENT = 0x1db9ff;
 const DESKTOP_EVENT_PICKER_POINTER_DEEP = 0x0c7bbd;
 
-const HERO_TITLE_Y = 210;
+const HERO_TITLE_Y = 220;
 const HERO_TUTORIAL_Y = 336;
-const HERO_PERIOD_Y = 438;
+/** Sample design y≈336 (gray Promotion Period line) → stage = 419. */
+const HERO_PERIOD_Y = 419;
 const ACTIVITY_BOARD_LEFT = 232;
 const ACTIVITY_BOARD_RIGHT = 1688;
 const ACTIVITY_BOARD_TOP = 500;
 const ACTIVITY_BOARD_BOTTOM = 826;
+/**
+ * Two spawn bands flanking the wheel column (sample places pills on sides,
+ * not over the wheel). Wheel visual ≈ x[617..1303]; use margins wider.
+ */
+const ACTIVITY_BAND_LEFT_MIN_X = 60;
+const ACTIVITY_BAND_LEFT_MAX_X = 580;
+const ACTIVITY_BAND_RIGHT_MIN_X = 1340;
+const ACTIVITY_BAND_RIGHT_MAX_X = 1860;
 const ACTIVITY_PILL_END_MIN_Y = HERO_PERIOD_Y + 14;
 const ACTIVITY_PILL_END_MAX_Y = HERO_PERIOD_Y + 44;
 const ACTIVITY_PILL_START_MIN_Y = 660;
-const ACTIVITY_PILL_START_MAX_Y = 828;
+const ACTIVITY_PILL_START_MAX_Y = 960;
 const ACTIVITY_PILL_WIDTHS = [210, 238, 264, 286] as const;
 const ACTIVITY_PILL_HEIGHT = 42;
 
 const WHEEL_CENTER_X = 960;
-const WHEEL_CENTER_Y = 978;
-const WHEEL_SCALE = 0.705;
+/** Sample widest-row y=1405 → design 702 → stage = 875. */
+const WHEEL_CENTER_Y = 875;
+/** Sample diameter = 1202 sample-px = 601 design-px = 749 stage-px → scale = 749/972 = 0.771. */
+const WHEEL_SCALE = 0.771;
 const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
 const POINTER_SCALE = 0.76;
@@ -177,7 +190,8 @@ const POINTER_ASSET_HEIGHT = 138;
 // Drop roughly half the desktop pointer into the wheel rim.
 const POINTER_Y =
   WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + (POINTER_ASSET_HEIGHT * POINTER_SCALE) / 2;
-const SUMMARY_PANEL_Y = 1450;
+/** Sample design y≈1063 → stage y = 1063 * 1920/1540 = 1325. */
+const SUMMARY_PANEL_Y = 1325;
 
 const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
 const LEADERBOARD_ROW_WIDTH = 392;
@@ -325,6 +339,14 @@ export class DesktopMainScene extends DesktopPageScene {
 
     this.setScrollY(Number(this.registry.get("desktopScrollY") ?? 0));
     this.refreshDynamicContent();
+
+    const scrollParam = new URL(window.location.href).searchParams.get("scroll");
+    if (scrollParam !== null) {
+      const parsed = Number.parseInt(scrollParam, 10);
+      if (Number.isFinite(parsed)) {
+        this.setScrollY(Phaser.Math.Clamp(parsed, 0, CONTENT_HEIGHT - STAGE_HEIGHT));
+      }
+    }
   }
 
   private drawScrollableBackground() {
@@ -382,12 +404,12 @@ export class DesktopMainScene extends DesktopPageScene {
     header.setScale(HEADER_FRAME_SCALE_X, 1);
     header.setDepth(HEADER_FOREGROUND_DEPTH - 1);
 
-    const logo = this.pinToViewport(this.add.image(158, HEADER_Y + 1, "Desktop_LogoIBET"));
+    const logo = this.pinToViewport(this.add.image(130, HEADER_Y + 1, "Desktop_LogoIBET"));
     logo.setScale(1.08);
     logo.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.createHeaderTab(470, "EVENT PAGE", true, () => this.scrollTo(0));
-    this.createHeaderTab(610, "DEPOSIT", false, () => {
+    this.createHeaderTab(391, "EVENT PAGE", true, () => this.scrollTo(0));
+    this.createHeaderTab(513, "DEPOSIT", false, () => {
       openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.Deposit));
     });
 
@@ -454,11 +476,11 @@ export class DesktopMainScene extends DesktopPageScene {
       dropdownChevron.setScale(1);
     });
 
-    const myPointIcon = this.pinToViewport(this.add.image(1378, HEADER_Y, "Desktop_IconMyPoint"));
+    const myPointIcon = this.pinToViewport(this.add.image(1307, HEADER_Y, "Desktop_IconMyPoint"));
     myPointIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
     this.headerPointsText = this.pinToViewport(
-      this.add.text(1404, HEADER_Y + 1, "My Total Points : 0", {
+      this.add.text(1333, HEADER_Y + 1, "MY POINTS : 0", {
         fontFamily: FONTS.body,
         fontSize: "18px",
         fontStyle: "700",
@@ -467,11 +489,11 @@ export class DesktopMainScene extends DesktopPageScene {
     );
     this.headerPointsText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const diamondIcon = this.pinToViewport(this.add.image(1618, HEADER_Y, "Desktop_IconDiamond"));
+    const diamondIcon = this.pinToViewport(this.add.image(1589, HEADER_Y, "Desktop_IconDiamond"));
     diamondIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
     this.playerText = this.pinToViewport(
-      this.add.text(1646, HEADER_Y + 1, "--------", {
+      this.add.text(1617, HEADER_Y + 1, "--------", {
         fontFamily: FONTS.body,
         fontSize: "18px",
         fontStyle: "700",
@@ -481,14 +503,14 @@ export class DesktopMainScene extends DesktopPageScene {
     this.playerText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
     const languageButton = this.pinToViewport(
-      this.add.image(1800, HEADER_Y, "Desktop_ButtonLanguage"),
+      this.add.image(1768, HEADER_Y, "Desktop_ButtonLanguage"),
     );
     languageButton.setScale(0.46);
     languageButton.setDepth(HEADER_FOREGROUND_DEPTH);
     wireImageButton(languageButton, 0.46, () => this.runTapAction(() => this.openLocalePicker()));
 
     const supportButton = this.pinToViewport(
-      this.add.image(1862, HEADER_Y, "Desktop_ButtonSupport"),
+      this.add.image(1815, HEADER_Y, "Desktop_ButtonSupport"),
     );
     supportButton.setScale(0.46);
     supportButton.setDepth(HEADER_FOREGROUND_DEPTH);
@@ -532,7 +554,7 @@ export class DesktopMainScene extends DesktopPageScene {
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
 
-    this.add.image(960, HERO_TITLE_Y, "Desktop_MainTitle").setScale(0.9);
+    this.add.image(960, HERO_TITLE_Y, "Desktop_MainTitle").setScale(0.58);
     this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(tutorialScale);
 
     const stepCopy = [
@@ -725,7 +747,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private createLeaderboardSection() {
     this.leaderboardTitleText = this.add
-      .text(960, LEADERBOARD_SECTION_TOP + 144, prototypeState.t("leaderboard.liveTitle"), {
+      .text(960, LEADERBOARD_SECTION_TOP + 144, prototypeState.t("leaderboard.desktopLiveTitle"), {
         fontFamily: FONTS.display,
         fontSize: "72px",
         fontStyle: "800",
@@ -929,7 +951,7 @@ export class DesktopMainScene extends DesktopPageScene {
     this.add.image(960, PRIZE_SECTION_TOP + 126, "Desktop_PrizeTitle").setScale(1.08);
 
     this.prizeSubtitleText = this.add
-      .text(960, PRIZE_SECTION_TOP + 206, prototypeState.t("prize.liveSubtitle"), {
+      .text(960, PRIZE_SECTION_TOP + 206, prototypeState.t("prize.sectionSubtitle"), {
         fontFamily: FONTS.body,
         fontSize: "21px",
         fontStyle: "700",
@@ -1006,15 +1028,16 @@ export class DesktopMainScene extends DesktopPageScene {
     }
     stripeBand.setDepth(0);
 
+    /** Sample terms panel: rgb(247,247,247) content band, full-width inset. */
     const termsPlate = this.add.graphics();
-    termsPlate.fillStyle(COLORS.white, 1);
+    termsPlate.fillStyle(0xf7f7f7, 1);
     termsPlate.fillRect(210, TERMS_SECTION_TOP + 118, 1500, 690);
     termsPlate.setDepth(1);
 
     const termsTitle = this.add
       .text(960, TERMS_SECTION_TOP + 208, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
-        fontSize: "68px",
+        fontSize: "28px",
         fontStyle: "800",
         color: "#47bdf6",
       })
@@ -1133,7 +1156,7 @@ export class DesktopMainScene extends DesktopPageScene {
           ? prototypeState.t("lobby.loadingPayload")
           : prototypeState.t("lobby.loadingLiveEvent"),
     );
-    this.headerPointsText?.setText(`${prototypeState.t("lobby.myTotalPoints")} : ${totalPoints}`);
+    this.headerPointsText?.setText(`MY POINTS : ${totalPoints}`);
     this.summaryPointsText?.setText(totalPoints);
     this.playerText?.setText(this.formatAccountLabel(snapshot.player?.playerName));
 
@@ -1160,8 +1183,8 @@ export class DesktopMainScene extends DesktopPageScene {
     const title = isPending
       ? prototypeState.t("leaderboard.pendingTitle")
       : snapshot.currentEvent?.status === "live"
-        ? prototypeState.t("leaderboard.liveTitle")
-        : prototypeState.t("leaderboard.archiveTitle");
+        ? prototypeState.t("leaderboard.desktopLiveTitle")
+        : prototypeState.t("leaderboard.desktopArchiveTitle");
     const subtitle = prototypeState.t("leaderboard.sectionSubtitle");
 
     this.leaderboardTitleText?.setText(title);
@@ -1248,11 +1271,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private refreshPrizeSection() {
     const snapshot = prototypeState.getSnapshot();
-    this.prizeSubtitleText?.setText(
-      snapshot.currentEvent?.status === "live"
-        ? prototypeState.t("prize.liveSubtitle")
-        : prototypeState.t("prize.archiveSubtitle"),
-    );
+    this.prizeSubtitleText?.setText(prototypeState.t("prize.sectionSubtitle"));
 
     this.prizeRows.forEach((row, index) => {
       const prize = snapshot.prizes[index];
@@ -1386,9 +1405,12 @@ export class DesktopMainScene extends DesktopPageScene {
     pill.delayRemaining = delayMs;
     pill.progress = 0;
     pill.duration = Phaser.Math.Between(2800, 3600);
+    const useLeftBand = Math.random() < 0.5;
+    const bandMinX = useLeftBand ? ACTIVITY_BAND_LEFT_MIN_X : ACTIVITY_BAND_RIGHT_MIN_X;
+    const bandMaxX = useLeftBand ? ACTIVITY_BAND_LEFT_MAX_X : ACTIVITY_BAND_RIGHT_MAX_X;
     pill.startX = Phaser.Math.Between(
-      ACTIVITY_BOARD_LEFT + pill.width / 2 + 24,
-      ACTIVITY_BOARD_RIGHT - pill.width / 2 - 24,
+      bandMinX + pill.width / 2,
+      bandMaxX - pill.width / 2,
     );
     pill.startY = Phaser.Math.Between(ACTIVITY_PILL_START_MIN_Y, ACTIVITY_PILL_START_MAX_Y);
     pill.endX = pill.startX;

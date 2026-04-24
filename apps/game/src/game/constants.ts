@@ -47,8 +47,6 @@ export const SCENE_KEYS = {
   Lobby: "LobbyScene",
   Wheel: "WheelScene",
   DesktopMain: "DesktopMainScene",
-  DesktopRanking: "DesktopRankingScene",
-  DesktopPrize: "DesktopPrizeScene",
   DesktopWheel: "DesktopWheelScene",
   LocaleOverlay: "LocaleOverlayScene",
   PeriodOverlay: "PeriodOverlayScene",

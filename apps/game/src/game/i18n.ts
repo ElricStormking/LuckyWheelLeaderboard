@@ -39,7 +39,9 @@ type CopyKey =
   | "lobby.feed.error"
   | "lobby.feed.idle"
   | "leaderboard.liveTitle"
+  | "leaderboard.desktopLiveTitle"
   | "leaderboard.archiveTitle"
+  | "leaderboard.desktopArchiveTitle"
   | "leaderboard.liveSubtitle"
   | "leaderboard.archiveSubtitle"
   | "leaderboard.pendingTitle"
@@ -135,7 +137,9 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.feed.error": "Reconnecting",
     "lobby.feed.idle": "Feed idle",
     "leaderboard.liveTitle": "Top 30 Leaderboard",
+    "leaderboard.desktopLiveTitle": "Current Top 30 Leaderboard",
     "leaderboard.archiveTitle": "Final Top 30 Snapshot",
+    "leaderboard.desktopArchiveTitle": "Final Top 30 Snapshot",
     "leaderboard.liveSubtitle": "Realtime leaderboard feed for the selected live event.",
     "leaderboard.archiveSubtitle": "Read-only archived ranking for the selected period.",
     "leaderboard.pendingTitle": "Event Result Pending",
@@ -233,7 +237,9 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.feed.error": "Menyambung semula",
     "lobby.feed.idle": "Suapan idle",
     "leaderboard.liveTitle": "Papan Kedudukan Top 30",
+    "leaderboard.desktopLiveTitle": "Papan Kedudukan Top 30 Semasa",
     "leaderboard.archiveTitle": "Snapshot Akhir Top 30",
+    "leaderboard.desktopArchiveTitle": "Snapshot Akhir Top 30",
     "leaderboard.liveSubtitle": "Suapan ranking masa nyata untuk acara langsung terpilih.",
     "leaderboard.archiveSubtitle": "Ranking arkib baca sahaja untuk tempoh terpilih.",
     "leaderboard.pendingTitle": "Keputusan Acara Belum Sedia",
@@ -331,7 +337,9 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.feed.error": "重新连接中",
     "lobby.feed.idle": "实时待机",
     "leaderboard.liveTitle": "前 30 排行榜",
+    "leaderboard.desktopLiveTitle": "当前前 30 排行榜",
     "leaderboard.archiveTitle": "最终前 30 快照",
+    "leaderboard.desktopArchiveTitle": "最终前 30 快照",
     "leaderboard.liveSubtitle": "所选当前活动的实时排行榜。",
     "leaderboard.archiveSubtitle": "所选期数的只读归档排名。",
     "leaderboard.pendingTitle": "活动结果待公布",
