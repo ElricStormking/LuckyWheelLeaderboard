@@ -482,7 +482,22 @@ export class LobbyScene extends Phaser.Scene {
     const tutorialScale = 0.86;
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
-    this.add.image(540, 286, "Title_01").setScale(0.86);
+    this.add
+      .text(540, 264, "iBET LUCKY WHEEL", {
+        fontFamily: FONTS.display,
+        fontSize: "82px",
+        fontStyle: "900",
+        color: "#15a9e8",
+      })
+      .setOrigin(0.5);
+    this.add
+      .text(540, 334, "Spin Daily & Climb The Leaderboard For Cash Rewards!", {
+        fontFamily: FONTS.body,
+        fontSize: "38px",
+        fontStyle: "700",
+        color: "#119fe6",
+      })
+      .setOrigin(0.5);
     this.add.image(tutorialCenterX, 454 + stepSectionOffsetY, "GameTutorial").setScale(tutorialScale);
 
     const stepTextY = 502 + stepSectionOffsetY;

@@ -91,6 +91,8 @@ type DesktopWheelButton = {
 };
 
 type DesktopLeaderboardRow = {
+  x: number;
+  y: number;
   plate: Phaser.GameObjects.Image;
   playerText: Phaser.GameObjects.Text;
   scoreText: Phaser.GameObjects.Text;
@@ -124,11 +126,11 @@ type PrizeRowLayout = {
   align: "left" | "right";
 };
 
-const CONTENT_HEIGHT = 5600;
-const TOP_SECTION_END = 1420;
-const LEADERBOARD_SECTION_TOP = 1420;
-const PRIZE_SECTION_TOP = 2920;
-const TERMS_SECTION_TOP = 4660;
+const CONTENT_HEIGHT = 5640;
+const TOP_SECTION_END = 1460;
+const LEADERBOARD_SECTION_TOP = 1460;
+const PRIZE_SECTION_TOP = 2960;
+const TERMS_SECTION_TOP = 4700;
 
 const HEADER_Y = 74;
 const HEADER_FOREGROUND_DEPTH = 100;
@@ -156,9 +158,9 @@ const DESKTOP_EVENT_PICKER_POINTER_ACCENT = 0x1db9ff;
 const DESKTOP_EVENT_PICKER_POINTER_DEEP = 0x0c7bbd;
 
 const HERO_TITLE_Y = 220;
-const HERO_TUTORIAL_Y = 336;
+const HERO_TUTORIAL_Y = 351;
 /** Sample design y≈336 (gray Promotion Period line) → stage = 419. */
-const HERO_PERIOD_Y = 419;
+const HERO_PERIOD_Y = 434;
 const ACTIVITY_BOARD_LEFT = 232;
 const ACTIVITY_BOARD_RIGHT = 1688;
 const ACTIVITY_BOARD_TOP = 500;
@@ -180,40 +182,62 @@ const ACTIVITY_PILL_HEIGHT = 42;
 
 const WHEEL_CENTER_X = 960;
 /** Sample widest-row y=1405 → design 702 → stage = 875. */
-const WHEEL_CENTER_Y = 875;
+const WHEEL_CENTER_Y = 915;
 /** Sample diameter = 1202 sample-px = 601 design-px = 749 stage-px → scale = 749/972 = 0.771. */
 const WHEEL_SCALE = 0.771;
 const WHEEL_ASSET_SIZE = 972;
 const POINTER_X = 960;
-const POINTER_SCALE = 0.68;
+const POINTER_SCALE = 0.6;
 const POINTER_ASSET_HEIGHT = 138;
+const POINTER_Y_OFFSET = 15;
 // Drop roughly half the desktop pointer into the wheel rim.
 const POINTER_Y =
-  WHEEL_CENTER_Y - (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 + (POINTER_ASSET_HEIGHT * POINTER_SCALE) / 2;
+  WHEEL_CENTER_Y -
+  (WHEEL_ASSET_SIZE * WHEEL_SCALE) / 2 +
+  (POINTER_ASSET_HEIGHT * POINTER_SCALE) / 2 +
+  POINTER_Y_OFFSET;
 /** Sample design y≈1063 → stage y = 1063 * 1920/1540 = 1325. */
-const SUMMARY_PANEL_Y = 1325;
+const SUMMARY_PANEL_Y = 1365;
 const HISTORY_BUTTON_Y = SUMMARY_PANEL_Y + 88;
 const LEADERBOARD_TITLE_Y = LEADERBOARD_SECTION_TOP + 144;
 const LEADERBOARD_BACKGROUND_TOP = (HISTORY_BUTTON_Y + LEADERBOARD_TITLE_Y) / 2;
 
-const LEADERBOARD_COLUMN_LEFTS = [212, 764, 1316] as const;
+const LEADERBOARD_COLUMN_LEFTS = [320, 764, 1208] as const;
 const LEADERBOARD_ROW_WIDTH = 392;
 const LEADERBOARD_ROW_HEIGHT = 74;
 const LEADERBOARD_HEADER_LABEL_Y = LEADERBOARD_SECTION_TOP + 312;
 const LEADERBOARD_HEADER_DIVIDER_Y = LEADERBOARD_SECTION_TOP + 346;
 const LEADERBOARD_ROW_START_Y = LEADERBOARD_SECTION_TOP + 398;
-const LEADERBOARD_ROW_SPACING = 92;
+const LEADERBOARD_ROW_SPACING = 75;
 const LEADERBOARD_PANEL_RADIUS = 24;
 const LEADERBOARD_PLATE_SCALE = 0.156;
 const LEADERBOARD_HEADER_FONT_SIZE = "18px";
+const LEADERBOARD_TITLE_DISPLAY_WIDTH = 278;
+const LEADERBOARD_TITLE_DISPLAY_HEIGHT = 75;
+const LEADERBOARD_SUBTITLE_FONT_SIZE = "18px";
 const LEADERBOARD_HEADER_RANK_X = 54;
-const LEADERBOARD_HEADER_USERNAME_X = 212;
-const LEADERBOARD_HEADER_SCORE_X = 346;
+const LEADERBOARD_HEADER_USERNAME_X = 202;
+const LEADERBOARD_HEADER_SCORE_X = 336;
 const LEADERBOARD_PRIZE_TEXT_FONT_SIZE = "12px";
-const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 180;
+const LEADERBOARD_ROW_TEXT_CENTER_OFFSET_Y = 5;
+const LEADERBOARD_PLATE_VISUAL_CENTER_SOURCE_Y_OFFSETS = [
+  -2.5, -2, -2, 0.5, 2.5, 4, 12.5, 8.5, 8.5, -2.5,
+  27.5, 1.5, -2, 14, 6, -34.5, 1.5, 8.5, 0.5, 49.5,
+  46.5, 49.5, 49.5, 48, 46, 46, 47, 47, 47, 47,
+] as const;
+const LEADERBOARD_PLATE_VISUAL_LEFT_SOURCE_X_OFFSETS = [
+  -1223, -1223, -1223, -1223, -1223, -1223, -1223, -1215, -1223, -1223,
+  -1190, -1217.5, -1223, -1189, -1198, -1223, -1223, -1207.5, -1204, -1198.5,
+  -1198.5, -1198.5, -1198.5, -1198.5, -1198.5, -1198.5, -1198.5, -1198.5, -1198.5, -1198.5,
+] as const;
+const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 290;
+const LEADERBOARD_SUMMARY_DIVIDER_Y =
+  (LEADERBOARD_ROW_START_Y + 9 * LEADERBOARD_ROW_SPACING + LEADERBOARD_SUMMARY_Y) / 2;
+const LEADERBOARD_FOOTER_Y = LEADERBOARD_SUMMARY_Y + 88;
+const PRIZE_BACKGROUND_TOP = PRIZE_SECTION_TOP - 70;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
-const PRIZE_SECTION_CONTENT_LIFT = 92;
+const PRIZE_SECTION_CONTENT_LIFT = 122;
 const TERMS_SECTION_CONTENT_LIFT = 170;
 
 const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
@@ -239,13 +263,36 @@ const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
 
+function getLeaderboardPlateCenterX(rowX: number, rank: number) {
+  const rowIndex = (rank - 1) % 10;
+  const targetOffset = LEADERBOARD_PLATE_VISUAL_LEFT_SOURCE_X_OFFSETS[rowIndex] ?? 0;
+  const sourceOffset = LEADERBOARD_PLATE_VISUAL_LEFT_SOURCE_X_OFFSETS[rank - 1] ?? 0;
+
+  return rowX + (targetOffset - sourceOffset) * LEADERBOARD_PLATE_SCALE;
+}
+
+function getLeaderboardPlateCenterY(rowY: number, rank: number) {
+  const rowIndex = (rank - 1) % 10;
+  const targetOffset = LEADERBOARD_PLATE_VISUAL_CENTER_SOURCE_Y_OFFSETS[rowIndex] ?? 0;
+  const sourceOffset = LEADERBOARD_PLATE_VISUAL_CENTER_SOURCE_Y_OFFSETS[rank - 1] ?? 0;
+
+  return rowY + (targetOffset - sourceOffset) * LEADERBOARD_PLATE_SCALE;
+}
+
+function getLeaderboardRowTextCenterY(rowY: number, rank: number) {
+  const rowIndex = (rank - 1) % 10;
+  const targetOffset = LEADERBOARD_PLATE_VISUAL_CENTER_SOURCE_Y_OFFSETS[rowIndex] ?? 0;
+
+  return rowY + LEADERBOARD_ROW_TEXT_CENTER_OFFSET_Y + targetOffset * LEADERBOARD_PLATE_SCALE;
+}
+
 export class DesktopMainScene extends DesktopPageScene {
   private periodLabel?: Phaser.GameObjects.Text;
   private promotionPeriodText?: Phaser.GameObjects.Text;
   private headerPointsText?: Phaser.GameObjects.Text;
   private summaryPointsText?: Phaser.GameObjects.Text;
   private playerText?: Phaser.GameObjects.Text;
-  private leaderboardTitleText?: Phaser.GameObjects.Text;
+  private leaderboardTitleImage?: Phaser.GameObjects.Image;
   private leaderboardSubtitleText?: Phaser.GameObjects.Text;
   private leaderboardPendingPanel?: Phaser.GameObjects.Container;
   private leaderboardPendingText?: Phaser.GameObjects.Text;
@@ -378,9 +425,9 @@ export class DesktopMainScene extends DesktopPageScene {
 
     const sectionBands = this.add.graphics();
     sectionBands.fillStyle(leaderboardBackground, 1);
-    sectionBands.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, PRIZE_SECTION_TOP - LEADERBOARD_BACKGROUND_TOP);
+    sectionBands.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, PRIZE_BACKGROUND_TOP - LEADERBOARD_BACKGROUND_TOP);
     sectionBands.fillStyle(COLORS.white, 1);
-    sectionBands.fillRect(0, PRIZE_SECTION_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_SECTION_TOP);
+    sectionBands.fillRect(0, PRIZE_BACKGROUND_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_BACKGROUND_TOP);
     sectionBands.fillStyle(COLORS.white, 1);
     sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
 
@@ -411,7 +458,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
     const separators = this.add.graphics();
     separators.fillStyle(0xffffff, 0.88);
-    separators.fillRect(0, PRIZE_SECTION_TOP - 16, STAGE_WIDTH, 16);
+    separators.fillRect(0, PRIZE_BACKGROUND_TOP - 16, STAGE_WIDTH, 16);
     separators.fillRect(0, TERMS_SECTION_TOP - 16, STAGE_WIDTH, 16);
   }
 
@@ -556,21 +603,9 @@ export class DesktopMainScene extends DesktopPageScene {
     const tutorialIconXs = [161, 498, 830];
 
     this.add
-      .text(960, HERO_TITLE_Y - 16, "iBET LUCKY WHEEL", {
-        fontFamily: FONTS.display,
-        fontSize: "56px",
-        fontStyle: "900",
-        color: "#15a9e8",
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(960, HERO_TITLE_Y + 32, "Spin Daily & Climb The Leaderboard For Cash Rewards!", {
-        fontFamily: FONTS.body,
-        fontSize: "26px",
-        fontStyle: "700",
-        color: "#119fe6",
-      })
-      .setOrigin(0.5);
+      .image(960, HERO_TITLE_Y, "Desktop_MainTitle")
+      .setOrigin(0.5)
+      .setDisplaySize(680, 108);
     this.add.image(960, HERO_TUTORIAL_Y, "Desktop_GameTutorial").setScale(tutorialScale);
 
     const stepCopy = [
@@ -762,23 +797,19 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createLeaderboardSection() {
-    this.leaderboardTitleText = this.add
-      .text(960, LEADERBOARD_SECTION_TOP + 144, prototypeState.t("leaderboard.desktopLiveTitle"), {
-        fontFamily: FONTS.display,
-        fontSize: "72px",
-        fontStyle: "800",
-        color: "#47bdf6",
-      })
-      .setOrigin(0.5);
+    this.leaderboardTitleImage = this.add
+      .image(960, LEADERBOARD_SECTION_TOP + 144, "Desktop_RankingTitle")
+      .setOrigin(0.5)
+      .setDisplaySize(LEADERBOARD_TITLE_DISPLAY_WIDTH, LEADERBOARD_TITLE_DISPLAY_HEIGHT);
 
     this.leaderboardSubtitleText = this.add
       .text(960, LEADERBOARD_SECTION_TOP + 222, prototypeState.t("leaderboard.sectionSubtitle"), {
         fontFamily: FONTS.body,
-        fontSize: "22px",
-        fontStyle: "700",
+        fontSize: LEADERBOARD_SUBTITLE_FONT_SIZE,
+        fontStyle: "400",
         color: "#5a8099",
         align: "center",
-        wordWrap: { width: 820, useAdvancedWrap: true },
+        wordWrap: { width: 700, useAdvancedWrap: true },
       })
       .setOrigin(0.5);
 
@@ -802,7 +833,7 @@ export class DesktopMainScene extends DesktopPageScene {
         .text(left + LEADERBOARD_HEADER_RANK_X, LEADERBOARD_HEADER_LABEL_Y, rankColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: LEADERBOARD_HEADER_FONT_SIZE,
-          fontStyle: "700",
+          fontStyle: "400",
           color: "#12a2ea",
         })
         .setOrigin(0.5, 0.5);
@@ -810,7 +841,7 @@ export class DesktopMainScene extends DesktopPageScene {
         .text(left + LEADERBOARD_HEADER_USERNAME_X, LEADERBOARD_HEADER_LABEL_Y, usernameColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: LEADERBOARD_HEADER_FONT_SIZE,
-          fontStyle: "700",
+          fontStyle: "400",
           color: "#12a2ea",
         })
         .setOrigin(0.5, 0.5);
@@ -818,7 +849,7 @@ export class DesktopMainScene extends DesktopPageScene {
         .text(left + LEADERBOARD_HEADER_SCORE_X, LEADERBOARD_HEADER_LABEL_Y, totalPointsColumnLabel, {
           fontFamily: FONTS.body,
           fontSize: LEADERBOARD_HEADER_FONT_SIZE,
-          fontStyle: "700",
+          fontStyle: "400",
           color: "#12a2ea",
         })
         .setOrigin(0.5, 0.5);
@@ -852,15 +883,17 @@ export class DesktopMainScene extends DesktopPageScene {
         const columnIndex = Math.floor(index / 10);
         const rowIndex = index % 10;
         const left = LEADERBOARD_COLUMN_LEFTS[columnIndex];
+        const x = left + LEADERBOARD_ROW_WIDTH / 2;
         const y = LEADERBOARD_ROW_START_Y + rowIndex * LEADERBOARD_ROW_SPACING;
+        const textCenterY = getLeaderboardRowTextCenterY(y, index + 1);
 
         const plate = this.add
-          .image(left + LEADERBOARD_ROW_WIDTH / 2, y, "Desktop_RankingPlate_NotListed")
+          .image(x, y, "Desktop_RankingPlate_NotListed")
           .setScale(LEADERBOARD_PLATE_SCALE)
           .setVisible(false);
 
         const playerText = this.add
-          .text(left + LEADERBOARD_PLAYER_OFFSET_X, y - 2, "-", {
+          .text(left + LEADERBOARD_PLAYER_OFFSET_X, textCenterY, "-", {
             fontFamily: FONTS.body,
             fontSize: "20px",
             fontStyle: "700",
@@ -871,7 +904,7 @@ export class DesktopMainScene extends DesktopPageScene {
           .setVisible(false);
 
         const scoreText = this.add
-          .text(left + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, y - 2, "-", {
+          .text(left + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, textCenterY, "-", {
             fontFamily: FONTS.display,
             fontSize: "20px",
             fontStyle: "700",
@@ -894,6 +927,8 @@ export class DesktopMainScene extends DesktopPageScene {
         prizeText.setPosition(prizePosition.x, prizePosition.y);
 
         this.leaderboardRows.push({
+          x,
+          y,
           plate,
           playerText,
           scoreText,
@@ -901,14 +936,24 @@ export class DesktopMainScene extends DesktopPageScene {
         });
       });
 
+    const summaryDivider = this.add.graphics();
+    summaryDivider.lineStyle(2, COLORS.line, 0.85);
+    summaryDivider.lineBetween(
+      LEADERBOARD_COLUMN_LEFTS[0] - 28,
+      LEADERBOARD_SUMMARY_DIVIDER_Y,
+      LEADERBOARD_COLUMN_LEFTS[2] + LEADERBOARD_ROW_WIDTH + 28,
+      LEADERBOARD_SUMMARY_DIVIDER_Y,
+    );
+
     const summaryLeft = DESKTOP_PAGE_CENTER_X - LEADERBOARD_ROW_WIDTH / 2;
+    const summaryTextCenterY = getLeaderboardRowTextCenterY(LEADERBOARD_SUMMARY_Y, 1);
     this.leaderboardMyRankPlate = this.add
       .image(DESKTOP_PAGE_CENTER_X, LEADERBOARD_SUMMARY_Y, "Desktop_RankingPlate_NotListed")
       .setScale(LEADERBOARD_PLATE_SCALE)
       .setVisible(false);
 
     this.leaderboardMyRankPlayerText = this.add
-      .text(summaryLeft + LEADERBOARD_PLAYER_OFFSET_X, LEADERBOARD_SUMMARY_Y - 2, "", {
+      .text(summaryLeft + LEADERBOARD_PLAYER_OFFSET_X, summaryTextCenterY, "", {
         fontFamily: FONTS.body,
         fontSize: "20px",
         fontStyle: "700",
@@ -919,7 +964,7 @@ export class DesktopMainScene extends DesktopPageScene {
       .setVisible(false);
 
     this.leaderboardMyRankScoreText = this.add
-      .text(summaryLeft + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, LEADERBOARD_SUMMARY_Y - 2, "", {
+      .text(summaryLeft + LEADERBOARD_ROW_WIDTH - LEADERBOARD_SCORE_INSET, summaryTextCenterY, "", {
         fontFamily: FONTS.display,
         fontSize: "20px",
         fontStyle: "700",
@@ -953,7 +998,7 @@ export class DesktopMainScene extends DesktopPageScene {
       .setOrigin(0.5);
 
     this.leaderboardLastSyncedText = this.add
-      .text(960, PRIZE_SECTION_TOP - 72, "", {
+      .text(960, LEADERBOARD_FOOTER_Y, "", {
         fontFamily: FONTS.body,
         fontSize: "18px",
         fontStyle: "700",
@@ -1198,14 +1243,8 @@ export class DesktopMainScene extends DesktopPageScene {
       snapshot.currentEvent?.status === "ended" &&
       snapshot.leaderboard?.resultsVisible === false;
 
-    const title = isPending
-      ? prototypeState.t("leaderboard.pendingTitle")
-      : snapshot.currentEvent?.status === "live"
-        ? prototypeState.t("leaderboard.desktopLiveTitle")
-        : prototypeState.t("leaderboard.desktopArchiveTitle");
     const subtitle = prototypeState.t("leaderboard.sectionSubtitle");
 
-    this.leaderboardTitleText?.setText(title);
     this.leaderboardSubtitleText?.setText(subtitle);
 
     this.leaderboardPendingPanel?.setVisible(isPending);
@@ -1230,8 +1269,13 @@ export class DesktopMainScene extends DesktopPageScene {
         row.plate.setTexture(
           DESKTOP_RANKING_PLATE_KEYS[entry.rank - 1] ?? "Desktop_RankingPlate_NotListed",
         );
+        row.plate.setX(getLeaderboardPlateCenterX(row.x, entry.rank));
+        row.plate.setY(getLeaderboardPlateCenterY(row.y, entry.rank));
+        const rowTextCenterY = getLeaderboardRowTextCenterY(row.y, entry.rank);
         row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
+        row.playerText.setY(rowTextCenterY);
         row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
+        row.scoreText.setY(rowTextCenterY);
         const prizePosition = getDesktopRankingPrizeTextPosition(row.plate, entry.rank);
         row.prizeText
           .setPosition(prizePosition.x, prizePosition.y)
@@ -1258,14 +1302,20 @@ export class DesktopMainScene extends DesktopPageScene {
     if (myRank) {
       const plateKey =
         DESKTOP_RANKING_PLATE_KEYS[myRank.rank - 1] ?? "Desktop_RankingPlate_NotListed";
+      const summaryPlateX = getLeaderboardPlateCenterX(DESKTOP_PAGE_CENTER_X, myRank.rank);
+      const summaryPlateY = getLeaderboardPlateCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank);
+      const summaryTextCenterY = getLeaderboardRowTextCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank);
       this.leaderboardMyRankPlate
         ?.setVisible(true)
-        .setTexture(plateKey);
+        .setTexture(plateKey)
+        .setPosition(summaryPlateX, summaryPlateY);
       this.leaderboardMyRankPlayerText
         ?.setVisible(true)
+        .setY(summaryTextCenterY)
         .setText(myRank.playerName);
       this.leaderboardMyRankScoreText
         ?.setVisible(true)
+        .setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
       const summaryPrizePosition = getDesktopRankingPrizeTextPosition(this.leaderboardMyRankPlate!, myRank.rank);
       this.leaderboardMyRankPrizeText
@@ -1281,9 +1331,11 @@ export class DesktopMainScene extends DesktopPageScene {
       this.leaderboardMyRankPrizeText?.setVisible(false).setText("");
       this.leaderboardMyRankText
         ?.setVisible(true)
+        .setY(LEADERBOARD_SUMMARY_Y)
         .setText(snapshot.isBootstrapping ? "Loading leaderboard..." : "");
     }
 
+    this.leaderboardLastSyncedText?.setY(LEADERBOARD_FOOTER_Y);
     this.refreshLeaderboardFooterText();
   }
 
