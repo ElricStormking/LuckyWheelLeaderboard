@@ -126,11 +126,11 @@ type PrizeRowLayout = {
   align: "left" | "right";
 };
 
-const CONTENT_HEIGHT = 5640;
+const CONTENT_HEIGHT = 5020;
 const TOP_SECTION_END = 1460;
 const LEADERBOARD_SECTION_TOP = 1460;
 const PRIZE_SECTION_TOP = 2960;
-const TERMS_SECTION_TOP = 4700;
+const TERMS_SECTION_TOP = 4496;
 
 const HEADER_Y = 74;
 const HEADER_FOREGROUND_DEPTH = 100;
@@ -234,18 +234,18 @@ const LEADERBOARD_SUMMARY_Y = PRIZE_SECTION_TOP - 290;
 const LEADERBOARD_SUMMARY_DIVIDER_Y =
   (LEADERBOARD_ROW_START_Y + 9 * LEADERBOARD_ROW_SPACING + LEADERBOARD_SUMMARY_Y) / 2;
 const LEADERBOARD_FOOTER_Y = LEADERBOARD_SUMMARY_Y + 88;
-const PRIZE_BACKGROUND_TOP = PRIZE_SECTION_TOP - 70;
+const PRIZE_BACKGROUND_TOP = PRIZE_SECTION_TOP - 120;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
-const PRIZE_SECTION_CONTENT_LIFT = 122;
+const PRIZE_SECTION_CONTENT_LIFT = 162;
 const TERMS_SECTION_CONTENT_LIFT = 170;
 
 const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
-  { badgeX: 672, rewardX: 1100, y: 3318 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
-  { badgeX: 1248, rewardX: 820, y: 3608 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
-  { badgeX: 672, rewardX: 1100, y: 3898 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
-  { badgeX: 1248, rewardX: 820, y: 4188 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "right" },
-  { badgeX: 672, rewardX: 1100, y: 4478 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.92, rewardScale: 0.92, align: "left" },
+  { badgeX: 684, rewardX: 1088, y: 3318 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
+  { badgeX: 1236, rewardX: 832, y: 3583 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "right" },
+  { badgeX: 684, rewardX: 1088, y: 3848 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
+  { badgeX: 1236, rewardX: 832, y: 4113 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "right" },
+  { badgeX: 684, rewardX: 1088, y: 4378 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
 ];
 
 const CELEBRATION_DURATION_MS = 6000;
@@ -769,6 +769,13 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(0.5);
 
+    const groupLeft = label.x - label.width;
+    const groupRight = bubble.x + bubble.radius;
+    const centerOffsetX = -(groupLeft + groupRight) / 2;
+    label.x += centerOffsetX;
+    bubble.x += centerOffsetX;
+    chevron.x += centerOffsetX;
+
     container.add([label, bubble, chevron]);
     container.setSize(170, 48);
     container.setInteractive(
@@ -1014,10 +1021,10 @@ export class DesktopMainScene extends DesktopPageScene {
       .setScale(1.08);
 
     this.prizeSubtitleText = this.add
-      .text(960, PRIZE_SECTION_TOP + 206 - PRIZE_SECTION_CONTENT_LIFT, prototypeState.t("prize.sectionSubtitle"), {
+      .text(960, PRIZE_SECTION_TOP + 191 - PRIZE_SECTION_CONTENT_LIFT, prototypeState.t("prize.sectionSubtitle"), {
         fontFamily: FONTS.body,
         fontSize: "21px",
-        fontStyle: "700",
+        fontStyle: "400",
         color: "#3f7b93",
         align: "center",
         wordWrap: { width: 880, useAdvancedWrap: true },
@@ -1066,14 +1073,16 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createTermsSection() {
-    const stripeBandTop = TERMS_SECTION_TOP + 620 - TERMS_SECTION_CONTENT_LIFT;
+    const termsPanelTop = TERMS_SECTION_TOP + 118 - TERMS_SECTION_CONTENT_LIFT;
+    const termsPanelHeight = 414;
+    const stripeBandTop = termsPanelTop;
     const stripeBandHeight = CONTENT_HEIGHT - stripeBandTop;
     const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
-    const stripeSpacing = 36;
-    const stripeSegments = 10;
-    const stripeColor = 0xe9f8ff;
-    const stripeWidth = 6;
+    const stripeSpacing = 18;
+    const stripeSegments = 18;
+    const stripeColor = 0xdff6ff;
+    const stripeWidth = 3;
 
     for (let offset = -360; offset < STAGE_WIDTH + 360; offset += stripeSpacing) {
       for (let segment = 0; segment < stripeSegments; segment += 1) {
@@ -1094,11 +1103,11 @@ export class DesktopMainScene extends DesktopPageScene {
     /** Sample terms panel: rgb(247,247,247) content band, full-width inset. */
     const termsPlate = this.add.graphics();
     termsPlate.fillStyle(0xf7f7f7, 1);
-    termsPlate.fillRect(210, TERMS_SECTION_TOP + 118 - TERMS_SECTION_CONTENT_LIFT, 1500, 690);
+    termsPlate.fillRect(210, termsPanelTop, 1500, termsPanelHeight);
     termsPlate.setDepth(1);
 
     const termsTitle = this.add
-      .text(960, TERMS_SECTION_TOP + 208 - TERMS_SECTION_CONTENT_LIFT, prototypeState.t("rules.title"), {
+      .text(960, termsPanelTop + 54, prototypeState.t("rules.title"), {
         fontFamily: FONTS.display,
         fontSize: "28px",
         fontStyle: "800",
@@ -1108,7 +1117,7 @@ export class DesktopMainScene extends DesktopPageScene {
     termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
-      .text(250, TERMS_SECTION_TOP + 350 - TERMS_SECTION_CONTENT_LIFT, "", {
+      .text(250, termsPanelTop + 139, "", {
         fontFamily: FONTS.body,
         fontSize: "20px",
         color: "#253a4e",
