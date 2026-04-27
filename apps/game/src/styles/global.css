@@ -78,6 +78,11 @@ body {
 
 #app-shell[data-layout="desktop"] {
   --shell-pad-top: 0px;
+  --shell-pad-right: 0px;
+  --shell-pad-bottom: 0px;
+  --shell-pad-left: 0px;
+  --shell-background: linear-gradient(180deg, #ffffff 0%, #d8f4ff 34%, #d8f4ff 100%);
+  --game-radius: 0px;
   align-items: flex-start;
 }
 
@@ -112,27 +117,23 @@ body {
 
 #app-shell[data-layout="desktop"] #game-root {
   width: min(
-    1540px,
     calc(100vw - var(--shell-pad-left) - var(--shell-pad-right)),
     calc((100vh - var(--shell-pad-top) - var(--shell-pad-bottom)) * 1920 / 1080)
   );
   width: min(
-    1540px,
     calc(100dvw - var(--shell-pad-left) - var(--shell-pad-right)),
     calc((100dvh - var(--shell-pad-top) - var(--shell-pad-bottom)) * 1920 / 1080)
   );
   height: min(
     calc(100vh - var(--shell-pad-top) - var(--shell-pad-bottom)),
-    calc((100vw - var(--shell-pad-left) - var(--shell-pad-right)) * 1080 / 1920),
-    calc(1540px * 1080 / 1920)
+    calc((100vw - var(--shell-pad-left) - var(--shell-pad-right)) * 1080 / 1920)
   );
   height: min(
     calc(100dvh - var(--shell-pad-top) - var(--shell-pad-bottom)),
-    calc((100dvw - var(--shell-pad-left) - var(--shell-pad-right)) * 1080 / 1920),
-    calc(1540px * 1080 / 1920)
+    calc((100dvw - var(--shell-pad-left) - var(--shell-pad-right)) * 1080 / 1920)
   );
-  max-width: 1540px;
-  max-height: calc(1540px * 1080 / 1920);
+  max-width: 100vw;
+  max-height: 100vh;
   aspect-ratio: 1920 / 1080;
   margin: 0 auto;
 }

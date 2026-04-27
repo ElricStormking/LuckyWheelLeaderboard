@@ -1,7 +1,7 @@
 import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
 import { addRoundedPanel, formatDate, formatNumber } from "../helpers";
-import { COLORS, FONTS, SCENE_KEYS } from "../constants";
+import { COLORS, FONTS, isDesktopLayout, SCENE_KEYS } from "../constants";
 
 export class HistoryOverlayScene extends BaseOverlayScene {
   constructor() {
@@ -10,7 +10,8 @@ export class HistoryOverlayScene extends BaseOverlayScene {
 
   create() {
     const snapshot = prototypeState.getSnapshot();
-    const frame = this.createFrame("", undefined, 1500);
+    const isDesktop = isDesktopLayout();
+    const frame = this.createFrame("", undefined, isDesktop ? 900 : 1500, false);
     const titleY = frame.top - 88;
     const titleCenterX = frame.centerX;
     const titleShadow = this.add.ellipse(titleCenterX, titleY + 8, 350, 86, 0x72cfff, 0.14);
@@ -41,8 +42,12 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       .setOrigin(0.5);
     const spinHistory = snapshot.spinHistory;
 
-    const headerY = frame.top + 78;
-    const firstRowY = frame.top + 156;
+    const headerY = frame.top + (isDesktop ? 48 : 78);
+    const firstRowY = frame.top + (isDesktop ? 108 : 156);
+    const rowStepY = isDesktop ? 86 : 118;
+    const rowHeight = isDesktop ? 78 : 88;
+    const rowRadius = isDesktop ? 16 : 18;
+    const totalColumnX = frame.right - (isDesktop ? 30 : 20);
     this.add
       .text(frame.left + 72, headerY, prototypeState.t("history.date"), {
         fontFamily: FONTS.body,
@@ -62,7 +67,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       .setOrigin(0.5);
 
     this.add
-      .text(frame.right - 10, headerY, prototypeState.t("history.totalPoints"), {
+      .text(frame.right - (isDesktop ? 40 : 10), headerY, prototypeState.t("history.totalPoints"), {
         fontFamily: FONTS.body,
         fontSize: "28px",
         fontStyle: "700",
@@ -71,13 +76,13 @@ export class HistoryOverlayScene extends BaseOverlayScene {
       .setOrigin(1, 0.5);
 
     spinHistory?.items.forEach((entry, index) => {
-      const y = firstRowY + index * 118;
-      addRoundedPanel(this, frame.centerX, y, 860, 88, {
+      const y = firstRowY + index * rowStepY;
+      addRoundedPanel(this, frame.centerX, y, 860, rowHeight, {
         fillColor: COLORS.white,
         fillAlpha: 0.98,
         strokeColor: 0xd9edf9,
         strokeAlpha: 1,
-        radius: 18,
+        radius: rowRadius,
       });
 
       const separatorLeftX = frame.centerX - 150;
@@ -118,7 +123,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
         .setOrigin(0.5);
 
       this.add
-        .text(frame.right, y, formatNumber(entry.runningEventTotal, snapshot.locale), {
+        .text(totalColumnX, y, formatNumber(entry.runningEventTotal, snapshot.locale), {
           fontFamily: FONTS.body,
           fontSize: "34px",
           fontStyle: "700",
@@ -133,6 +138,7 @@ export class HistoryOverlayScene extends BaseOverlayScene {
 
     this.drawPager(
       frame,
+      isDesktop,
       spinHistory?.page ?? 1,
       spinHistory?.pageSize ?? 1,
       spinHistory?.total ?? 0,
@@ -144,13 +150,14 @@ export class HistoryOverlayScene extends BaseOverlayScene {
 
   private drawPager(
     frame: { left: number; right: number; bottom: number; centerX: number },
+    isDesktop: boolean,
     page: number,
     pageSize: number,
     total: number,
     onChange: (page: number) => void,
   ) {
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const pagerY = frame.bottom - 12;
+    const pagerY = frame.bottom - (isDesktop ? 2 : 12);
     const activeFill = 0x11a0e7;
     const inactiveColor = "#11a0e7";
     const pageNumbers = Array.from(

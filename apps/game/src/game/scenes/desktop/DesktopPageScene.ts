@@ -1,9 +1,7 @@
 import Phaser from "phaser";
 import { prototypeState } from "../../state/prototype-state";
-import { COLORS, SCENE_KEYS } from "../../constants";
+import { COLORS, SCENE_KEYS, STAGE_HEIGHT, STAGE_WIDTH } from "../../constants";
 import {
-  DESKTOP_PAGE_CENTER_X,
-  DESKTOP_PAGE_CENTER_Y,
   navigateToDesktopPage,
   wireImageButton,
 } from "./desktopSceneShared";
@@ -13,7 +11,15 @@ export abstract class DesktopPageScene extends Phaser.Scene {
 
   protected drawDesktopPageBackground() {
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
-    this.add.image(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, "Desktop_PageBackground");
+    const background = this.add.graphics();
+    background.fillGradientStyle(
+      COLORS.pageTop,
+      COLORS.pageTop,
+      COLORS.pageBottom,
+      COLORS.pageBottom,
+      1,
+    );
+    background.fillRect(0, 0, STAGE_WIDTH, STAGE_HEIGHT);
   }
 
   protected bindPrototypeLifecycle(onChange: () => void) {

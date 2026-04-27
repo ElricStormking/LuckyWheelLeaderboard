@@ -11,6 +11,19 @@ const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_05",
 ] as const;
 
+const PRIZE_ROW_SCALE = 0.88;
+const PRIZE_ROW_GAP = 18;
+const PRIZE_BADGE_VISUAL_WIDTH = 287 * PRIZE_ROW_SCALE;
+const PRIZE_REWARD_VISUAL_WIDTH = 601 * PRIZE_ROW_SCALE;
+const PRIZE_ROW_LEFT = 540 - (PRIZE_BADGE_VISUAL_WIDTH + PRIZE_ROW_GAP + PRIZE_REWARD_VISUAL_WIDTH) / 2;
+const PRIZE_BADGE_LEFT_OVERHANG = (145 - 2) * PRIZE_ROW_SCALE;
+const PRIZE_REWARD_LEFT_OVERHANG = (312 - 14) * PRIZE_ROW_SCALE;
+
+const leftBadgeX = PRIZE_ROW_LEFT + PRIZE_BADGE_LEFT_OVERHANG;
+const leftRewardX = PRIZE_ROW_LEFT + PRIZE_BADGE_VISUAL_WIDTH + PRIZE_ROW_GAP + PRIZE_REWARD_LEFT_OVERHANG;
+const rightRewardX = PRIZE_ROW_LEFT + PRIZE_REWARD_LEFT_OVERHANG;
+const rightBadgeX = PRIZE_ROW_LEFT + PRIZE_REWARD_VISUAL_WIDTH + PRIZE_ROW_GAP + PRIZE_BADGE_LEFT_OVERHANG;
+
 export class PrizeOverlayScene extends BaseOverlayScene {
   constructor() {
     super(SCENE_KEYS.PrizeOverlay);
@@ -21,13 +34,13 @@ export class PrizeOverlayScene extends BaseOverlayScene {
     this.add.image(540, frame.top - 88, "Title_PrizeArea").setScale(1);
 
     const prizes = prototypeState.getSnapshot().prizes;
-    const rewardXs = [700, 380, 700, 380, 700];
-    const badgeXs = [250, 830, 250, 830, 250];
+    const rewardXs = [leftRewardX, rightRewardX, leftRewardX, rightRewardX, leftRewardX];
+    const badgeXs = [leftBadgeX, rightBadgeX, leftBadgeX, rightBadgeX, leftBadgeX];
 
     prizes.forEach((prize, index) => {
       const y = frame.top + 74 + index * 184;
-      this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(0.92);
-      const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(0.88);
+      this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(PRIZE_ROW_SCALE);
+      const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(PRIZE_ROW_SCALE);
       const prizeArt = this.add
         .image(rewardXs[index], y, "Prize_RewardZone")
         .setVisible(false);

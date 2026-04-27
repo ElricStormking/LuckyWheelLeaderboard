@@ -143,6 +143,10 @@ const ACTIVITY_BUBBLE_END_Y_MIN =
 const ACTIVITY_BUBBLE_END_Y_MAX = ACTIVITY_BUBBLE_END_Y_MIN + 32;
 const PRIZE_SECTION_TITLE_Y = 4276 + PRIZE_EXTEND;
 const PRIZE_SECTION_SUBTITLE_Y = 4346 + PRIZE_EXTEND;
+const PRIZE_BADGE_VISIBLE_LEFT = 143;
+const PRIZE_BADGE_VISIBLE_RIGHT = 144;
+const PRIZE_REWARD_VISIBLE_LEFT = 298;
+const PRIZE_REWARD_VISIBLE_RIGHT = 303;
 /** Terms + deposit + bottom stripe: shift up (closer to prize). */
 const INLINE_RULES_SECTION_LIFT = 150;
 /** 22px + lineSpacing 8 + 22px; `leaderboardLastSyncedText` is origin 0.5,0.5 at `INLINE_LEADERBOARD_FOOTER_Y`. */
@@ -401,13 +405,6 @@ export class LobbyScene extends Phaser.Scene {
       1,
     );
     gradient.fillRect(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
-    gradient.fillStyle(COLORS.stageMist, 0.08);
-    gradient.fillCircle(220, 260, 240);
-    gradient.fillCircle(860, 1500, 320);
-    gradient.fillCircle(920, 320, 150);
-    gradient.fillCircle(150, 3000, 260);
-    gradient.fillCircle(930, 4550, 280);
-    gradient.fillCircle(260, 6440 + PRIZE_EXTEND, 220);
 
     const prizeTermsBg = this.add.graphics();
     prizeTermsBg.fillStyle(COLORS.white, 1);
@@ -849,20 +846,14 @@ export class LobbyScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const rewardXs = [
-      this.fromEditorX(480),
-      this.fromEditorX(270),
-      this.fromEditorX(480),
-      this.fromEditorX(270),
-      this.fromEditorX(480),
-    ];
-    const badgeXs = [
-      this.fromEditorX(160),
-      this.fromEditorX(590),
-      this.fromEditorX(160),
-      this.fromEditorX(590),
-      this.fromEditorX(160),
-    ];
+    const prizeRowLeft = this.fromEditorX(160) - PRIZE_BADGE_VISIBLE_LEFT;
+    const prizeRowRight = this.fromEditorX(480) + PRIZE_REWARD_VISIBLE_RIGHT;
+    const leftBadgeX = prizeRowLeft + PRIZE_BADGE_VISIBLE_LEFT;
+    const leftRewardX = prizeRowRight - PRIZE_REWARD_VISIBLE_RIGHT;
+    const rightRewardX = prizeRowLeft + PRIZE_REWARD_VISIBLE_LEFT;
+    const rightBadgeX = prizeRowRight - PRIZE_BADGE_VISIBLE_RIGHT;
+    const rewardXs = [leftRewardX, rightRewardX, leftRewardX, rightRewardX, leftRewardX];
+    const badgeXs = [leftBadgeX, rightBadgeX, leftBadgeX, rightBadgeX, leftBadgeX];
     const yValues = [4521, 4841, 5161, 5481, 5801].map((y) => y + PRIZE_EXTEND);
 
     yValues.forEach((y, index) => {
@@ -929,7 +920,7 @@ export class LobbyScene extends Phaser.Scene {
     const termsH = 1060;
     const termsOuterR = 20;
     const termsInnerPad = 18;
-    const termsInnerGray = 0xf7f7f7; // rgb(247,247,247)
+    const termsInnerGray = 0xf2f2f2; // rgb(242,242,242)
     const termsPanel = this.add.graphics();
     termsPanel.fillStyle(COLORS.white, 0.98);
     termsPanel.fillRoundedRect(termsX, termsY + PRIZE_EXTEND, termsW, termsH, termsOuterR);
@@ -1124,7 +1115,15 @@ export class LobbyScene extends Phaser.Scene {
       snapshot.currentEvent?.rulesContent || prototypeState.t("rules.loading"),
     );
 
-    if (snapshot.leaderboard?.leaderboard.length) {
+    const showActivityBubbles = snapshot.currentEvent?.status === "live";
+    this.activityBubbles.forEach((bubble) => {
+      bubble.container.setVisible(showActivityBubbles);
+      if (!showActivityBubbles) {
+        bubble.container.setAlpha(0);
+      }
+    });
+
+    if (showActivityBubbles && snapshot.leaderboard?.leaderboard.length) {
       this.activityBubbles.forEach((bubble) => {
         if (!bubble.text.text || bubble.text.text === "Loading top 30 activity...") {
           this.assignMarqueeMessage(bubble);
@@ -1313,7 +1312,17 @@ export class LobbyScene extends Phaser.Scene {
       return;
     }
 
+    if (prototypeState.getSnapshot().currentEvent?.status !== "live") {
+      this.activityBubbles.forEach((bubble) => {
+        bubble.container.setVisible(false);
+        bubble.container.setAlpha(0);
+      });
+      return;
+    }
+
     this.activityBubbles.forEach((bubble) => {
+      bubble.container.setVisible(true);
+
       if (bubble.delayRemaining > 0) {
         bubble.delayRemaining = Math.max(0, bubble.delayRemaining - delta);
         return;

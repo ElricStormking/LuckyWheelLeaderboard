@@ -10,7 +10,6 @@ import {
 import { ensureBackgroundMusic, playWinningEffect } from "../../audio";
 import {
   addRoundedPanel,
-  addTextButton,
   formatCountdownDuration,
   formatDate,
   formatNumber,
@@ -24,7 +23,6 @@ import {
   SCENE_KEYS,
   STAGE_HEIGHT,
   STAGE_WIDTH,
-  shouldShowDevEligibilitySwitch,
 } from "../../constants";
 import { prototypeState } from "../../state/prototype-state";
 import { syncPrizeArtImage } from "../../prizeImageLoader";
@@ -90,6 +88,13 @@ type DesktopWheelButton = {
   setEnabled: (enabled: boolean) => void;
 };
 
+type DesktopActionButton = {
+  background: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  setBackground: (color: number) => void;
+  setEnabled: (enabled: boolean) => void;
+};
+
 type DesktopLeaderboardRow = {
   x: number;
   y: number;
@@ -133,17 +138,21 @@ const PRIZE_SECTION_TOP = 2960;
 const TERMS_SECTION_TOP = 4496;
 
 const HEADER_Y = 74;
+/** `HUD_Frame.png` visible bounds are centered 3px above the texture center. */
+const HEADER_CONTENT_Y = HEADER_Y - 3;
 const HEADER_FOREGROUND_DEPTH = 100;
 const MODAL_DEPTH = 220;
 const HEADER_SHADOW_WIDTH = 1880;
 const HEADER_FRAME_SCALE_X = 1.095;
 /** Sample event picker center sample x=1736 → stage = 1082 (DESKTOP_PAGE_CENTER_X + 122). */
 const EVENT_SELECTOR_X = DESKTOP_PAGE_CENTER_X + 122;
-/** Sample picker: 299 × 55 stage-px → scaleX = 299/1096 = 0.273, scaleY = 55/347 = 0.159. */
-const EVENT_SELECTOR_FRAME_SCALE_X = 0.273;
-const EVENT_SELECTOR_FRAME_SCALE_Y = 0.159;
-const EVENT_SELECTOR_FRAME_HOVER_SCALE_X = 0.277;
-const EVENT_SELECTOR_FRAME_HOVER_SCALE_Y = 0.163;
+/** Sample picker: 299 x 55 stage-px. */
+const EVENT_SELECTOR_FRAME_WIDTH = 299;
+const EVENT_SELECTOR_FRAME_HEIGHT = 55;
+const EVENT_SELECTOR_FRAME_HOVER_WIDTH = 304;
+const EVENT_SELECTOR_FRAME_HOVER_HEIGHT = 58;
+const EVENT_SELECTOR_FRAME_STROKE = 0x21b7f7;
+const EVENT_SELECTOR_FRAME_FILL = 0xffffff;
 const EVENT_SELECTOR_TEXT_OFFSET_X = -8;
 const EVENT_SELECTOR_CHEVRON_OFFSET_X = 122;
 const EVENT_SELECTOR_LABEL_WIDTH = 248;
@@ -165,12 +174,10 @@ const ACTIVITY_BOARD_LEFT = 232;
 const ACTIVITY_BOARD_RIGHT = 1688;
 const ACTIVITY_BOARD_TOP = 500;
 const ACTIVITY_BOARD_BOTTOM = 826;
-/**
- * Two spawn bands flanking the wheel column (sample places pills on sides,
- * not over the wheel). Wheel visual ≈ x[617..1303]; use margins wider.
- */
 const ACTIVITY_BAND_LEFT_MIN_X = 60;
 const ACTIVITY_BAND_LEFT_MAX_X = 580;
+const ACTIVITY_BAND_CENTER_MIN_X = 700;
+const ACTIVITY_BAND_CENTER_MAX_X = 1220;
 const ACTIVITY_BAND_RIGHT_MIN_X = 1340;
 const ACTIVITY_BAND_RIGHT_MAX_X = 1860;
 const ACTIVITY_PILL_END_MIN_Y = HERO_PERIOD_Y + 14;
@@ -186,6 +193,10 @@ const WHEEL_CENTER_Y = 915;
 /** Sample diameter = 1202 sample-px = 601 design-px = 749 stage-px → scale = 749/972 = 0.771. */
 const WHEEL_SCALE = 0.771;
 const WHEEL_ASSET_SIZE = 972;
+const TOTAL_POINTS_FRAME_SCALE = 0.58;
+const TOTAL_POINTS_FRAME_WIDTH = 927 * TOTAL_POINTS_FRAME_SCALE;
+const TOTAL_POINTS_LABEL_X = DESKTOP_PAGE_CENTER_X - TOTAL_POINTS_FRAME_WIDTH / 2 + 46;
+const TOTAL_POINTS_VALUE_X = DESKTOP_PAGE_CENTER_X + TOTAL_POINTS_FRAME_WIDTH / 2 - 66;
 const POINTER_X = 960;
 const POINTER_SCALE = 0.6;
 const POINTER_ASSET_HEIGHT = 138;
@@ -238,21 +249,32 @@ const PRIZE_BACKGROUND_TOP = PRIZE_SECTION_TOP - 120;
 const LEADERBOARD_PLAYER_OFFSET_X = 168;
 const LEADERBOARD_SCORE_INSET = 16;
 const PRIZE_SECTION_CONTENT_LIFT = 162;
-const TERMS_SECTION_CONTENT_LIFT = 170;
+const TERMS_SECTION_CONTENT_LIFT = 190;
+const PRIZE_ROW_SCALE = 0.874;
+const PRIZE_BADGE_VISIBLE_LEFT = 143 * PRIZE_ROW_SCALE;
+const PRIZE_BADGE_VISIBLE_RIGHT = 144 * PRIZE_ROW_SCALE;
+const PRIZE_REWARD_VISIBLE_LEFT = 298 * PRIZE_ROW_SCALE;
+const PRIZE_REWARD_VISIBLE_RIGHT = 303 * PRIZE_ROW_SCALE;
+const PRIZE_ROW_LEFT = 684 - PRIZE_BADGE_VISIBLE_LEFT;
+const PRIZE_ROW_RIGHT = 1088 + PRIZE_REWARD_VISIBLE_RIGHT;
+const PRIZE_LEFT_BADGE_X = PRIZE_ROW_LEFT + PRIZE_BADGE_VISIBLE_LEFT;
+const PRIZE_LEFT_REWARD_X = PRIZE_ROW_RIGHT - PRIZE_REWARD_VISIBLE_RIGHT;
+const PRIZE_RIGHT_REWARD_X = PRIZE_ROW_LEFT + PRIZE_REWARD_VISIBLE_LEFT;
+const PRIZE_RIGHT_BADGE_X = PRIZE_ROW_RIGHT - PRIZE_BADGE_VISIBLE_RIGHT;
 
 const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
-  { badgeX: 684, rewardX: 1088, y: 3318 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
-  { badgeX: 1236, rewardX: 832, y: 3583 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "right" },
-  { badgeX: 684, rewardX: 1088, y: 3848 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
-  { badgeX: 1236, rewardX: 832, y: 4113 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "right" },
-  { badgeX: 684, rewardX: 1088, y: 4378 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: 0.874, rewardScale: 0.874, align: "left" },
+  { badgeX: PRIZE_LEFT_BADGE_X, rewardX: PRIZE_LEFT_REWARD_X, y: 3318 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "left" },
+  { badgeX: PRIZE_RIGHT_BADGE_X, rewardX: PRIZE_RIGHT_REWARD_X, y: 3583 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "right" },
+  { badgeX: PRIZE_LEFT_BADGE_X, rewardX: PRIZE_LEFT_REWARD_X, y: 3848 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "left" },
+  { badgeX: PRIZE_RIGHT_BADGE_X, rewardX: PRIZE_RIGHT_REWARD_X, y: 4113 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "right" },
+  { badgeX: PRIZE_LEFT_BADGE_X, rewardX: PRIZE_LEFT_REWARD_X, y: 4378 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "left" },
 ];
 
 const CELEBRATION_DURATION_MS = 6000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
 const FIREWORK_EFFECT_DEPTH = 6;
-const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
+const SEGMENT_HIGHLIGHT_OUTER_RADIUS = WHEEL_ASSET_SIZE / 2 - 18;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
 const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
 const SEGMENT_HIGHLIGHT_SHADOW = 0x8a4300;
@@ -315,7 +337,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private renderedWheelSignature = "";
   private renderedHighlightIndex?: number;
   private button?: DesktopWheelButton;
-  private testSpinButton?: ReturnType<typeof addTextButton>;
+  private testSpinButton?: DesktopActionButton;
   private currentEligibility?: EligibilityStatus;
   private currentWheelVisualState = WheelVisualState.Normal;
   private spinning = false;
@@ -431,31 +453,6 @@ export class DesktopMainScene extends DesktopPageScene {
     sectionBands.fillStyle(COLORS.white, 1);
     sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
 
-    const atmosphere = this.add.graphics();
-    atmosphere.fillStyle(COLORS.stageMist, 0.08);
-    atmosphere.fillCircle(250, 280, 220);
-    atmosphere.fillCircle(1645, 360, 210);
-    atmosphere.fillCircle(960, 960, 460);
-    atmosphere.fillCircle(1240, 2250, 380);
-    atmosphere.fillCircle(420, 2580, 300);
-    atmosphere.fillCircle(1460, 3620, 340);
-    this.add
-      .image(DESKTOP_PAGE_CENTER_X, 1110, "Desktop_MainBackgroundAccent")
-      .setScale(1.04)
-      .setAlpha(0.12);
-
-    const leaderboardGlow = this.add.graphics();
-    leaderboardGlow.fillStyle(0xdce3eb, 0.18);
-    leaderboardGlow.fillEllipse(960, 2240, 1450, 520);
-    leaderboardGlow.fillStyle(0xffffff, 0.34);
-    leaderboardGlow.fillEllipse(960, 2420, 840, 280);
-
-    const prizeGlow = this.add.graphics();
-    prizeGlow.fillStyle(0xffffff, 0.2);
-    prizeGlow.fillEllipse(960, 3940, 1380, 760);
-    prizeGlow.fillStyle(0x8fddff, 0.18);
-    prizeGlow.fillEllipse(960, 4260, 980, 280);
-
     const separators = this.add.graphics();
     separators.fillStyle(0xffffff, 0.88);
     separators.fillRect(0, PRIZE_BACKGROUND_TOP - 16, STAGE_WIDTH, 16);
@@ -470,7 +467,7 @@ export class DesktopMainScene extends DesktopPageScene {
     header.setScale(HEADER_FRAME_SCALE_X, 1);
     header.setDepth(HEADER_FOREGROUND_DEPTH - 1);
 
-    const logo = this.add.image(130, HEADER_Y + 1, "Desktop_LogoIBET");
+    const logo = this.add.image(100, HEADER_CONTENT_Y, "Desktop_LogoIBET");
     logo.setScale(1.08);
     logo.setDepth(HEADER_FOREGROUND_DEPTH);
 
@@ -479,13 +476,14 @@ export class DesktopMainScene extends DesktopPageScene {
       openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.Deposit));
     });
 
-    const periodFrame = this.add.image(EVENT_SELECTOR_X, HEADER_Y + 1, "Desktop_FrameTime");
-    periodFrame.setScale(EVENT_SELECTOR_FRAME_SCALE_X, EVENT_SELECTOR_FRAME_SCALE_Y);
+    const periodFrame = this.add.graphics();
+    periodFrame.setPosition(EVENT_SELECTOR_X, HEADER_CONTENT_Y);
     periodFrame.setDepth(HEADER_FOREGROUND_DEPTH - 1);
+    this.drawEventSelectorFrame(periodFrame, EVENT_SELECTOR_FRAME_WIDTH, EVENT_SELECTOR_FRAME_HEIGHT);
 
     this.periodLabel = this.add.text(
       EVENT_SELECTOR_X + EVENT_SELECTOR_TEXT_OFFSET_X,
-      HEADER_Y + 1,
+      HEADER_CONTENT_Y,
       prototypeState.t("lobby.loadingLiveEvent"),
       {
         fontFamily: FONTS.body,
@@ -498,7 +496,7 @@ export class DesktopMainScene extends DesktopPageScene {
     );
     this.periodLabel.setOrigin(0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const dropdownChevron = this.add.text(EVENT_SELECTOR_X + EVENT_SELECTOR_CHEVRON_OFFSET_X, HEADER_Y + 1, "v", {
+    const dropdownChevron = this.add.text(EVENT_SELECTOR_X + EVENT_SELECTOR_CHEVRON_OFFSET_X, HEADER_CONTENT_Y, "v", {
       fontFamily: FONTS.body,
       fontSize: "25px",
       fontStyle: "700",
@@ -508,7 +506,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
     const dropdownHitArea = this.add.rectangle(
       EVENT_SELECTOR_X + 8,
-      HEADER_Y + 1,
+      HEADER_CONTENT_Y,
       EVENT_SELECTOR_HIT_WIDTH,
       EVENT_SELECTOR_HIT_HEIGHT,
       0xffffff,
@@ -526,18 +524,18 @@ export class DesktopMainScene extends DesktopPageScene {
     });
     dropdownHitArea.on("pointerup", () => this.runTapAction(() => this.openEventPicker()));
     dropdownHitArea.on("pointerover", () => {
-      periodFrame.setScale(EVENT_SELECTOR_FRAME_HOVER_SCALE_X, EVENT_SELECTOR_FRAME_HOVER_SCALE_Y);
+      this.drawEventSelectorFrame(periodFrame, EVENT_SELECTOR_FRAME_HOVER_WIDTH, EVENT_SELECTOR_FRAME_HOVER_HEIGHT);
       dropdownChevron.setScale(1.05);
     });
     dropdownHitArea.on("pointerout", () => {
-      periodFrame.setScale(EVENT_SELECTOR_FRAME_SCALE_X, EVENT_SELECTOR_FRAME_SCALE_Y);
+      this.drawEventSelectorFrame(periodFrame, EVENT_SELECTOR_FRAME_WIDTH, EVENT_SELECTOR_FRAME_HEIGHT);
       dropdownChevron.setScale(1);
     });
 
-    const myPointIcon = this.add.image(1307, HEADER_Y, "Desktop_IconMyPoint");
+    const myPointIcon = this.add.image(1307, HEADER_CONTENT_Y, "Desktop_IconMyPoint");
     myPointIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.headerPointsText = this.add.text(1333, HEADER_Y + 1, "MY POINTS : 0", {
+    this.headerPointsText = this.add.text(1333, HEADER_CONTENT_Y, "MY POINTS : 0", {
       fontFamily: FONTS.body,
       fontSize: "18px",
       fontStyle: "700",
@@ -545,10 +543,10 @@ export class DesktopMainScene extends DesktopPageScene {
     });
     this.headerPointsText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const diamondIcon = this.add.image(1589, HEADER_Y, "Desktop_IconDiamond");
+    const diamondIcon = this.add.image(1589, HEADER_CONTENT_Y, "Desktop_IconDiamond");
     diamondIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.playerText = this.add.text(1617, HEADER_Y + 1, "--------", {
+    this.playerText = this.add.text(1617, HEADER_CONTENT_Y, "--------", {
       fontFamily: FONTS.body,
       fontSize: "18px",
       fontStyle: "700",
@@ -556,12 +554,12 @@ export class DesktopMainScene extends DesktopPageScene {
     });
     this.playerText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
-    const languageButton = this.add.image(1748, HEADER_Y, "Desktop_ButtonLanguage");
+    const languageButton = this.add.image(1748, HEADER_CONTENT_Y, "Desktop_ButtonLanguage");
     languageButton.setScale(0.46);
     languageButton.setDepth(HEADER_FOREGROUND_DEPTH);
     wireImageButton(languageButton, 0.46, () => this.runTapAction(() => this.openLocalePicker()));
 
-    const supportButton = this.add.image(1815, HEADER_Y, "Desktop_ButtonSupport");
+    const supportButton = this.add.image(1815, HEADER_CONTENT_Y, "Desktop_ButtonSupport");
     supportButton.setScale(0.46);
     supportButton.setDepth(HEADER_FOREGROUND_DEPTH);
     wireImageButton(supportButton, 0.46, () => {
@@ -577,7 +575,7 @@ export class DesktopMainScene extends DesktopPageScene {
     _active: boolean,
     _onClick?: () => void,
   ) {
-    const text = this.add.text(_x, HEADER_Y + 1, _label, {
+    const text = this.add.text(_x, HEADER_CONTENT_Y, _label, {
       fontFamily: FONTS.display,
       fontSize: "18px",
       fontStyle: "700",
@@ -595,6 +593,21 @@ export class DesktopMainScene extends DesktopPageScene {
     text.on("pointerout", () => text.setScale(1));
     text.on("pointerup", () => this.runTapAction(_onClick));
     return text;
+  }
+
+  private drawEventSelectorFrame(
+    frame: Phaser.GameObjects.Graphics,
+    width: number,
+    height: number,
+  ) {
+    const radius = height / 2;
+    frame.clear();
+    frame.fillStyle(0x8edfff, 0.12);
+    frame.fillRoundedRect(-width / 2 + 2, -height / 2 + 3, width, height, radius);
+    frame.fillStyle(EVENT_SELECTOR_FRAME_FILL, 0.96);
+    frame.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
+    frame.lineStyle(2, EVENT_SELECTOR_FRAME_STROKE, 1);
+    frame.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
   }
 
   private createHero() {
@@ -644,11 +657,6 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private createActivityBoard() {
-    const boardGlow = this.add.ellipse(960, 680, 1460, 440, 0xffffff, 0.22);
-    boardGlow.setDepth(0.5);
-    const wheelGlow = this.add.ellipse(960, 785, 1040, 260, 0xffffff, 0.3);
-    wheelGlow.setDepth(0.6);
-
     this.activityPills = Array.from({ length: 14 }, (_, index) => {
       const width = ACTIVITY_PILL_WIDTHS[index % ACTIVITY_PILL_WIDTHS.length];
       const pill = this.createActivityPill(width);
@@ -705,18 +713,18 @@ export class DesktopMainScene extends DesktopPageScene {
     this.button = this.createWheelCenterButton();
     this.drawPointer();
 
-    this.add.image(960, SUMMARY_PANEL_Y, "Desktop_FrameTotalPoint").setScale(0.58);
+    this.add.image(960, SUMMARY_PANEL_Y, "Desktop_FrameTotalPoint").setScale(TOTAL_POINTS_FRAME_SCALE);
     this.add
-      .text(820, SUMMARY_PANEL_Y + 1, `${prototypeState.t("lobby.myTotalPoints")}:`, {
+      .text(TOTAL_POINTS_LABEL_X, SUMMARY_PANEL_Y + 1, `${prototypeState.t("lobby.myTotalPoints")}:`, {
         fontFamily: FONTS.body,
-        fontSize: "28px",
+        fontSize: "20px",
         fontStyle: "700",
         color: "#14a8ee",
       })
       .setOrigin(0, 0.5);
 
     this.summaryPointsText = this.add
-      .text(1118, SUMMARY_PANEL_Y, "0", {
+      .text(TOTAL_POINTS_VALUE_X, SUMMARY_PANEL_Y, "0", {
         fontFamily: FONTS.display,
         fontSize: "44px",
         fontStyle: "700",
@@ -724,25 +732,8 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(1, 0.5);
 
-    this.createHistoryButton(960, SUMMARY_PANEL_Y + 88);
-
-    if (shouldShowDevEligibilitySwitch()) {
-      this.testSpinButton = addTextButton(
-        this,
-        1552,
-        SUMMARY_PANEL_Y,
-        184,
-        54,
-        "Test Spin",
-        () => this.runVisualTestSpin(),
-        {
-          backgroundColor: 0xe9f7ff,
-          labelColor: "#0a2942",
-          radius: 28,
-        },
-      );
-      this.testSpinButton.label.setFontSize("20px");
-    }
+    this.createHistoryButton(960, HISTORY_BUTTON_Y);
+    this.testSpinButton = this.createTestSpinButton(1140, HISTORY_BUTTON_Y);
   }
 
   private createHistoryButton(x: number, y: number) {
@@ -803,6 +794,53 @@ export class DesktopMainScene extends DesktopPageScene {
 
   }
 
+  private createTestSpinButton(x: number, y: number): DesktopActionButton {
+    const width = 156;
+    const height = 48;
+    const enabledFill = 0xe9f7ff;
+    const background = this.add.rectangle(x, y, width, height, enabledFill, 1);
+    background.setDepth(8);
+    background.setStrokeStyle(2, COLORS.line, 0.75);
+    background.setInteractive({ useHandCursor: true });
+
+    const label = this.add
+      .text(x, y, "test_spin", {
+        fontFamily: FONTS.display,
+        fontSize: "18px",
+        fontStyle: "700",
+        color: "#0a2942",
+      })
+      .setOrigin(0.5)
+      .setDepth(9);
+
+    const setHover = (hovered: boolean) => {
+      background.setScale(hovered ? 1.03 : 1);
+      label.setScale(hovered ? 1.03 : 1);
+    };
+
+    background.on("pointerover", () => setHover(true));
+    background.on("pointerout", () => setHover(false));
+    background.on("pointerup", () => this.runTapAction(() => this.runVisualTestSpin()));
+
+    return {
+      background,
+      label,
+      setBackground(color: number) {
+        background.setFillStyle(color, 1);
+      },
+      setEnabled(enabled: boolean) {
+        background.disableInteractive();
+        if (enabled) {
+          background.setInteractive({ useHandCursor: true });
+        }
+
+        background.setAlpha(enabled ? 1 : 0.72);
+        label.setAlpha(enabled ? 1 : 0.72);
+        setHover(false);
+      },
+    };
+  }
+
   private createLeaderboardSection() {
     this.leaderboardTitleImage = this.add
       .image(960, LEADERBOARD_SECTION_TOP + 144, "Desktop_RankingTitle")
@@ -814,7 +852,7 @@ export class DesktopMainScene extends DesktopPageScene {
         fontFamily: FONTS.body,
         fontSize: LEADERBOARD_SUBTITLE_FONT_SIZE,
         fontStyle: "400",
-        color: "#5a8099",
+        color: "#000000",
         align: "center",
         wordWrap: { width: 700, useAdvancedWrap: true },
       })
@@ -1009,7 +1047,7 @@ export class DesktopMainScene extends DesktopPageScene {
         fontFamily: FONTS.body,
         fontSize: "18px",
         fontStyle: "700",
-        color: "#62839b",
+        color: "#000000",
       })
       .setOrigin(0.5)
       .setLineSpacing(6);
@@ -1025,7 +1063,7 @@ export class DesktopMainScene extends DesktopPageScene {
         fontFamily: FONTS.body,
         fontSize: "21px",
         fontStyle: "400",
-        color: "#3f7b93",
+        color: "#000000",
         align: "center",
         wordWrap: { width: 880, useAdvancedWrap: true },
       })
@@ -1075,7 +1113,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private createTermsSection() {
     const termsPanelTop = TERMS_SECTION_TOP + 118 - TERMS_SECTION_CONTENT_LIFT;
     const termsPanelHeight = 414;
-    const stripeBandTop = termsPanelTop;
+    const stripeBandTop = termsPanelTop - 46;
     const stripeBandHeight = CONTENT_HEIGHT - stripeBandTop;
     const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
@@ -1092,17 +1130,16 @@ export class DesktopMainScene extends DesktopPageScene {
         const startY = stripeBandBottom - stripeBandHeight * progressStart;
         const endX = offset + stripeBandHeight * progressEnd;
         const endY = stripeBandBottom - stripeBandHeight * progressEnd;
-        const alpha = Phaser.Math.Linear(0.92, 0.18, progressStart);
 
-        stripeBand.lineStyle(stripeWidth, stripeColor, alpha);
+        stripeBand.lineStyle(stripeWidth, stripeColor, 0.42);
         stripeBand.lineBetween(startX, startY, endX, endY);
       }
     }
     stripeBand.setDepth(0);
 
-    /** Sample terms panel: rgb(247,247,247) content band, full-width inset. */
+    /** Sample terms panel: rgb(242,242,242) content band, full-width inset. */
     const termsPlate = this.add.graphics();
-    termsPlate.fillStyle(0xf7f7f7, 1);
+    termsPlate.fillStyle(0xf2f2f2, 1);
     termsPlate.fillRect(210, termsPanelTop, 1500, termsPanelHeight);
     termsPlate.setDepth(1);
 
@@ -1120,7 +1157,7 @@ export class DesktopMainScene extends DesktopPageScene {
       .text(250, termsPanelTop + 139, "", {
         fontFamily: FONTS.body,
         fontSize: "20px",
-        color: "#253a4e",
+        color: "#000000",
         lineSpacing: 8,
         wordWrap: { width: 1420, useAdvancedWrap: true },
       })
@@ -1232,7 +1269,15 @@ export class DesktopMainScene extends DesktopPageScene {
     this.summaryPointsText?.setText(totalPoints);
     this.playerText?.setText(this.formatAccountLabel(snapshot.player?.playerName));
 
-    if (snapshot.leaderboard?.leaderboard.length) {
+    const showActivityPills = snapshot.currentEvent?.status === EventStatus.Live;
+    this.activityPills.forEach((pill) => {
+      pill.container.setVisible(showActivityPills);
+      if (!showActivityPills) {
+        pill.container.setAlpha(0);
+      }
+    });
+
+    if (showActivityPills && snapshot.leaderboard?.leaderboard.length) {
       this.activityPills.forEach((pill) => {
         if (!pill.label.text || pill.label.text === "Loading player activity...") {
           this.assignActivityMessage(pill);
@@ -1309,11 +1354,18 @@ export class DesktopMainScene extends DesktopPageScene {
       null;
 
     if (myRank) {
+      const isListedRank = myRank.rank >= 1 && myRank.rank <= DESKTOP_RANKING_PLATE_KEYS.length;
       const plateKey =
-        DESKTOP_RANKING_PLATE_KEYS[myRank.rank - 1] ?? "Desktop_RankingPlate_NotListed";
-      const summaryPlateX = getLeaderboardPlateCenterX(DESKTOP_PAGE_CENTER_X, myRank.rank);
-      const summaryPlateY = getLeaderboardPlateCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank);
-      const summaryTextCenterY = getLeaderboardRowTextCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank);
+        isListedRank ? DESKTOP_RANKING_PLATE_KEYS[myRank.rank - 1] : "Desktop_RankingPlate_NotListed";
+      const summaryPlateX = isListedRank
+        ? getLeaderboardPlateCenterX(DESKTOP_PAGE_CENTER_X, myRank.rank)
+        : DESKTOP_PAGE_CENTER_X;
+      const summaryPlateY = isListedRank
+        ? getLeaderboardPlateCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank)
+        : LEADERBOARD_SUMMARY_Y;
+      const summaryTextCenterY = isListedRank
+        ? getLeaderboardRowTextCenterY(LEADERBOARD_SUMMARY_Y, myRank.rank)
+        : LEADERBOARD_SUMMARY_Y + LEADERBOARD_ROW_TEXT_CENTER_OFFSET_Y;
       this.leaderboardMyRankPlate
         ?.setVisible(true)
         .setTexture(plateKey)
@@ -1448,7 +1500,17 @@ export class DesktopMainScene extends DesktopPageScene {
       return;
     }
 
+    if (prototypeState.getSnapshot().currentEvent?.status !== EventStatus.Live) {
+      this.activityPills.forEach((pill) => {
+        pill.container.setVisible(false);
+        pill.container.setAlpha(0);
+      });
+      return;
+    }
+
     this.activityPills.forEach((pill) => {
+      pill.container.setVisible(true);
+
       if (pill.delayRemaining > 0) {
         pill.delayRemaining = Math.max(0, pill.delayRemaining - delta);
         return;
@@ -1484,12 +1546,15 @@ export class DesktopMainScene extends DesktopPageScene {
     pill.delayRemaining = delayMs;
     pill.progress = 0;
     pill.duration = Phaser.Math.Between(2800, 3600);
-    const useLeftBand = Math.random() < 0.5;
-    const bandMinX = useLeftBand ? ACTIVITY_BAND_LEFT_MIN_X : ACTIVITY_BAND_RIGHT_MIN_X;
-    const bandMaxX = useLeftBand ? ACTIVITY_BAND_LEFT_MAX_X : ACTIVITY_BAND_RIGHT_MAX_X;
+    const activityBands = [
+      { minX: ACTIVITY_BAND_LEFT_MIN_X, maxX: ACTIVITY_BAND_LEFT_MAX_X },
+      { minX: ACTIVITY_BAND_CENTER_MIN_X, maxX: ACTIVITY_BAND_CENTER_MAX_X },
+      { minX: ACTIVITY_BAND_RIGHT_MIN_X, maxX: ACTIVITY_BAND_RIGHT_MAX_X },
+    ];
+    const band = activityBands[Phaser.Math.Between(0, activityBands.length - 1)];
     pill.startX = Phaser.Math.Between(
-      bandMinX + pill.width / 2,
-      bandMaxX - pill.width / 2,
+      band.minX + pill.width / 2,
+      band.maxX - pill.width / 2,
     );
     pill.startY = Phaser.Math.Between(ACTIVITY_PILL_START_MIN_Y, ACTIVITY_PILL_START_MAX_Y);
     pill.endX = pill.startX;
