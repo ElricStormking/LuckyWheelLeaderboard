@@ -77,6 +77,8 @@ body {
 }
 
 #app-shell[data-layout="desktop"] {
+  --desktop-stage-height: min(100vh, calc(100vw * 1080 / 1920));
+  --desktop-stage-height: min(100dvh, calc(100dvw * 1080 / 1920));
   --shell-pad-top: 0px;
   --shell-pad-right: 0px;
   --shell-pad-bottom: 0px;
@@ -84,6 +86,15 @@ body {
   --shell-background: linear-gradient(180deg, #ffffff 0%, #d8f4ff 34%, #d8f4ff 100%);
   --game-radius: 0px;
   align-items: flex-start;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0,
+      transparent var(--desktop-stage-height),
+      #202020 var(--desktop-stage-height),
+      #202020 100%
+    ),
+    var(--shell-background);
 }
 
 #app-shell[data-layout="mobile"] #game-root,
