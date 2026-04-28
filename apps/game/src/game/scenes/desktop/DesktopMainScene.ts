@@ -3,6 +3,7 @@ import {
   EventStatus,
   EligibilityStatus,
   PlatformLinkType,
+  WheelSegmentOperator,
   WheelVisualState,
   type SpinSuccessResponse,
   type WheelSegmentDto,
@@ -27,6 +28,12 @@ import {
 import { prototypeState } from "../../state/prototype-state";
 import { syncPrizeArtImage } from "../../prizeImageLoader";
 import { createRibbonsBurst } from "../../ribbonsFx";
+import {
+  createWinningPopup,
+  getPointAroundWinningPopup,
+  type WinningPopupBounds,
+  type WinningPopupHandle,
+} from "../../winningPopup";
 import { DesktopPageScene } from "./DesktopPageScene";
 import {
   DESKTOP_RANKING_PLATE_KEYS,
@@ -270,7 +277,7 @@ const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
   { badgeX: PRIZE_LEFT_BADGE_X, rewardX: PRIZE_LEFT_REWARD_X, y: 4378 - PRIZE_SECTION_CONTENT_LIFT, badgeScale: PRIZE_ROW_SCALE, rewardScale: PRIZE_ROW_SCALE, align: "left" },
 ];
 
-const CELEBRATION_DURATION_MS = 6000;
+const CELEBRATION_DURATION_MS = 8000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
 const FIREWORK_EFFECT_DEPTH = 6;
@@ -347,6 +354,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private highlightTween?: Phaser.Tweens.Tween;
   private celebrationTimer?: Phaser.Time.TimerEvent;
   private celebrationBursts: Phaser.Time.TimerEvent[] = [];
+  private winningPopup?: WinningPopupHandle;
 
   private isDraggingScroll = false;
   private dragStartX = 0;
@@ -405,6 +413,7 @@ export class DesktopMainScene extends DesktopPageScene {
       this.highlightGraphic?.destroy();
       this.celebrationTimer?.remove(false);
       this.clearCelebrationBursts();
+      this.clearWinningPopup();
       this.closePicker();
       this.activityPills = [];
       this.leaderboardRows = [];
@@ -1652,7 +1661,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private animateToSegment(result: SpinSuccessResponse) {
     this.animateWheelToSegmentIndex(result.segmentIndex, () => {
-      this.playSpinCelebration(result.segmentIndex);
+      this.playSpinCelebration(result);
     });
   }
 
@@ -1698,15 +1707,20 @@ export class DesktopMainScene extends DesktopPageScene {
     });
   }
 
-  private playSpinCelebration(segmentIndex: number) {
+  private playSpinCelebration(result: SpinSuccessResponse | number) {
+    const segmentIndex = typeof result === "number" ? result : result.segmentIndex;
+    const totalPoints =
+      typeof result === "number" ? this.getPreviewTotalPoints(result) : result.runningEventTotal;
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    this.launchCelebrationFireworks(segmentIndex);
+    const popupBounds = this.showWinningPopup(totalPoints);
+    this.launchCelebrationFireworks(segmentIndex, popupBounds);
 
     this.celebrationTimer?.remove(false);
     this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
       this.clearCelebrationBursts();
+      this.clearWinningPopup();
       this.highlightedSegmentIndex = undefined;
       this.highlightTween?.stop();
       this.highlightGraphic?.destroy();
@@ -1716,6 +1730,49 @@ export class DesktopMainScene extends DesktopPageScene {
       prototypeState.acknowledgeSpinResult();
       this.applyState();
     });
+  }
+
+  private showWinningPopup(totalPoints: number) {
+    this.clearWinningPopup();
+    const popup = createWinningPopup(this, {
+      x: WHEEL_CENTER_X,
+      y: WHEEL_CENTER_Y - 300,
+      totalPoints,
+      locale: prototypeState.getSnapshot().locale,
+      depth: FIREWORK_EFFECT_DEPTH + 2,
+      scale: 0.86,
+    });
+    this.winningPopup = popup;
+    return popup.bounds;
+  }
+
+  private clearWinningPopup() {
+    this.winningPopup?.destroy();
+    this.winningPopup = undefined;
+  }
+
+  private getPreviewTotalPoints(segmentIndex: number) {
+    const snapshot = prototypeState.getSnapshot();
+    const baseTotal = snapshot.player?.totalScore ?? 0;
+    const segment = snapshot.currentEvent?.wheelSegments[segmentIndex];
+    if (!segment) {
+      return baseTotal;
+    }
+
+    const operand = segment.scoreOperand;
+    if (segment.scoreOperator === WheelSegmentOperator.Subtract) {
+      return baseTotal - operand;
+    }
+    if (segment.scoreOperator === WheelSegmentOperator.Multiply) {
+      return baseTotal * operand;
+    }
+    if (segment.scoreOperator === WheelSegmentOperator.Divide) {
+      return operand === 0 ? baseTotal : Math.floor(baseTotal / operand);
+    }
+    if (segment.scoreOperator === WheelSegmentOperator.Equals) {
+      return operand;
+    }
+    return baseTotal + operand;
   }
 
   private drawWheel(segments: WheelSegmentDto[]) {
@@ -2014,12 +2071,19 @@ export class DesktopMainScene extends DesktopPageScene {
     this.pointer.setAlpha(1);
   }
 
-  private launchCelebrationFireworks(segmentIndex: number) {
+  private launchCelebrationFireworks(segmentIndex: number, popupBounds?: WinningPopupBounds) {
     this.clearCelebrationBursts();
 
     for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
       const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
-        const point = this.getWinningSegmentFireworkPoint(segmentIndex);
+        const point = popupBounds
+          ? getPointAroundWinningPopup(popupBounds, {
+              minX: 340,
+              maxX: 1580,
+              minY: 300,
+              maxY: 1020,
+            })
+          : this.getWinningSegmentFireworkPoint(segmentIndex);
         const isHeroBurst = index % 4 === 0;
         this.createFireworkBurst(
           point.x,
