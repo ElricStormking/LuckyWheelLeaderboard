@@ -963,7 +963,7 @@ export class LobbyScene extends Phaser.Scene {
       "Go to Deposit",
       () =>
         this.runTapAction(() => {
-          openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.Deposit));
+          openExternalLink(prototypeState.getDepositUrl());
         }),
       {
         backgroundColor: COLORS.primary,
@@ -1660,6 +1660,10 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private getPlatformLinkUrl(type: PlatformLinkType) {
+    if (type === PlatformLinkType.Deposit) {
+      return prototypeState.getDepositUrl();
+    }
+
     return prototypeState
       .getSnapshot()
       .currentEvent?.platformLinks.find((link) => link.type === type)?.url;

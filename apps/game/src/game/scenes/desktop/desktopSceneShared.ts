@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { PlatformLinkType } from "@lucky-wheel/contracts";
+import { PlatformLinkType } from "@lucky-wheel/contracts";
 import { prototypeState } from "../../state/prototype-state";
 import { SCENE_KEYS } from "../../constants";
 
@@ -90,6 +90,10 @@ export const DESKTOP_PRIZE_BADGE_KEYS = [
 ] as const;
 
 export function getDesktopPlatformLinkUrl(type: PlatformLinkType) {
+  if (type === PlatformLinkType.Deposit) {
+    return prototypeState.getDepositUrl();
+  }
+
   return prototypeState
     .getSnapshot()
     .currentEvent?.platformLinks.find((link) => link.type === type)?.url;

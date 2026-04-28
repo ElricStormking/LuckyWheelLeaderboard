@@ -1,4 +1,4 @@
-import { EligibilityStatus, type AppLocale } from "@lucky-wheel/contracts";
+import { EligibilityStatus, PlatformLinkType, type AppLocale } from "@lucky-wheel/contracts";
 import type {
   CurrentEventResponse,
   EligibilityResponse,
@@ -19,6 +19,7 @@ import {
   FALLBACK_LOCALE,
   persistLocale,
   resolveLaunchAccessToken,
+  resolveLaunchDepositUrl,
   resolveLaunchLocale,
   translate,
 } from "../i18n";
@@ -43,6 +44,7 @@ type Snapshot = {
   eligibility: EligibilityResponse | null;
   spinHistory: PlayerSpinHistoryResponse | null;
   eventHistory: PlayerEventHistoryResponse | null;
+  launchDepositUrl?: string;
   spinHistoryPage: number;
   eventHistoryPage: number;
   realtimeStatus: RealtimeStatus;
@@ -72,6 +74,7 @@ class PrototypeState {
     eligibility: null,
     spinHistory: null,
     eventHistory: null,
+    launchDepositUrl: undefined,
     spinHistoryPage: 1,
     eventHistoryPage: 1,
     realtimeStatus: "idle",
@@ -85,6 +88,16 @@ class PrototypeState {
 
   getSnapshot() {
     return this.snapshot;
+  }
+
+  getDepositUrl() {
+    return (
+      this.snapshot.launchDepositUrl ??
+      this.snapshot.eligibility?.depositUrl ??
+      this.snapshot.currentEvent?.platformLinks.find(
+        (link) => link.type === PlatformLinkType.Deposit,
+      )?.url
+    );
   }
 
   t(key: Parameters<typeof translate>[1], params?: Record<string, string | number>) {
@@ -114,7 +127,9 @@ class PrototypeState {
     try {
       const localizationConfig = await this.api.getLocalizationConfig(resolveLaunchLocale());
       this.api.setLocale(localizationConfig.resolvedLocale);
-      this.api.setAccessToken(resolveLaunchAccessToken());
+      const accessToken = resolveLaunchAccessToken();
+      this.api.setAccessToken(accessToken);
+      const launchDepositUrl = resolveLaunchDepositUrl(accessToken);
 
       const [currentEvent, eventList, eventHistory] = await Promise.all([
         this.api.getCurrentEvent(),
@@ -146,6 +161,7 @@ class PrototypeState {
         eligibility,
         spinHistory,
         eventHistory,
+        launchDepositUrl,
         spinHistoryPage: 1,
         eventHistoryPage: 1,
         isBootstrapping: false,

@@ -1,7 +1,7 @@
 # Lucky Wheel Production Integration API Documentation
 
-**Version:** 2.7  
-**Last Updated:** April 1, 2026
+**Version:** 2.8  
+**Last Updated:** April 24, 2026
 
 **Change Highlights**
 - Upgrades the Lucky Wheel integration document from prototype guidance to a production target contract.
@@ -13,7 +13,7 @@
 - Defines a formal external response envelope and error-code contract.
 - Publishes OpenAPI artifacts for Lucky Wheel Server and Merchant API.
 - Adds observability, request tracing, auditability, and rate-limit requirements.
-- Uses hybrid eligibility: Lucky Wheel Server enforces live-event and daily-spin usage, while Customer Platform provides deposit eligibility and deposit URL through Merchant API.
+- Uses hybrid eligibility: Lucky Wheel Server enforces live-event and daily-spin usage, while Customer Platform provides deposit eligibility through Merchant API and supplies the preferred deposit URL through launch `depositUrl`.
 - Starts wiring Merchant API to the live Customer Platform SOAP/WCF operation `LuckyWheel_Deposit_isEligible`.
 - Replaces the old placeholder REST upstream contract with the actual SOAP request, response, auth, and rollout plan.
 
@@ -89,7 +89,7 @@ Final eligibility is derived by Lucky Wheel Server from:
 - the current live event resolved from Lucky Wheel Admin Tool configuration
 - the player's used spins inside the current event-day window
 - the event's configured daily spin limit, which is currently `1`
-- Customer Platform deposit eligibility and deposit URL resolved through Merchant API
+- Customer Platform deposit eligibility resolved through Merchant API, with the preferred deposit URL supplied at launch
 
 The event-day window is always derived from the event timezone, not from browser local time.
 
@@ -548,8 +548,8 @@ Eligibility rules:
 2. Lucky Wheel Server computes the current event-day window from the event timezone.
 3. Lucky Wheel Server counts spins already used in that window.
 4. Lucky Wheel Server applies the event's daily spin limit to the used-spin count.
-5. Lucky Wheel Server calls Merchant API to obtain Customer Platform deposit eligibility and deposit URL.
-6. Lucky Wheel Server returns `GO_TO_DEPOSIT` with `depositUrl` when Customer Platform says deposit is required.
+5. Lucky Wheel Server calls Merchant API to obtain Customer Platform deposit eligibility and a normalized deposit URL.
+6. Lucky Wheel Server returns `GO_TO_DEPOSIT` with `depositUrl` when Customer Platform says deposit is required. The preferred source is the launch-time `depositUrl`; Merchant API fallback remains available if launch did not provide one.
 
 `depositUrl` is returned only when `eligibilityStatus` is `GO_TO_DEPOSIT`.
 
@@ -707,7 +707,7 @@ Success payload:
 
 Purpose:
 
-- retrieve Customer Platform deposit eligibility and deposit URL for the player
+- retrieve Customer Platform deposit eligibility and Merchant API normalized deposit URL for the player
 
 Success payload:
 
@@ -752,7 +752,9 @@ Implementation notes:
 - Merchant API maps `playerId` to Customer Platform `Account`
 - Merchant API currently derives `RecordDate` from `CUSTOMER_PLATFORM_RECORD_DATE_TIMEZONE`
 - Merchant API synthesizes `decisionId` and `expiresAt`; the upstream SOAP response does not provide either field
-- the live WSDL currently exposes `IsEligible` but does not expose `DepositUrl`, so Merchant API currently uses configured `CUSTOMER_PLATFORM_DEPOSIT_URL` when a deposit redirect is needed
+- Customer Platform now supplies the preferred current-domain deposit link through launch `depositUrl`
+- Merchant API still returns `depositUrl` in this internal response when `depositQualified=false`
+- when no launch deposit URL is available to the Lucky Wheel web flow, Merchant API fallback uses configured `CUSTOMER_PLATFORM_DEPOSIT_URL`
 
 ### 10.3 `POST /merchant-api/integration/launch`
 
@@ -776,6 +778,7 @@ The request body does not include `merchantId`. If a legacy caller still sends i
   "initialEligibility": {
     "depositQualified": true
   },
+  "depositUrl": "https://www.customer-current-domain.com/deposit",
   "timestamp": 1761216000
 }
 ```
@@ -801,11 +804,13 @@ Authentication notes:
 - `timestamp` is validated only as a freshness check
 - Merchant API resolves merchant identity from `MERCHANT_INTEGRATION_ID` server config
 - `initialEligibility` is not part of launch authentication. Only `depositQualified` is required in the bootstrap object.
+- `depositUrl` is optional but recommended for production customer-platform domains. It must be a top-level absolute `http` or `https` URL.
+- `DepositURL` is also accepted as a compatibility alias, but `depositUrl` is preferred.
 - invalid `playerId` or invalid `initialEligibility.depositQualified` returns `4000`
 - missing or invalid `MERCHANT_INTEGRATION_ID` returns `7001`
 - `url` is an opaque launch URL; callers must not parse or construct internal Lucky Wheel query parameters
 
-Lucky Wheel resolves the current live `eventId` internally during launch. Customer Platform does not submit event configuration, but it may submit `initialEligibility` bootstrap data. That bootstrap data is not authoritative for gameplay.
+Lucky Wheel resolves the current live `eventId` internally during launch. Customer Platform does not submit event configuration, but it may submit `initialEligibility` bootstrap data and the preferred `depositUrl`. The bootstrap data is not authoritative for gameplay; the deposit-rule decision still comes from the SOAP/WCF eligibility call.
 
 ---
 
@@ -880,9 +885,10 @@ Relevant response fields:
 
 Important note:
 
-- the current live WSDL and live dummy-response probe expose `Status` and `IsEligible`, but do not expose `DepositUrl`
-- because Lucky Wheel still needs a deposit redirect, Merchant API currently synthesizes `depositUrl` from configured `CUSTOMER_PLATFORM_DEPOSIT_URL`
-- if Customer Platform later publishes `DepositUrl` in the WSDL/response, Merchant API should switch to passing it through directly
+- for the Lucky Wheel integration, the Customer Platform SOAP/WCF response only needs to return the deposit-rule decision (`Status` / `IsEligible`)
+- Customer Platform should provide the preferred current-domain deposit link through launch `depositUrl`
+- Merchant API may still parse upstream `DepositUrl` if Customer Platform continues returning it for backward compatibility, but the Lucky Wheel web flow should not depend on that field
+- when no launch `depositUrl` is available, Merchant API synthesizes fallback `depositUrl` from configured `CUSTOMER_PLATFORM_DEPOSIT_URL`
 
 ### 11.4 Upstream Client Requirements
 
@@ -898,7 +904,7 @@ Important note:
 | Upstream Condition | Merchant API Result |
 |---|---|
 | `Status=true` and `IsEligible=true` | `200` with `depositQualified=true` |
-| `Status=true` and `IsEligible=false` | `200` with `depositQualified=false` and configured deposit URL |
+| `Status=true` and `IsEligible=false` | `200` with `depositQualified=false` and Merchant API normalized `depositUrl` |
 | `Status=false` | `503` Merchant API upstream failure |
 | SOAP fault or non-`200` HTTP status | `503` Merchant API upstream failure |
 | upstream timeout | `504` Merchant API upstream timeout |
@@ -1021,11 +1027,11 @@ Audit records must be retained for:
 ### 15.1 Concrete Customer Platform SOAP Rollout Plan
 
 1. Provision sandbox Customer Platform SOAP credentials and confirm Merchant API egress IP allow-listing.
-2. Configure Merchant API with `CUSTOMER_PLATFORM_SOAP_URL`, `CUSTOMER_PLATFORM_COMP_ACCESSKEY`, `CUSTOMER_PLATFORM_SITE_ID`, `CUSTOMER_PLATFORM_TIMEOUT_MS`, `CUSTOMER_PLATFORM_RECORD_DATE_TIMEZONE`, `CUSTOMER_PLATFORM_DEPOSIT_URL`, and optional `CUSTOMER_PLATFORM_SOAP_ENABLED`.
+2. Configure Merchant API with `CUSTOMER_PLATFORM_SOAP_URL`, `CUSTOMER_PLATFORM_COMP_ACCESSKEY`, `CUSTOMER_PLATFORM_SITE_ID`, `CUSTOMER_PLATFORM_TIMEOUT_MS`, `CUSTOMER_PLATFORM_RECORD_DATE_TIMEZONE`, `CUSTOMER_PLATFORM_DEPOSIT_URL` as fallback only, and optional `CUSTOMER_PLATFORM_SOAP_ENABLED`.
 3. Enable the live SOAP path in sandbox first while retaining fixture fallback for local/offline development.
 4. Validate that Merchant API logs and metrics capture upstream `Code`, `ErrorMsg`, latency, timeout count, and `Status=false` rejection count.
 5. Confirm the business rule for `RecordDate` against the Lucky Wheel event timezone and document any timezone exceptions per merchant/site.
-6. Confirm whether Customer Platform will publish `DepositUrl` in a later WSDL revision; until then, keep the configured fallback deposit URL.
+6. Confirm that Customer Platform launch callers always send the preferred current-domain `depositUrl`; keep `CUSTOMER_PLATFORM_DEPOSIT_URL` only as an operational fallback.
 7. After sandbox validation, remove or narrow fixture-mode usage in production deployments and enforce live SOAP credentials.
 
 ### 15.2 Remaining Follow-up Items

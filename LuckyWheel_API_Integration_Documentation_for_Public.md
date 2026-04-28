@@ -1,7 +1,7 @@
 # Lucky Wheel Public Integration API Documentation
 
-**Version:** 1.10  
-**Last Updated:** April 23, 2026
+**Version:** 1.11  
+**Last Updated:** April 24, 2026
 
 ---
 
@@ -232,9 +232,9 @@ Lucky Wheel accepts customer-platform `initialEligibility` during launch as boot
 - Lucky Wheel Platform derives the daily-spin portion of eligibility from its own gameplay state and the player's used spins
 - Lucky Wheel Platform also calls Merchant API, which resolves Customer Platform deposit eligibility through the Customer Platform SOAP/WCF operation `LuckyWheel_Deposit_isEligible`
 - Merchant API currently uses configured `SiteID`, `CompAccesskey`, and the Lucky Wheel event-day date to call Customer Platform server-to-server
-- the current live WSDL exposes the eligibility decision but does not currently publish the current-domain deposit URL
+- for the Lucky Wheel integration, the Customer Platform SOAP/WCF response only needs to return the deposit-rule decision; it does not need to return `DepositUrl`
 - if the launch request includes `depositUrl`, Lucky Wheel keeps that URL on the signed player session and returns it when the player must deposit
-- if `depositUrl` is omitted, Lucky Wheel falls back to the normalized deposit URL returned by Merchant API, which currently comes from the configured Customer Platform deposit page URL unless a future SOAP/WCF response publishes `DepositUrl`
+- if `depositUrl` is omitted, Lucky Wheel falls back to the Merchant API deposit URL, which currently comes from the configured Customer Platform deposit page URL
 - if Customer Platform says the player has not met the deposit rule, Lucky Wheel returns a `GO_TO_DEPOSIT` state and the Customer Platform deposit URL
 - Lucky Wheel re-checks both daily-spin usage and deposit eligibility again before processing a spin
 
@@ -250,7 +250,7 @@ Lucky Wheel uses a server-to-server deposit eligibility check during gameplay.
 2. Lucky Wheel frontend loads the latest player state from Lucky Wheel Platform after launch.
 3. Lucky Wheel Platform calls Merchant API to resolve deposit eligibility for the current player and event.
 4. Merchant API calls the Customer Platform SOAP/WCF service `LuckyWheel_Deposit_isEligible`.
-5. Customer Platform returns the deposit-rule decision.
+5. Customer Platform returns the deposit-rule decision. No `DepositUrl` field is required in the SOAP/WCF response for this integration.
 6. Merchant API returns the normalized eligibility result to Lucky Wheel Platform.
 7. Lucky Wheel Platform combines that deposit decision with its own event and daily-spin checks before allowing spin.
 8. If the result is `GO_TO_DEPOSIT`, Lucky Wheel returns the launch-time `depositUrl` for that player session when it was provided; otherwise it returns the Merchant API fallback deposit URL.
@@ -272,6 +272,7 @@ Example for the current GCP test environment:
 - player browsers do not call the Customer Platform SOAP/WCF API directly
 - launch-time `initialEligibility` is bootstrap data only and is not the authoritative gameplay decision
 - launch-time `depositUrl` is not an eligibility decision; it is only the redirect target used if the server-to-server eligibility decision says deposit is required
+- Customer Platform should document the deposit link as a launch-API field, not as a required field in the SOAP/WCF eligibility response
 - do not include secrets or one-time tokens in `depositUrl`; use a normal deposit page URL on the current customer domain
 - Lucky Wheel re-checks deposit eligibility again before processing a spin request
 
@@ -311,6 +312,8 @@ No additional bootstrap fields are required. `initialEligibility` is not part of
 ### Launch Deposit URL
 
 Customer Platform may send a top-level `depositUrl` on launch so Lucky Wheel can redirect the player back to the correct current-domain deposit page when the server-to-server deposit rule says the player must deposit.
+
+For this integration, Customer Platform should provide the deposit link here instead of returning `DepositUrl` from `LuckyWheel_Deposit_isEligible`.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|

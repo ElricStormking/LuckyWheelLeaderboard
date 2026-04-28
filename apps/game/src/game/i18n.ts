@@ -2,6 +2,7 @@ import type { AppLocale } from "@lucky-wheel/contracts";
 
 export const FALLBACK_LOCALE: AppLocale = "en";
 const ACCESS_TOKEN_STORAGE_KEY = "luckyWheel.accessToken";
+const LAUNCH_DEPOSIT_URL_STORAGE_KEY = "luckyWheel.launchDepositUrl";
 
 type CopyKey =
   | "lobby.selectPeriod"
@@ -432,6 +433,66 @@ export function resolveLaunchAccessToken() {
   window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   return undefined;
+}
+
+export function resolveLaunchDepositUrl(accessToken?: string) {
+  const url = new URL(window.location.href);
+  const depositUrlFromLaunch =
+    normalizeLaunchDepositUrl(url.searchParams.get("depositUrl")) ??
+    normalizeLaunchDepositUrl(url.searchParams.get("DepositURL")) ??
+    normalizeLaunchDepositUrl(readDepositUrlFromAccessToken(accessToken));
+
+  if (depositUrlFromLaunch) {
+    window.sessionStorage.setItem(LAUNCH_DEPOSIT_URL_STORAGE_KEY, depositUrlFromLaunch);
+    return depositUrlFromLaunch;
+  }
+
+  if (accessToken) {
+    window.sessionStorage.removeItem(LAUNCH_DEPOSIT_URL_STORAGE_KEY);
+    return undefined;
+  }
+
+  return normalizeLaunchDepositUrl(
+    window.sessionStorage.getItem(LAUNCH_DEPOSIT_URL_STORAGE_KEY),
+  );
+}
+
+function readDepositUrlFromAccessToken(accessToken?: string) {
+  if (!accessToken) {
+    return undefined;
+  }
+
+  const [, encodedPayload] = accessToken.split(".");
+  if (!encodedPayload) {
+    return undefined;
+  }
+
+  try {
+    const base64 = encodedPayload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
+    const binary = window.atob(base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { depositUrl?: unknown };
+    return typeof payload.depositUrl === "string" ? payload.depositUrl : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeLaunchDepositUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function persistLocale(locale: AppLocale) {

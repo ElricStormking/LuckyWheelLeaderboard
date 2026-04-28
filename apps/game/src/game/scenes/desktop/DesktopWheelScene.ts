@@ -836,7 +836,7 @@ export class DesktopWheelScene extends Phaser.Scene {
       }
 
       if (eligibility === EligibilityStatus.GoToDeposit) {
-        openExternalLink(snapshot.eligibility?.depositUrl);
+        openExternalLink(prototypeState.getDepositUrl());
         return;
       }
 

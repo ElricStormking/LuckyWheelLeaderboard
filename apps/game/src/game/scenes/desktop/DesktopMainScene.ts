@@ -143,6 +143,13 @@ const TOP_SECTION_END = 1460;
 const LEADERBOARD_SECTION_TOP = 1460;
 const PRIZE_SECTION_TOP = 2960;
 const TERMS_SECTION_TOP = 4496;
+const COPYRIGHT_BLOCK_SOURCE_WIDTH = 3080;
+const COPYRIGHT_BLOCK_SOURCE_HEIGHT = 168;
+const COPYRIGHT_BLOCK_HEIGHT = (STAGE_WIDTH / COPYRIGHT_BLOCK_SOURCE_WIDTH) * COPYRIGHT_BLOCK_SOURCE_HEIGHT;
+const COPYRIGHT_BLOCK_Y = CONTENT_HEIGHT - COPYRIGHT_BLOCK_HEIGHT;
+const COPYRIGHT_BLOCK_SCALE = COPYRIGHT_BLOCK_HEIGHT / COPYRIGHT_BLOCK_SOURCE_HEIGHT;
+const COPYRIGHT_TEXT_SCALE = COPYRIGHT_BLOCK_SCALE * 1.5
+const COPYRIGHT_TEXT_CENTER_Y = COPYRIGHT_BLOCK_Y + COPYRIGHT_BLOCK_HEIGHT / 2 - 10
 
 const HEADER_Y = 74;
 /** `HUD_Frame.png` visible bounds are centered 3px above the texture center. */
@@ -383,6 +390,7 @@ export class DesktopMainScene extends DesktopPageScene {
     this.createLeaderboardSection();
     this.createPrizeSection();
     this.createTermsSection();
+    this.createCopyrightBlock();
     this.setupScrollControls();
     const leaderboardFooterTimer = this.time.addEvent({
       delay: 1000,
@@ -1173,6 +1181,27 @@ export class DesktopMainScene extends DesktopPageScene {
       .setOrigin(0, 0);
     this.rulesBodyText.setDepth(2);
 
+  }
+
+  private createCopyrightBlock() {
+    const footer = this.add.graphics();
+    footer.fillStyle(0x202020, 1);
+    footer.fillRect(0, COPYRIGHT_BLOCK_Y, STAGE_WIDTH, COPYRIGHT_BLOCK_HEIGHT);
+    footer.setDepth(5);
+
+    this.add
+      .image(45, COPYRIGHT_TEXT_CENTER_Y, "Desktop_LicenseText")
+      .setOrigin(0, 0.5)
+      .setCrop(71, 90, 1228, 38)
+      .setScale(COPYRIGHT_TEXT_SCALE)
+      .setDepth(6);
+
+    this.add
+      .image(STAGE_WIDTH - 45, COPYRIGHT_TEXT_CENTER_Y, "Desktop_CopyrightText")
+      .setOrigin(1, 0.5)
+      .setCrop(25, 103, 614, 25)
+      .setScale(COPYRIGHT_TEXT_SCALE)
+      .setDepth(6);
   }
 
   private setupScrollControls() {
@@ -2311,7 +2340,7 @@ export class DesktopMainScene extends DesktopPageScene {
         }
 
         if (eligibility === EligibilityStatus.GoToDeposit) {
-          openExternalLink(snapshot.eligibility?.depositUrl);
+          openExternalLink(prototypeState.getDepositUrl());
           return;
         }
 
@@ -3006,24 +3035,43 @@ export class DesktopMainScene extends DesktopPageScene {
 
     this.closePicker();
 
+    const panelWidth = 760;
+    const rowWidth = 700;
+    const rowHeight = 96;
     const panelHeight = Math.min(920, 180 + options.length * 118);
     const modal = this.pinToViewport(this.add.container(0, 0));
     modal.setDepth(MODAL_DEPTH);
+    const swallowPickerTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
 
     const backdrop = this.pinToViewport(
       this.add
         .rectangle(DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, STAGE_WIDTH, STAGE_HEIGHT, COLORS.overlay, 0.72)
-        .setInteractive({ useHandCursor: true }),
+        .setInteractive(),
     );
-    backdrop.on("pointerup", () => this.closePicker());
+    backdrop.on("pointerdown", swallowPickerTap);
+    backdrop.on("pointerup", swallowPickerTap);
     modal.add(backdrop);
 
     const panel = this.pinToViewport(
-      addRoundedPanel(this, DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, 760, panelHeight, {
+      addRoundedPanel(this, DESKTOP_PAGE_CENTER_X, DESKTOP_PAGE_CENTER_Y, panelWidth, panelHeight, {
         fillColor: COLORS.panel,
         radius: 40,
       }),
     );
+    panel.setSize(panelWidth, panelHeight);
+    panel.setInteractive(
+      new Phaser.Geom.Rectangle(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight),
+      Phaser.Geom.Rectangle.Contains,
+    );
+    panel.on("pointerdown", swallowPickerTap);
+    panel.on("pointerup", swallowPickerTap);
     modal.add(panel);
 
     const titleText = this.pinToViewport(
@@ -3037,6 +3085,47 @@ export class DesktopMainScene extends DesktopPageScene {
     titleText.setOrigin(0.5);
     modal.add(titleText);
 
+    const closeX = DESKTOP_PAGE_CENTER_X + panelWidth / 2 - 54;
+    const closeY = DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 58;
+    const closeFrame = this.pinToViewport(
+      addRoundedPanel(this, closeX, closeY, 46, 46, {
+        fillColor: COLORS.panelSoft,
+        strokeColor: COLORS.line,
+        radius: 23,
+        skipHighlight: true,
+      }),
+    );
+    modal.add(closeFrame);
+
+    const closeLabel = this.pinToViewport(
+      this.add.text(closeX, closeY - 1, "x", {
+        fontFamily: FONTS.body,
+        fontSize: "28px",
+        fontStyle: "700",
+        color: "#0a2942",
+      }),
+    );
+    closeLabel.setOrigin(0.5);
+    modal.add(closeLabel);
+
+    const closeHitArea = this.pinToViewport(
+      this.add.rectangle(closeX, closeY, 76, 76, 0xffffff, 0.001),
+    );
+    closeHitArea.setInteractive({ useHandCursor: true });
+    closeHitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      this.closePicker();
+    });
+    closeHitArea.on("pointerup", swallowPickerTap);
+    closeHitArea.on("pointerover", () => closeFrame.setScale(1.06));
+    closeHitArea.on("pointerout", () => closeFrame.setScale(1));
+    modal.add(closeHitArea);
+
     const firstRowY = DESKTOP_PAGE_CENTER_Y - panelHeight / 2 + 144;
     options.forEach((option, index) => {
       const y = firstRowY + index * 110;
@@ -3048,14 +3137,11 @@ export class DesktopMainScene extends DesktopPageScene {
       );
       modal.add(card);
 
-      const hitArea = this.pinToViewport(this.add.zone(DESKTOP_PAGE_CENTER_X, y, 700, 96));
-      hitArea.setInteractive(
-        new Phaser.Geom.Rectangle(-350, -48, 700, 96),
-        Phaser.Geom.Rectangle.Contains,
+      const hitArea = this.pinToViewport(
+        this.add.rectangle(DESKTOP_PAGE_CENTER_X, y, rowWidth, rowHeight, 0xffffff, 0.001),
       );
-      hitArea.on("pointerover", () => card.setScale(1.01));
-      hitArea.on("pointerout", () => card.setScale(1));
-      hitArea.on("pointerup", async () => {
+      hitArea.setInteractive({ useHandCursor: true });
+      const beginSelection = () => {
         if (this.pickerBusy) {
           return;
         }
@@ -3063,12 +3149,33 @@ export class DesktopMainScene extends DesktopPageScene {
         this.pickerBusy = true;
         hitArea.disableInteractive();
 
-        try {
-          await option.onSelect();
-          this.closePicker();
-        } finally {
-          this.pickerBusy = false;
-        }
+        void Promise.resolve(option.onSelect())
+          .then(() => {
+            this.closePicker();
+          })
+          .catch(() => {
+            this.pickerBusy = false;
+            hitArea.setInteractive({ useHandCursor: true });
+          });
+      };
+      hitArea.on("pointerdown", (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
+        beginSelection();
+      });
+      hitArea.on("pointerover", () => card.setScale(1.01));
+      hitArea.on("pointerout", () => card.setScale(1));
+      hitArea.on("pointerup", (
+        _pointer: Phaser.Input.Pointer,
+        _localX: number,
+        _localY: number,
+        event: Phaser.Types.Input.EventData,
+      ) => {
+        event.stopPropagation();
       });
       modal.add(hitArea);
 
