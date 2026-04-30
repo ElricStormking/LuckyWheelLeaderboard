@@ -1,0 +1,224 @@
+{
+    "anims": [
+        {
+            "key": "animation",
+            "type": "frame",
+            "frames": [
+                {
+                    "key": "WIN_UI00",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI01",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI02",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI03",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI04",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI05",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI06",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI07",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI08",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI09",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI10",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI11",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI12",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI13",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI14",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI15",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI16",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI17",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI18",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI19",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI20",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI21",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI22",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI23",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI24",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI25",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI26",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI27",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI28",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI29",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI30",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI31",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI32",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI33",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI34",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI35",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI36",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI37",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI38",
+                    "duration": 0,
+                    "keyframe": false
+                },
+                {
+                    "key": "WIN_UI39",
+                    "duration": 0,
+                    "keyframe": false
+                }
+            ],
+            "frameRate": 24,
+            "skipMissedFrames": true,
+            "repeat": -1,
+            "randomFrame": false
+        }
+    ],
+    "globalTimeScale": 1,
+    "meta": {
+        "app": "Phaser Editor 2D v3",
+        "contentType": "Phaser v3 Animations"
+    },
+    "settings": {
+        "sourceLang": "JAVA_SCRIPT",
+        "esModule": false,
+        "generateCode": false
+    }
+}

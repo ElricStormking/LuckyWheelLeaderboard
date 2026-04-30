@@ -4,10 +4,10 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json --incremental false",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "start": "node dist/main.js",
-    "start:dev": "nest start --watch",
+    "start": "node dist/api/src/main.js",
+    "start:dev": "nest start --watch --entryFile api/src/main",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:push": "prisma db push --schema prisma/schema.prisma",
     "db:seed": "node prisma/seed.js",

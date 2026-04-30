@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   resolve: {
+    extensions: [".mjs", ".mts", ".ts", ".tsx", ".js", ".jsx", ".json"],
     alias: {
       "@lucky-wheel/contracts": path.resolve(__dirname, "../contracts/src/index.ts"),
     },

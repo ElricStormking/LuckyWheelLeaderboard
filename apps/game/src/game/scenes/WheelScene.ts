@@ -30,7 +30,8 @@ const POINTER_GAP = -40 * WHEEL_SCALE;
 const CELEBRATION_DURATION_MS = 8000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
-const FIREWORK_EFFECT_DEPTH = 6;
+const WINNING_POPUP_DEPTH = 8;
+const FIREWORK_EFFECT_DEPTH = WINNING_POPUP_DEPTH + 2;
 const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
 const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
@@ -272,11 +273,11 @@ export class WheelScene extends Phaser.Scene {
     this.clearWinningPopup();
     const popup = createWinningPopup(this, {
       x: WHEEL_CENTER_X,
-      y: WHEEL_CENTER_Y - 365,
+      y: WHEEL_CENTER_Y - 250,
       totalPoints,
       locale: prototypeState.getSnapshot().locale,
-      depth: FIREWORK_EFFECT_DEPTH + 2,
-      scale: 1,
+      depth: WINNING_POPUP_DEPTH,
+      scale: 1.5,
     });
     this.winningPopup = popup;
     return popup.bounds;

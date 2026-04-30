@@ -10,6 +10,7 @@ import {
 } from "../constants";
 import { preloadEditorUiAssets } from "../editorUiAssets";
 import { preloadRibbonsFx } from "../ribbonsFx";
+import { preloadWinUiFx } from "../winUiFx";
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -20,6 +21,7 @@ export class PreloadScene extends Phaser.Scene {
     preloadEditorUiAssets(this);
     preloadGameAudio(this);
     preloadRibbonsFx(this);
+    preloadWinUiFx(this);
   }
 
   async create() {

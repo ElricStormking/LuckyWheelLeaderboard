@@ -120,7 +120,7 @@ const eventDefinitions = [
   {
     id: scheduledEventId,
     code: "LUCKY-WHEEL-2026-04",
-    status: "scheduled",
+    status: "live",
     title: "April Lucky Wheel",
     shortDescription: "Scheduled event configuration prepared in admin before publish goes live.",
     rulesContent: [

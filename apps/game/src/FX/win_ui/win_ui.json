@@ -1,0 +1,214 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/win_ui/WIN_UI00.png",
+                "type": "image",
+                "key": "WIN_UI00"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI01.png",
+                "type": "image",
+                "key": "WIN_UI01"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI02.png",
+                "type": "image",
+                "key": "WIN_UI02"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI03.png",
+                "type": "image",
+                "key": "WIN_UI03"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI04.png",
+                "type": "image",
+                "key": "WIN_UI04"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI05.png",
+                "type": "image",
+                "key": "WIN_UI05"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI06.png",
+                "type": "image",
+                "key": "WIN_UI06"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI07.png",
+                "type": "image",
+                "key": "WIN_UI07"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI08.png",
+                "type": "image",
+                "key": "WIN_UI08"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI09.png",
+                "type": "image",
+                "key": "WIN_UI09"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI10.png",
+                "type": "image",
+                "key": "WIN_UI10"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI11.png",
+                "type": "image",
+                "key": "WIN_UI11"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI12.png",
+                "type": "image",
+                "key": "WIN_UI12"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI13.png",
+                "type": "image",
+                "key": "WIN_UI13"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI14.png",
+                "type": "image",
+                "key": "WIN_UI14"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI15.png",
+                "type": "image",
+                "key": "WIN_UI15"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI16.png",
+                "type": "image",
+                "key": "WIN_UI16"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI17.png",
+                "type": "image",
+                "key": "WIN_UI17"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI18.png",
+                "type": "image",
+                "key": "WIN_UI18"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI19.png",
+                "type": "image",
+                "key": "WIN_UI19"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI20.png",
+                "type": "image",
+                "key": "WIN_UI20"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI21.png",
+                "type": "image",
+                "key": "WIN_UI21"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI22.png",
+                "type": "image",
+                "key": "WIN_UI22"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI23.png",
+                "type": "image",
+                "key": "WIN_UI23"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI24.png",
+                "type": "image",
+                "key": "WIN_UI24"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI25.png",
+                "type": "image",
+                "key": "WIN_UI25"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI26.png",
+                "type": "image",
+                "key": "WIN_UI26"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI27.png",
+                "type": "image",
+                "key": "WIN_UI27"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI28.png",
+                "type": "image",
+                "key": "WIN_UI28"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI29.png",
+                "type": "image",
+                "key": "WIN_UI29"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI30.png",
+                "type": "image",
+                "key": "WIN_UI30"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI31.png",
+                "type": "image",
+                "key": "WIN_UI31"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI32.png",
+                "type": "image",
+                "key": "WIN_UI32"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI33.png",
+                "type": "image",
+                "key": "WIN_UI33"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI34.png",
+                "type": "image",
+                "key": "WIN_UI34"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI35.png",
+                "type": "image",
+                "key": "WIN_UI35"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI36.png",
+                "type": "image",
+                "key": "WIN_UI36"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI37.png",
+                "type": "image",
+                "key": "WIN_UI37"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI38.png",
+                "type": "image",
+                "key": "WIN_UI38"
+            },
+            {
+                "url": "assets/win_ui/WIN_UI39.png",
+                "type": "image",
+                "key": "WIN_UI39"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}
