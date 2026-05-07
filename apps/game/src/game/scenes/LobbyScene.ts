@@ -1272,7 +1272,7 @@ export class LobbyScene extends Phaser.Scene {
         prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
       row.rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
-      syncPrizeArtImage(this, row.prizeArt, prize.imageUrl, 180, 120);
+      syncPrizeArtImage(this, row.prizeArt, prize.imageUrl, 624, 308);
     });
   }
 

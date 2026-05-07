@@ -8,6 +8,12 @@ const scheduledEventId = "evt_2026_april";
 const endedEventId = "evt_2026_february";
 const finalizedEventId = "evt_2026_january";
 const supportedLocales = ["en", "ms", "zh-CN"];
+const playtestLiveStartAt = addDays(new Date(), -7);
+const playtestLiveEndAt = addDays(new Date(), 23);
+const playtestLivePeriodLabel = formatPlaytestPeriodLabel(
+  playtestLiveStartAt,
+  playtestLiveEndAt,
+);
 
 const playerRoster = [
   { id: "player_live_001", displayName: "LunaRay" },
@@ -110,10 +116,10 @@ const eventDefinitions = [
       "6. The bonus obtained from this promotion cannot be used in conjunction with other bonuses.",
       "7. Each account, including the same name, the same website address, and the same phone number, can only register for one account. iBET has the right to freeze a member account and funds in it if a member was found out to have multiple accounts or using the same IP for different accounts.",
     ].join("\n"),
-    promotionPeriodLabel: "01/03/2026 - 31/03/2026",
-    startAt: "2026-03-01T00:00:00+08:00",
-    endAt: "2026-03-31T23:59:59+08:00",
-    countdownEndsAt: "2026-03-31T23:59:59+08:00",
+    promotionPeriodLabel: playtestLivePeriodLabel.en,
+    startAt: playtestLiveStartAt.toISOString(),
+    endAt: playtestLiveEndAt.toISOString(),
+    countdownEndsAt: playtestLiveEndAt.toISOString(),
     prizeLabels: ["RM 1,688", "RM 1,288", "RM 888", "RM 88", "RM 58"],
     wheelPrefix: "march",
   },
@@ -191,7 +197,7 @@ const localizedEventContent = {
         "6. The bonus obtained from this promotion cannot be used in conjunction with other bonuses.",
         "7. Each account, including the same name, the same website address, and the same phone number, can only register for one account. iBET has the right to freeze a member account and funds in it if a member was found out to have multiple accounts or using the same IP for different accounts.",
       ].join("\n"),
-      promotionPeriodLabel: "01/03/2026 - 31/03/2026",
+      promotionPeriodLabel: playtestLivePeriodLabel.en,
     },
     ms: {
       title: "iBET Roda Tuah",
@@ -204,7 +210,7 @@ const localizedEventContent = {
         "4. Pautan deposit dan khidmat pelanggan boleh dikonfigurasi dan dipaparkan dalam menu.",
         "5. Acara yang telah tamat masih boleh dilihat tetapi roda dikunci.",
       ].join("\n"),
-      promotionPeriodLabel: "01/03/2026 - 31/03/2026",
+      promotionPeriodLabel: playtestLivePeriodLabel.en,
     },
     "zh-CN": {
       title: "iBET 幸运转盘",
@@ -217,7 +223,7 @@ const localizedEventContent = {
         "4. 充值与客服链接可在后台配置，并显示在菜单中。",
         "5. 已结束活动仍可查看，但转盘不可再转动。",
       ].join("\n"),
-      promotionPeriodLabel: "2026/03/01 - 2026/03/31",
+      promotionPeriodLabel: playtestLivePeriodLabel.zh,
     },
   },
   [scheduledEventId]: {
@@ -384,6 +390,32 @@ const spinHistories = {
     { id: "spin-final-6", createdAt: "2026-01-15T04:05:00Z", segmentIndex: 4, segmentLabel: "-40", scoreDelta: -40, runningEventTotal: 3880, rewardType: "score", rewardValue: "-40" },
   ],
 };
+
+function addDays(date, days) {
+  const nextDate = new Date(date);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
+  return nextDate;
+}
+
+function formatPlaytestPeriodLabel(startAt, endAt) {
+  const englishFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Taipei",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const zhFormatter = new Intl.DateTimeFormat("zh-TW", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return {
+    en: `${englishFormatter.format(startAt)} - ${englishFormatter.format(endAt)}`,
+    zh: `${zhFormatter.format(startAt)} - ${zhFormatter.format(endAt)}`,
+  };
+}
 
 async function main() {
   await prisma.adminAuditLog.deleteMany();

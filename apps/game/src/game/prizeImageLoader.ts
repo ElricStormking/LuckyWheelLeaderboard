@@ -21,7 +21,7 @@ export function syncPrizeArtImage(
       }
 
       artImage.setTexture(textureKey);
-      fitImageWithin(artImage, maxWidth, maxHeight);
+      fillImageFrame(artImage, maxWidth, maxHeight);
       artImage.setVisible(true);
     })
     .catch(() => {
@@ -62,17 +62,26 @@ function ensurePrizeTexture(scene: Phaser.Scene, imageUrl: string) {
   return promise;
 }
 
-function fitImageWithin(
+function fillImageFrame(
   image: Phaser.GameObjects.Image,
-  maxWidth: number,
-  maxHeight: number,
+  frameWidth: number,
+  frameHeight: number,
 ) {
   const source = image.texture.getSourceImage() as { width?: number; height?: number };
-  const sourceWidth = source.width ?? maxWidth;
-  const sourceHeight = source.height ?? maxHeight;
-  const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
+  const sourceWidth = source.width ?? frameWidth;
+  const sourceHeight = source.height ?? frameHeight;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const frameRatio = frameWidth / frameHeight;
 
-  image.setScale(scale);
+  if (sourceRatio > frameRatio) {
+    const cropWidth = sourceHeight * frameRatio;
+    image.setCrop((sourceWidth - cropWidth) / 2, 0, cropWidth, sourceHeight);
+  } else {
+    const cropHeight = sourceWidth / frameRatio;
+    image.setCrop(0, (sourceHeight - cropHeight) / 2, sourceWidth, cropHeight);
+  }
+
+  image.setDisplaySize(frameWidth, frameHeight);
 }
 
 function getPrizeTextureKey(imageUrl: string) {
@@ -83,4 +92,3 @@ function getPrizeTextureKey(imageUrl: string) {
 
   return `remote-prize-${Math.abs(hash)}`;
 }
-

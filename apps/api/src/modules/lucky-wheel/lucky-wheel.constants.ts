@@ -1,7 +1,7 @@
 export const DEMO_PLAYER_ID = "player_demo_001";
 export const DEMO_PLAYER_NAME = "AceNova";
 export const EVENT_PAGE_SIZE = 6;
-export const HISTORY_PAGE_SIZE = 6;
+export const HISTORY_PAGE_SIZE = 10;
 export const LEADERBOARD_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 export const TEST_LEADERBOARD_PLAYER_NAMES = [
   "LunaRay",

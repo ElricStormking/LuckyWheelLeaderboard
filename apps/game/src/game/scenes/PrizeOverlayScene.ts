@@ -70,7 +70,13 @@ export class PrizeOverlayScene extends BaseOverlayScene {
         .setOrigin(origin, 0.5);
 
       rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
-      syncPrizeArtImage(this, prizeArt, prize.imageUrl, 180, 118);
+      syncPrizeArtImage(
+        this,
+        prizeArt,
+        prize.imageUrl,
+        624 * PRIZE_ROW_SCALE,
+        308 * PRIZE_ROW_SCALE,
+      );
     });
   }
 }
