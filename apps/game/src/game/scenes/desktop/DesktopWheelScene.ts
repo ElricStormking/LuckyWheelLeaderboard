@@ -6,7 +6,7 @@ import {
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
-import { playWinningEffect } from "../../audio";
+import { playSpinningEffect, playWinningEffect, stopSpinningEffect } from "../../audio";
 import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../../constants";
 import { addTextButton, openExternalLink } from "../../helpers";
 import { createRibbonsBurst } from "../../ribbonsFx";
@@ -47,6 +47,7 @@ const SEGMENT_HIGHLIGHT_GOLD_SOFT = 0xffefad;
 const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
+const DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE = "36px";
 
 type DesktopWheelButton = {
   container: Phaser.GameObjects.Container;
@@ -129,6 +130,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     );
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopSpinningEffect(this);
       this.highlightTween?.stop();
       this.highlightGraphic?.destroy();
       this.celebrationTimer?.remove(false);
@@ -212,12 +214,14 @@ export class DesktopWheelScene extends Phaser.Scene {
       this.wheelRotation +
       Phaser.Math.DegToRad(travelDegrees <= 0 ? travelDegrees + 360 : travelDegrees);
 
+    playSpinningEffect(this);
     this.tweens.add({
       targets: this.wheelRoot,
       rotation: targetRotation,
       duration: 3800,
       ease: "Cubic.easeOut",
       onComplete: () => {
+        stopSpinningEffect(this);
         this.wheelRotation = targetRotation;
         onComplete?.();
       },
@@ -780,7 +784,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     const label = this.add
       .text(0, 4, "SPIN NOW", {
         fontFamily: FONTS.displayName,
-        fontSize: "40px",
+        fontSize: DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
         fontStyle: "800",
         align: "center",

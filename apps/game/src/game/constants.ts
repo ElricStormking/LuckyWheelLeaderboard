@@ -58,6 +58,14 @@ export const SCENE_KEYS = {
   ErrorOverlay: "ErrorOverlayScene",
 } as const;
 
+/**
+ * Mobile lobby: everything at/under the tutorial row (wheel, leaderboard, prizes, etc.) shifts down
+ * by this many stage pixels (design width 1080). Keeps about a 20px visual gap between
+ * the hero subtitle and `GameTutorial` on the mobile browser test viewport. With Scale.FIT,
+ * multiply by ~(viewportWidth/1080) for CSS pixels.
+ */
+export const MOBILE_LOBBY_CONTENT_DROP_PX = 40;
+
 export const DEV_ELIGIBILITY_OPTIONS = [
   { label: "Auto", value: undefined },
   { label: "Playable", value: "PLAYABLE_NOW" },

@@ -77,7 +77,7 @@ export class AdminUploadService {
       aspectRatio > PRIZE_IMAGE_MAX_ASPECT_RATIO
     ) {
       throw new BadRequestException(
-        "Prize images must be landscape oriented. Use an aspect ratio close to 3:2 or 16:10.",
+        "Prize images must be landscape oriented. Use an aspect ratio close to the 624x308 prize frame.",
       );
     }
 
@@ -195,4 +195,3 @@ export class AdminUploadService {
     return sanitized || "upload";
   }
 }
-

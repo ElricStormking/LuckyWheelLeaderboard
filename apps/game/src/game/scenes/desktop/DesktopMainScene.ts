@@ -8,11 +8,12 @@ import {
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
-import { ensureBackgroundMusic, playWinningEffect } from "../../audio";
+import { playSpinningEffect, playWinningEffect, stopSpinningEffect } from "../../audio";
 import {
   addRoundedPanel,
   formatCountdownDuration,
   formatDate,
+  formatDateWithGmtOffset,
   formatNumber,
   getNextLeaderboardRefreshRemainingMs,
   maskLeaderboardPlayerName,
@@ -200,8 +201,6 @@ const ACTIVITY_PILL_WIDTHS = [210, 238, 264, 286] as const;
 const ACTIVITY_PILL_HEIGHT = 42;
 const ACTIVITY_PILL_COLOR_THEMES = [
   { text: "#21a5ea", stroke: 0x98dcff, strokeAlpha: 0.82 },
-  { text: "#22272e", stroke: 0x22272e, strokeAlpha: 0.52 },
-  { text: "#f2c300", stroke: 0xf2c300, strokeAlpha: 0.88 },
 ] as const;
 
 const WHEEL_CENTER_X = 960;
@@ -305,6 +304,7 @@ const WHEEL_REFINED_RIM_RADIUS = WHEEL_ASSET_SIZE / 2 - 11;
 const WHEEL_BACKDROP_MASK_RADIUS = WHEEL_REFINED_RIM_RADIUS - 20;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
+const DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE = "36px";
 
 function getLeaderboardPlateCenterX(rowX: number, rank: number) {
   const rowIndex = (rank - 1) % 10;
@@ -387,8 +387,6 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   create() {
-    ensureBackgroundMusic(this);
-
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
 
@@ -425,6 +423,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
     this.events.on(Phaser.Scenes.Events.UPDATE, this.updateScene, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopSpinningEffect(this);
       this.events.off(Phaser.Scenes.Events.UPDATE, this.updateScene, this);
       this.highlightTween?.stop();
       this.highlightGraphic?.destroy();
@@ -1569,9 +1568,9 @@ export class DesktopMainScene extends DesktopPageScene {
   private refreshLeaderboardFooterText() {
     const snapshot = prototypeState.getSnapshot();
     const lastSyncedValue = snapshot.leaderboard?.lastSyncedAt
-      ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+      ? formatDateWithGmtOffset(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
           dateStyle: "short",
-          timeStyle: "short",
+          timeStyle: "medium",
         })
       : "-";
 
@@ -1824,12 +1823,14 @@ export class DesktopMainScene extends DesktopPageScene {
       this.wheelRotation +
       Phaser.Math.DegToRad(travelDegrees <= 0 ? travelDegrees + 360 : travelDegrees);
 
+    playSpinningEffect(this);
     this.tweens.add({
       targets: this.wheelRoot,
       rotation: targetRotation,
       duration: 3800,
       ease: "Cubic.easeOut",
       onComplete: () => {
+        stopSpinningEffect(this);
         this.wheelRotation = targetRotation;
         onComplete?.();
       },
@@ -2430,7 +2431,7 @@ export class DesktopMainScene extends DesktopPageScene {
     const label = this.add
       .text(0, 4, "SPIN NOW", {
         fontFamily: FONTS.displayName,
-        fontSize: "40px",
+        fontSize: DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
         fontStyle: "800",
         align: "center",

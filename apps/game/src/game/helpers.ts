@@ -107,6 +107,27 @@ export function formatDate(
   return new Intl.DateTimeFormat(toIntlLocale(locale), options).format(new Date(value));
 }
 
+export function formatDateWithGmtOffset(
+  value: string | number | Date,
+  locale: AppLocale = "en",
+  options?: Intl.DateTimeFormatOptions,
+) {
+  const date = new Date(value);
+  return `${new Intl.DateTimeFormat(toIntlLocale(locale), options).format(date)} (${formatGmtOffset(date)})`;
+}
+
+function formatGmtOffset(date: Date) {
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const hours = Math.floor(absoluteMinutes / 60);
+  const minutes = absoluteMinutes % 60;
+
+  return minutes === 0
+    ? `GMT${sign}${hours}`
+    : `GMT${sign}${hours}:${minutes.toString().padStart(2, "0")}`;
+}
+
 export function formatTime(
   value: string | number | Date,
   locale: AppLocale = "en",

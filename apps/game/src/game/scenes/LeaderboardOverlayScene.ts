@@ -5,6 +5,7 @@ import {
   addRoundedPanel,
   formatCountdownDuration,
   formatDate,
+  formatDateWithGmtOffset,
   formatNumber,
   getNextLeaderboardRefreshRemainingMs,
   maskLeaderboardPlayerName,
@@ -323,9 +324,9 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
     const refreshFooterText = () => {
       const currentSnapshot = prototypeState.getSnapshot();
       const lastSyncedValue = currentSnapshot.leaderboard?.lastSyncedAt
-        ? formatDate(currentSnapshot.leaderboard.lastSyncedAt, currentSnapshot.locale, {
+        ? formatDateWithGmtOffset(currentSnapshot.leaderboard.lastSyncedAt, currentSnapshot.locale, {
             dateStyle: "short",
-            timeStyle: "short",
+            timeStyle: "medium",
           })
         : "-";
 

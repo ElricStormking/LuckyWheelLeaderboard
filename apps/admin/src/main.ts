@@ -21,8 +21,10 @@ import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
 const SUPPORTED_LOCALES: AppLocale[] = ["en", "ms", "zh-CN"];
-const PRIZE_IMAGE_RECOMMENDED_WIDTH = 900;
-const PRIZE_IMAGE_RECOMMENDED_HEIGHT = 600;
+const PRIZE_IMAGE_RECOMMENDED_WIDTH = 1248;
+const PRIZE_IMAGE_RECOMMENDED_HEIGHT = 616;
+const PRIZE_IMAGE_FRAME_WIDTH = 624;
+const PRIZE_IMAGE_FRAME_HEIGHT = 308;
 const PRIZE_IMAGE_MIN_WIDTH = 300;
 const PRIZE_IMAGE_MIN_HEIGHT = 180;
 const SECTION_ORDER = [
@@ -524,7 +526,7 @@ function renderPrizeSection() {
                           </button>
                         </div>
                         <div class="prize-upload__hint">
-                          Use a direct external image URL. Recommended: ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px, 3:2 landscape. Minimum: ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.
+                          Use a direct external image URL. Recommended: ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px, same ratio as the ${PRIZE_IMAGE_FRAME_WIDTH}x${PRIZE_IMAGE_FRAME_HEIGHT}px prize frame. Minimum: ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.
                         </div>
                         <input
                           class="prize-upload__url"

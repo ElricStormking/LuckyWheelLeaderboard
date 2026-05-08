@@ -1,6 +1,5 @@
 import Phaser from "phaser";
-import { type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
-import { ensureBackgroundMusic } from "../audio";
+import { EventStatus, type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
 import { prototypeState } from "../state/prototype-state";
 import type { WheelScene } from "./WheelScene";
 import {
@@ -11,6 +10,7 @@ import {
   STAGE_HEIGHT,
   STAGE_WIDTH,
   MOBILE_WHEEL_BACKDROP_DIAMETER,
+  MOBILE_LOBBY_CONTENT_DROP_PX,
   shouldShowDevEligibilitySwitch,
 } from "../constants";
 import {
@@ -19,6 +19,7 @@ import {
   addRoundedPanel,
   formatCountdownDuration,
   formatDate,
+  formatDateWithGmtOffset,
   formatEventSelectorPillLabel,
   formatNumber,
   getNextLeaderboardRefreshRemainingMs,
@@ -63,6 +64,19 @@ type PrizeSectionRow = {
   prizeDescription: Phaser.GameObjects.Text;
 };
 
+type PageTab = {
+  circle: Phaser.GameObjects.Arc;
+  label: Phaser.GameObjects.Text;
+  hitArea: Phaser.GameObjects.Rectangle;
+};
+
+type MobileEventPickerEntry = {
+  id: string;
+  title: string;
+  promotionPeriodLabel: string;
+  status: EventStatus;
+};
+
 type SectionBand = {
   container: Phaser.GameObjects.Container;
   top: number;
@@ -70,19 +84,21 @@ type SectionBand = {
   overscan: number;
 };
 
-const CONTENT_HEIGHT = 7776;
+const CONTENT_HEIGHT = 7776 + MOBILE_LOBBY_CONTENT_DROP_PX;
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_TOP_GAP_BELOW_QUICK = 100;
 const LEADERBOARD_ROW_PITCH = 150;
 const LEADERBOARD_HEADER_BLOCK_SHIFT = 64;
-const PREV_LEADERBOARD_LAST_ROW_BASE_Y = 3678;
+const PREV_LEADERBOARD_LAST_ROW_BASE_Y = 3678 + MOBILE_LOBBY_CONTENT_DROP_PX;
 const LEADERBOARD_ROW_YS: number[] = (() => {
-  const first = 2560 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_HEADER_BLOCK_SHIFT;
+  const first =
+    2560 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_HEADER_BLOCK_SHIFT + MOBILE_LOBBY_CONTENT_DROP_PX;
   return Array.from({ length: 10 }, (_, i) => first + i * LEADERBOARD_ROW_PITCH);
 })();
 const LEADERBOARD_LIST_HEIGHT_DELTA = LEADERBOARD_ROW_YS[9] - PREV_LEADERBOARD_LAST_ROW_BASE_Y;
 const INLINE_LEADERBOARD_TITLE_SCALE = 0.88;
-const INLINE_LEADERBOARD_HEADER_PANEL_Y = 2498 + LEADERBOARD_TOP_GAP_BELOW_QUICK + 64;
+const INLINE_LEADERBOARD_HEADER_PANEL_Y =
+  2498 + LEADERBOARD_TOP_GAP_BELOW_QUICK + 64 + MOBILE_LOBBY_CONTENT_DROP_PX;
 const INLINE_LEADERBOARD_COLUMN_LABEL_Y = INLINE_LEADERBOARD_HEADER_PANEL_Y + 1;
 /** ~half line height of column header labels (26px) for top-edge Y. */
 const INLINE_LEADERBOARD_COLUMN_HEADER_TEXT_HALF = 16;
@@ -98,16 +114,28 @@ const INLINE_LEADERBOARD_USERNAME_COLUMN_X = 404;
 const INLINE_LEADERBOARD_TOTAL_HEADER_X = 601;
 const INLINE_LEADERBOARD_PRIZE_TEXT_X = 194;
 const INLINE_LEADERBOARD_SCORE_TEXT_X = 645;
-const INLINE_LEADERBOARD_PAGE_BUTTON_SCALE = 0.72;
 const INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT = 70;
+const INLINE_LEADERBOARD_PAGE_TAB_RADIUS = 31;
+const INLINE_LEADERBOARD_PAGE_TAB_FONT_SIZE = 42;
+const INLINE_LEADERBOARD_PAGE_TAB_ACTIVE_COLOR = 0x2fa9e8;
+const INLINE_LEADERBOARD_PAGE_TAB_TEXT_COLOR = "#23a9e9";
 /** Extra space below the page tabs/divider; does not move pagination. */
 const INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP = 30;
 const INLINE_LEADERBOARD_PAGE_BUTTON_Y =
-  3844 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA - INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
+  3844 +
+  MOBILE_LOBBY_CONTENT_DROP_PX +
+  LEADERBOARD_TOP_GAP_BELOW_QUICK +
+  LEADERBOARD_LIST_HEIGHT_DELTA -
+  INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
 const INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y =
-  3886 + LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA - INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
+  3911 +
+  MOBILE_LOBBY_CONTENT_DROP_PX +
+  LEADERBOARD_TOP_GAP_BELOW_QUICK +
+  LEADERBOARD_LIST_HEIGHT_DELTA -
+  INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT;
 const INLINE_LEADERBOARD_SUMMARY_Y =
   3968 +
+  MOBILE_LOBBY_CONTENT_DROP_PX +
   LEADERBOARD_TOP_GAP_BELOW_QUICK +
   LEADERBOARD_LIST_HEIGHT_DELTA -
   INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT +
@@ -115,13 +143,14 @@ const INLINE_LEADERBOARD_SUMMARY_Y =
 const INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE = 0.34;
 const INLINE_LEADERBOARD_FOOTER_Y =
   4098 +
+  MOBILE_LOBBY_CONTENT_DROP_PX +
   LEADERBOARD_TOP_GAP_BELOW_QUICK +
   LEADERBOARD_LIST_HEIGHT_DELTA -
   INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT +
   INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP;
-const MY_TOTAL_POINTS_Y = 1990;
-const HISTORY_AND_TEST_SPIN_Y = 2188;
-const LEADERBOARD_TITLE_IMAGE_Y = 2340 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
+const MY_TOTAL_POINTS_Y = 1990 + MOBILE_LOBBY_CONTENT_DROP_PX;
+const HISTORY_AND_TEST_SPIN_Y = 2188 + MOBILE_LOBBY_CONTENT_DROP_PX;
+const LEADERBOARD_TITLE_IMAGE_Y = 2340 + LEADERBOARD_TOP_GAP_BELOW_QUICK + MOBILE_LOBBY_CONTENT_DROP_PX;
 const PRIZE_EXTEND = LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
 /** Scroll section: gray from midpoint (History row ↔ title) through footer sync lines. */
 const INLINE_LEADERBOARD_SECTION_TOP = Math.round(
@@ -130,27 +159,36 @@ const INLINE_LEADERBOARD_SECTION_TOP = Math.round(
 const INLINE_LEADERBOARD_SECTION_HEIGHT =
   4125 - 2340 + PRIZE_EXTEND + (LEADERBOARD_TITLE_IMAGE_Y - INLINE_LEADERBOARD_SECTION_TOP);
 const INLINE_LEADERBOARD_SECTION_BG = 0xf2f4f9; // rgb(242,244,249)
-/** Must match `drawHero` eligibility line: `y = 612 + stepSectionOffsetY` (20). */
-const LOBBY_ELIGIBILITY_TEXT_CENTER_Y = 612 + 20;
-const ACTIVITY_PILL_ITEM_HEIGHT = 60;
-/**
- * Activity bubbles lerp to `endY` (pill center, origin 0.5). Min Y so pill top
- * (center − height/2) stays below wrapped "Promotion Period" (26px, wordWrap 820)
- * with a small gap; do not lower this without checking overlap on device.
- */
-const ACTIVITY_BUBBLE_END_Y_MIN =
+/** Must match `drawHero` eligibility line: `y = 612 + stepSectionOffsetY`. */
+const LOBBY_ELIGIBILITY_TEXT_CENTER_Y = 612 + 20 + MOBILE_LOBBY_CONTENT_DROP_PX;
+const ACTIVITY_PILL_ITEM_HEIGHT = 96;
+/** Keep activity pill tops below the wrapped promotion period line. */
+const ACTIVITY_BUBBLE_MIN_Y =
   LOBBY_ELIGIBILITY_TEXT_CENTER_Y + 44 + 10 + Math.ceil(ACTIVITY_PILL_ITEM_HEIGHT / 2);
-const ACTIVITY_BUBBLE_END_Y_MAX = ACTIVITY_BUBBLE_END_Y_MIN + 32;
-const PRIZE_SECTION_TITLE_Y = 4276 + PRIZE_EXTEND;
-const PRIZE_SECTION_SUBTITLE_Y = 4346 + PRIZE_EXTEND;
+/** Match mobile `WheelScene` center Y so popups can occupy the wheel's middle area. */
+const ACTIVITY_BUBBLE_MAX_Y = 1410 + MOBILE_LOBBY_CONTENT_DROP_PX;
+const ACTIVITY_BUBBLE_MIN_TRAVEL_Y = 120;
+const ACTIVITY_BUBBLE_MAX_TRAVEL_Y = 420;
+const MOBILE_SCROLL_DRAG_SENSITIVITY = 0.55;
+const MOBILE_SCROLL_MOMENTUM_SENSITIVITY = 0.55;
+const MOBILE_SCROLL_MOMENTUM_DECAY = 0.9;
+const MOBILE_SCROLL_WHEEL_SENSITIVITY = 0.55;
+const PRIZE_SECTION_TITLE_Y = 4276 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND;
+const PRIZE_SECTION_SUBTITLE_Y = 4346 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND;
 const PRIZE_BADGE_VISIBLE_LEFT = 143;
 const PRIZE_BADGE_VISIBLE_RIGHT = 144;
 const PRIZE_REWARD_VISIBLE_LEFT = 298;
 const PRIZE_REWARD_VISIBLE_RIGHT = 303;
 /** Terms + deposit + bottom stripe: shift up (closer to prize). */
 const INLINE_RULES_SECTION_LIFT = 150;
-/** 22px + lineSpacing 8 + 22px; `leaderboardLastSyncedText` is origin 0.5,0.5 at `INLINE_LEADERBOARD_FOOTER_Y`. */
-const LEADERBOARD_FOOTER_TEXT_BLOCK_HALF_HEIGHT = (22 + 8 + 22) / 2;
+const FLOATING_DEPOSIT_BUTTON_WIDTH = 830;
+const FLOATING_DEPOSIT_BUTTON_HEIGHT = 104;
+const FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN = 50;
+const FLOATING_DEPOSIT_FOOTER_HEIGHT = 206;
+const FLOATING_DEPOSIT_FOOTER_BG = 0xf2f4f7;
+const FLOATING_DEPOSIT_FOOTER_ALPHA = 0.8;
+/** 18px + lineSpacing 6 + 18px; `leaderboardLastSyncedText` is origin 0.5,0.5 at `INLINE_LEADERBOARD_FOOTER_Y`. */
+const LEADERBOARD_FOOTER_TEXT_BLOCK_HALF_HEIGHT = (18 + 6 + 18) / 2;
 /** `Title_PrizeArea` at scale 1, origin 0.5,0.5 at `PRIZE_SECTION_TITLE_Y` – tune if asset size changes. */
 const PRIZE_AREA_TITLE_IMAGE_HALF_HEIGHT = 50;
 /** White page band: horizontal boundary midway between footer's bottom ("Next refresh…" line) and title image top. */
@@ -161,7 +199,17 @@ const PRIZE_AND_TERMS_PAGE_BG_TOP = Math.round(
     PRIZE_AREA_TITLE_IMAGE_HALF_HEIGHT) /
     2,
 );
-const LEADERBOARD_PENDING_TEXT_Y = 2666 + LEADERBOARD_TOP_GAP_BELOW_QUICK;
+const LEADERBOARD_PENDING_TEXT_Y = 2666 + MOBILE_LOBBY_CONTENT_DROP_PX + LEADERBOARD_TOP_GAP_BELOW_QUICK;
+const MOBILE_EVENT_SELECTOR_WIDTH = 390;
+const MOBILE_EVENT_SELECTOR_HEIGHT = 104;
+const MOBILE_EVENT_SELECTOR_HOVER_WIDTH = 400;
+const MOBILE_EVENT_SELECTOR_HOVER_HEIGHT = 112;
+const MOBILE_EVENT_SELECTOR_STROKE = 0x08aee4;
+const MOBILE_EVENT_SELECTOR_PANEL_TOP = 218;
+const MOBILE_EVENT_SELECTOR_PANEL_WIDTH = 860;
+const MOBILE_EVENT_SELECTOR_PANEL_HEIGHT = 1348;
+const MOBILE_EVENT_SELECTOR_PANEL_RADIUS = 38;
+const MOBILE_EVENT_SELECTOR_ROW_HEIGHT = 154;
 const LEADERBOARD_PLATE_KEYS = [
   "RankingPlate_01",
   "RankingPlate_02",
@@ -292,13 +340,15 @@ const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_04",
   "Prize_Ranking_05",
 ] as const;
-const PAGE_BUTTON_KEYS = ["Button_Page", "Button_Page_1", "Button_Page_2"] as const;
 
 export class LobbyScene extends Phaser.Scene {
   private cleanup: Array<() => void> = [];
   private sectionBands: SectionBand[] = [];
-  private periodPanel?: Phaser.GameObjects.Image;
+  private periodFrame?: Phaser.GameObjects.Graphics;
   private periodPill?: Phaser.GameObjects.Text;
+  private periodChevron?: Phaser.GameObjects.Graphics;
+  private eventPickerContainer?: Phaser.GameObjects.Container;
+  private eventPickerBusy = false;
   private totalPointsText?: Phaser.GameObjects.Text;
   private eligibilityText?: Phaser.GameObjects.Text;
   private rulesBodyText?: Phaser.GameObjects.Text;
@@ -314,7 +364,7 @@ export class LobbyScene extends Phaser.Scene {
   private activitySection?: Phaser.GameObjects.Container;
   private inlineLeaderboardRows: InlineLeaderboardRow[] = [];
   private inlinePrizeRows: PrizeSectionRow[] = [];
-  private pageButtons: Phaser.GameObjects.Image[] = [];
+  private pageTabs: PageTab[] = [];
   private leaderboardPage = 1;
   private isDraggingScroll = false;
   private dragStartX = 0;
@@ -331,12 +381,11 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
-    ensureBackgroundMusic(this);
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
     this.drawBackground();
     this.captureSection(0, 180, () => this.drawHeader());
-    this.captureSection(220, 720, () => this.drawHero());
+    this.captureSection(220, 800, () => this.drawHero());
     this.activitySection = this.captureSection(620, 1020, () => this.drawActionRow(), 360);
     this.captureSection(1900, INLINE_LEADERBOARD_SECTION_TOP, () => {
       this.drawSummaryArea();
@@ -349,8 +398,19 @@ export class LobbyScene extends Phaser.Scene {
       () => this.drawInlineLeaderboardSection(),
       260,
     );
-    this.captureSection(4276 + PRIZE_EXTEND, 5960 + PRIZE_EXTEND, () => this.drawInlinePrizeSection(), 260);
-    this.captureSection(6090 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, CONTENT_HEIGHT, () => this.drawInlineRulesSection(), 260);
+    this.captureSection(
+      4276 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND,
+      5960 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND,
+      () => this.drawInlinePrizeSection(),
+      260,
+    );
+    this.captureSection(
+      6090 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT,
+      CONTENT_HEIGHT,
+      () => this.drawInlineRulesSection(),
+      260,
+    );
+    this.drawFloatingDepositButton();
     this.setupScrollControls();
     this.refreshDynamicContent();
     const leaderboardFooterTimer = this.time.addEvent({
@@ -378,8 +438,9 @@ export class LobbyScene extends Phaser.Scene {
       this.activitySection = undefined;
       this.inlineLeaderboardRows = [];
       this.inlinePrizeRows = [];
-      this.pageButtons = [];
+      this.pageTabs = [];
       this.sectionBands = [];
+      this.eventPickerContainer = undefined;
     });
 
     const debugScrollYParam = new URL(window.location.href).searchParams.get("scrollY");
@@ -413,55 +474,349 @@ export class LobbyScene extends Phaser.Scene {
 
   private drawHeader() {
     const periodCenterX = this.fromEditorX(340);
-    const periodBaseScale = 0.38;
+    const headerIconScale = 0.84;
 
     this.add.image(this.fromEditorX(83), 110, "Button_iBET").setScale(0.82);
 
-    this.periodPanel = this.add
-      .image(periodCenterX, 110, "Frame_time_01")
-      .setScale(periodBaseScale);
-    this.periodPanel.setInteractive({ useHandCursor: true });
-    this.periodPanel.on("pointerover", () => this.periodPanel?.setScale(periodBaseScale + 0.012));
-    this.periodPanel.on("pointerout", () => this.periodPanel?.setScale(periodBaseScale));
-    this.periodPanel.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.PeriodOverlay)));
+    this.periodFrame = this.add.graphics();
+    this.periodFrame.setPosition(periodCenterX, 110);
+    this.drawMobileEventSelectorFrame(
+      this.periodFrame,
+      MOBILE_EVENT_SELECTOR_WIDTH,
+      MOBILE_EVENT_SELECTOR_HEIGHT,
+    );
 
     this.periodPill = this.add
-      .text(periodCenterX - 14, 110, prototypeState.t("lobby.loadingLiveEvent"), {
+      .text(periodCenterX - 12, 110, prototypeState.t("lobby.loadingLiveEvent"), {
         fontFamily: FONTS.body,
-        fontSize: "33px",
-        fontStyle: "700",
-        color: "#415f77",
+        fontSize: "32px",
+        fontStyle: "400",
+        color: "#111111",
+        align: "center",
+        wordWrap: { width: MOBILE_EVENT_SELECTOR_WIDTH - 84, useAdvancedWrap: false },
       })
       .setOrigin(0.5);
 
-    const periodPanelWidth = this.periodPanel.displayWidth;
-    const periodChevron = this.add.graphics();
-    const chevronX = periodCenterX + periodPanelWidth / 2 - 26;
-    const chevronY = 110;
-    periodChevron.lineStyle(4, 0x21b7f7, 1);
-    periodChevron.beginPath();
-    periodChevron.moveTo(chevronX - 9, chevronY - 4);
-    periodChevron.lineTo(chevronX, chevronY + 6);
-    periodChevron.lineTo(chevronX + 9, chevronY - 4);
-    periodChevron.strokePath();
+    this.periodChevron = this.createMobileEventSelectorChevron(
+      periodCenterX + MOBILE_EVENT_SELECTOR_WIDTH / 2 - 56,
+      110,
+    );
+
+    const periodHitArea = this.add.rectangle(
+      periodCenterX,
+      110,
+      MOBILE_EVENT_SELECTOR_WIDTH + 28,
+      MOBILE_EVENT_SELECTOR_HEIGHT + 28,
+      0xffffff,
+      0,
+    );
+    periodHitArea.setInteractive({ useHandCursor: true });
+    periodHitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    });
+    periodHitArea.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.PeriodOverlay)));
+    periodHitArea.on("pointerover", () => {
+      if (!this.periodFrame) {
+        return;
+      }
+
+      this.drawMobileEventSelectorFrame(
+        this.periodFrame,
+        MOBILE_EVENT_SELECTOR_HOVER_WIDTH,
+        MOBILE_EVENT_SELECTOR_HOVER_HEIGHT,
+      );
+      this.periodChevron?.setScale(1.05);
+    });
+    periodHitArea.on("pointerout", () => {
+      if (!this.periodFrame) {
+        return;
+      }
+
+      this.drawMobileEventSelectorFrame(
+        this.periodFrame,
+        MOBILE_EVENT_SELECTOR_WIDTH,
+        MOBILE_EVENT_SELECTOR_HEIGHT,
+      );
+      this.periodChevron?.setScale(1);
+    });
 
     const localeButton = this.add
       .image(this.fromEditorX(570), 110, "Button_Language")
-      .setScale(0.84);
+      .setScale(headerIconScale);
     localeButton.setInteractive({ useHandCursor: true });
     localeButton.on("pointerover", () => localeButton.setScale(0.86));
-    localeButton.on("pointerout", () => localeButton.setScale(0.84));
+    localeButton.on("pointerout", () => localeButton.setScale(headerIconScale));
     localeButton.on("pointerup", () => this.runTapAction(() => this.toggleOverlay(SCENE_KEYS.LocaleOverlay)));
 
     const supportButton = this.add
       .image(this.fromEditorX(668), 110, "Button_Support")
-      .setScale(0.84);
+      .setScale(headerIconScale);
     supportButton.setInteractive({ useHandCursor: true });
     supportButton.on("pointerover", () => supportButton.setScale(0.86));
-    supportButton.on("pointerout", () => supportButton.setScale(0.84));
+    supportButton.on("pointerout", () => supportButton.setScale(headerIconScale));
     supportButton.on("pointerup", () => this.runTapAction(() => {
       openExternalLink(this.getPlatformLinkUrl(PlatformLinkType.CustomerService));
     }));
+  }
+
+  private drawMobileEventSelectorFrame(
+    frame: Phaser.GameObjects.Graphics,
+    width: number,
+    height: number,
+  ) {
+    const radius = height / 2;
+    frame.clear();
+    frame.fillStyle(0xffffff, 1);
+    frame.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
+    frame.lineStyle(3, MOBILE_EVENT_SELECTOR_STROKE, 1);
+    frame.strokeRoundedRect(-width / 2, -height / 2, width, height, radius);
+  }
+
+  private createMobileEventSelectorChevron(x: number, y: number) {
+    const chevron = this.add.graphics();
+    chevron.setPosition(x, y);
+    chevron.lineStyle(6, MOBILE_EVENT_SELECTOR_STROKE, 1);
+    chevron.beginPath();
+    chevron.moveTo(-12, -6);
+    chevron.lineTo(0, 7);
+    chevron.lineTo(12, -6);
+    chevron.strokePath();
+    return chevron;
+  }
+
+  private openMobileEventPicker() {
+    const snapshot = prototypeState.getSnapshot();
+    const events = snapshot.events as MobileEventPickerEntry[];
+
+    if (events.length === 0) {
+      return;
+    }
+
+    this.closeMobileEventPicker();
+
+    const modal = this.add.container(0, 0);
+    modal.setScrollFactor(0);
+    modal.setDepth(1200);
+
+    const swallowPickerTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    const backdrop = this.add
+      .rectangle(STAGE_WIDTH / 2, STAGE_HEIGHT / 2, STAGE_WIDTH, STAGE_HEIGHT, 0xffffff, 0.001)
+      .setScrollFactor(0)
+      .setInteractive();
+    backdrop.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      this.closeMobileEventPicker();
+    });
+    backdrop.on("pointerup", swallowPickerTap);
+    modal.add(backdrop);
+
+    const panelX = STAGE_WIDTH / 2;
+    const panelLeft = panelX - MOBILE_EVENT_SELECTOR_PANEL_WIDTH / 2;
+    const panel = this.add.container(0, 0).setScrollFactor(0);
+    const shadow = this.add.graphics().setScrollFactor(0);
+    const shadowLayers = [
+      { inset: -28, offsetY: 20, alpha: 0.035, radiusOffset: 28 },
+      { inset: -18, offsetY: 14, alpha: 0.055, radiusOffset: 20 },
+      { inset: -9, offsetY: 8, alpha: 0.08, radiusOffset: 12 },
+      { inset: 0, offsetY: 3, alpha: 0.13, radiusOffset: 0 },
+    ] as const;
+    shadowLayers.forEach((layer) => {
+      shadow.fillStyle(0x000000, layer.alpha);
+      shadow.fillRoundedRect(
+        panelLeft + layer.inset,
+        MOBILE_EVENT_SELECTOR_PANEL_TOP + layer.offsetY + layer.inset,
+        MOBILE_EVENT_SELECTOR_PANEL_WIDTH - layer.inset * 2,
+        MOBILE_EVENT_SELECTOR_PANEL_HEIGHT - layer.inset * 2,
+        MOBILE_EVENT_SELECTOR_PANEL_RADIUS + layer.radiusOffset,
+      );
+    });
+
+    const background = this.add.graphics().setScrollFactor(0);
+    background.fillStyle(0xffffff, 0.98);
+    background.fillRoundedRect(
+      panelLeft,
+      MOBILE_EVENT_SELECTOR_PANEL_TOP,
+      MOBILE_EVENT_SELECTOR_PANEL_WIDTH,
+      MOBILE_EVENT_SELECTOR_PANEL_HEIGHT,
+      MOBILE_EVENT_SELECTOR_PANEL_RADIUS,
+    );
+    background.lineStyle(1.5, 0xffffff, 0.9);
+    background.strokeRoundedRect(
+      panelLeft + 1,
+      MOBILE_EVENT_SELECTOR_PANEL_TOP + 1,
+      MOBILE_EVENT_SELECTOR_PANEL_WIDTH - 2,
+      MOBILE_EVENT_SELECTOR_PANEL_HEIGHT - 2,
+      MOBILE_EVENT_SELECTOR_PANEL_RADIUS - 1,
+    );
+
+    const panelHitArea = this.add
+      .rectangle(
+        panelX,
+        MOBILE_EVENT_SELECTOR_PANEL_TOP + MOBILE_EVENT_SELECTOR_PANEL_HEIGHT / 2,
+        MOBILE_EVENT_SELECTOR_PANEL_WIDTH,
+        MOBILE_EVENT_SELECTOR_PANEL_HEIGHT,
+        0xffffff,
+        0.001,
+      )
+      .setScrollFactor(0)
+      .setInteractive();
+    panelHitArea.on("pointerdown", swallowPickerTap);
+    panelHitArea.on("pointerup", swallowPickerTap);
+    panel.add([shadow, background, panelHitArea]);
+    modal.add(panel);
+
+    const maxRows = Math.min(
+      events.length,
+      Math.floor((MOBILE_EVENT_SELECTOR_PANEL_HEIGHT - 36) / MOBILE_EVENT_SELECTOR_ROW_HEIGHT),
+    );
+
+    events.slice(0, maxRows).forEach((entry, index) => {
+      this.drawMobileEventPickerRow(
+        modal,
+        entry,
+        panelLeft,
+        MOBILE_EVENT_SELECTOR_PANEL_TOP + 52 + index * MOBILE_EVENT_SELECTOR_ROW_HEIGHT,
+      );
+    });
+
+    this.eventPickerContainer = modal;
+  }
+
+  private drawMobileEventPickerRow(
+    modal: Phaser.GameObjects.Container,
+    entry: MobileEventPickerEntry,
+    panelLeft: number,
+    rowTop: number,
+  ) {
+    const row = this.add.container(0, 0).setScrollFactor(0);
+    const title = this.add
+      .text(panelLeft + 48, rowTop, entry.title, {
+        fontFamily: FONTS.display,
+        fontSize: "38px",
+        fontStyle: "700",
+        color: "#050505",
+        wordWrap: { width: MOBILE_EVENT_SELECTOR_PANEL_WIDTH - 300, useAdvancedWrap: false },
+      })
+      .setOrigin(0, 0)
+      .setScrollFactor(0);
+
+    const period = this.add
+      .text(panelLeft + 48, rowTop + 58, entry.promotionPeriodLabel, {
+        fontFamily: FONTS.body,
+        fontSize: "36px",
+        fontStyle: "400",
+        color: "#8c8c8c",
+        wordWrap: { width: MOBILE_EVENT_SELECTOR_PANEL_WIDTH - 300, useAdvancedWrap: false },
+      })
+      .setOrigin(0, 0)
+      .setScrollFactor(0);
+
+    const chip = this.createMobileEventDropdownStatusChip(
+      panelLeft + MOBILE_EVENT_SELECTOR_PANEL_WIDTH - 138,
+      rowTop + 48,
+      entry.status,
+    );
+
+    const hitArea = this.add
+      .rectangle(
+        panelLeft + MOBILE_EVENT_SELECTOR_PANEL_WIDTH / 2,
+        rowTop + MOBILE_EVENT_SELECTOR_ROW_HEIGHT / 2 - 2,
+        MOBILE_EVENT_SELECTOR_PANEL_WIDTH,
+        MOBILE_EVENT_SELECTOR_ROW_HEIGHT,
+        0xffffff,
+        0.001,
+      )
+      .setScrollFactor(0)
+      .setInteractive({ useHandCursor: true });
+
+    const beginSelection = () => {
+      if (this.eventPickerBusy) {
+        return;
+      }
+
+      this.eventPickerBusy = true;
+      hitArea.disableInteractive();
+
+      void prototypeState.selectEvent(entry.id)
+        .then(() => this.closeMobileEventPicker())
+        .catch(() => {
+          this.eventPickerBusy = false;
+          hitArea.setInteractive({ useHandCursor: true });
+        });
+    };
+
+    hitArea.on("pointerdown", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+      beginSelection();
+    });
+    hitArea.on("pointerover", () => title.setColor("#0b9fd9"));
+    hitArea.on("pointerout", () => title.setColor("#050505"));
+    hitArea.on("pointerup", (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    });
+
+    row.add([title, period, chip, hitArea]);
+    modal.add(row);
+  }
+
+  private createMobileEventDropdownStatusChip(x: number, y: number, status: EventStatus) {
+    const chip = this.add.container(x, y).setScrollFactor(0);
+    const bg = this.add.graphics().setScrollFactor(0);
+    const isLive = status === EventStatus.Live;
+
+    bg.fillStyle(isLive ? 0x06aee4 : 0xc4c4c4, 1);
+    bg.fillRoundedRect(-115, -45, 230, 90, 45);
+
+    const text = this.add
+      .text(0, 1, this.getMobileEventPickerStatusLabel(status), {
+        fontFamily: FONTS.body,
+        fontSize: "36px",
+        fontStyle: "700",
+        color: "#ffffff",
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0);
+
+    chip.add([bg, text]);
+    return chip;
+  }
+
+  private getMobileEventPickerStatusLabel(status: EventStatus) {
+    return status === EventStatus.Live ? "Active" : "Expired";
+  }
+
+  private closeMobileEventPicker() {
+    this.eventPickerBusy = false;
+    this.eventPickerContainer?.destroy(true);
+    this.eventPickerContainer = undefined;
   }
 
   private drawHero() {
@@ -474,7 +829,7 @@ export class LobbyScene extends Phaser.Scene {
       rankCopy: prototypeState.t("lobby.stepRankCopy"),
     };
 
-    const stepSectionOffsetY = 20;
+    const stepSectionOffsetY = 20 + MOBILE_LOBBY_CONTENT_DROP_PX;
     const tutorialCenterX = 540;
     const tutorialScale = 0.86;
     const tutorialTextureWidth = 990;
@@ -533,15 +888,15 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawActionRow() {
-    const itemWidth = 340;
-    const itemHeight = 60;
+    const itemWidth = 560;
+    const itemHeight = ACTIVITY_PILL_ITEM_HEIGHT;
     const bubbleCount = 3;
 
     this.activityBubbles = Array.from({ length: bubbleCount }, (_, index) => {
       const pill = addPill(
         this,
         STAGE_WIDTH / 2,
-        970,
+        970 + MOBILE_LOBBY_CONTENT_DROP_PX,
         itemWidth,
         itemHeight,
         "",
@@ -549,8 +904,8 @@ export class LobbyScene extends Phaser.Scene {
         "#0a2942",
       );
 
-      pill.text.setFontSize("20px");
-      pill.text.setWordWrapWidth(284, true);
+      pill.text.setFontSize("34px");
+      pill.text.setWordWrapWidth(500, true);
       pill.text.setAlign("center");
       pill.container.setAlpha(0);
       pill.container.setScale(0.82);
@@ -563,8 +918,8 @@ export class LobbyScene extends Phaser.Scene {
         progress: 0,
         duration: 0,
         startX: STAGE_WIDTH / 2,
-        startY: 970,
-        endY: 970,
+        startY: 970 + MOBILE_LOBBY_CONTENT_DROP_PX,
+        endY: 970 + MOBILE_LOBBY_CONTENT_DROP_PX,
         startScale: 0.82,
         endScale: 0.96,
       };
@@ -762,18 +1117,7 @@ export class LobbyScene extends Phaser.Scene {
       this.inlineLeaderboardRows.push({ highlightArrow, plate, playerText, scoreText, prizeText });
     });
 
-    const pageXs = [this.fromEditorX(295), this.fromEditorX(375), this.fromEditorX(455)];
-    pageXs.forEach((x, index) => {
-      const button = this.add
-        .image(x, INLINE_LEADERBOARD_PAGE_BUTTON_Y, PAGE_BUTTON_KEYS[index])
-        .setScale(INLINE_LEADERBOARD_PAGE_BUTTON_SCALE);
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerup", () => this.runTapAction(() => {
-        this.leaderboardPage = index + 1;
-        this.refreshLeaderboardSection();
-      }));
-      this.pageButtons.push(button);
-    });
+    this.drawInlineLeaderboardPagination();
 
     this.add.image(this.fromEditorX(374), INLINE_LEADERBOARD_BOTTOM_DIVIDER_Y, "Divider").setScale(1);
 
@@ -826,11 +1170,79 @@ export class LobbyScene extends Phaser.Scene {
     this.leaderboardLastSyncedText = this.add
       .text(540, INLINE_LEADERBOARD_FOOTER_Y, "", {
         fontFamily: FONTS.body,
-        fontSize: "22px",
-        color: "#62839b",
+        fontSize: "24px",
+        fontStyle: "400",
+        color: "#000000",
+        align: "center",
       })
       .setOrigin(0.5)
-      .setLineSpacing(8);
+      .setLineSpacing(6);
+  }
+
+  private drawInlineLeaderboardPagination() {
+    const pageXs = [this.fromEditorX(295), this.fromEditorX(375), this.fromEditorX(455)];
+    const arrowY = INLINE_LEADERBOARD_PAGE_BUTTON_Y;
+
+    this.drawPaginationChevron(this.fromEditorX(235), arrowY, -1, () => {
+      this.leaderboardPage = Math.max(1, this.leaderboardPage - 1);
+      this.refreshLeaderboardSection();
+    });
+    this.drawPaginationChevron(this.fromEditorX(515), arrowY, 1, () => {
+      this.leaderboardPage = Math.min(3, this.leaderboardPage + 1);
+      this.refreshLeaderboardSection();
+    });
+
+    pageXs.forEach((x, index) => {
+      const page = index + 1;
+      const circle = this.add
+        .circle(
+          x,
+          INLINE_LEADERBOARD_PAGE_BUTTON_Y,
+          INLINE_LEADERBOARD_PAGE_TAB_RADIUS,
+          INLINE_LEADERBOARD_PAGE_TAB_ACTIVE_COLOR,
+          1,
+        )
+        .setVisible(false);
+      const label = this.add
+        .text(x, INLINE_LEADERBOARD_PAGE_BUTTON_Y + 1, String(page), {
+          fontFamily: FONTS.body,
+          fontSize: `${INLINE_LEADERBOARD_PAGE_TAB_FONT_SIZE}px`,
+          fontStyle: "700",
+          color: INLINE_LEADERBOARD_PAGE_TAB_TEXT_COLOR,
+        })
+        .setOrigin(0.5);
+      const hitArea = this.add
+        .rectangle(
+          x,
+          INLINE_LEADERBOARD_PAGE_BUTTON_Y,
+          INLINE_LEADERBOARD_PAGE_TAB_RADIUS * 2.4,
+          INLINE_LEADERBOARD_PAGE_TAB_RADIUS * 2.4,
+          0xffffff,
+          0,
+        )
+        .setInteractive({ useHandCursor: true });
+      hitArea.on("pointerup", () => this.runTapAction(() => {
+        this.leaderboardPage = page;
+        this.refreshLeaderboardSection();
+      }));
+
+      this.pageTabs.push({ circle, label, hitArea });
+    });
+  }
+
+  private drawPaginationChevron(x: number, y: number, direction: -1 | 1, onClick: () => void) {
+    const chevron = this.add.graphics();
+    chevron.lineStyle(8, INLINE_LEADERBOARD_PAGE_TAB_ACTIVE_COLOR, 1);
+    chevron.beginPath();
+    chevron.moveTo(x - direction * 12, y - 20);
+    chevron.lineTo(x + direction * 8, y);
+    chevron.lineTo(x - direction * 12, y + 20);
+    chevron.strokePath();
+
+    const hitArea = this.add
+      .rectangle(x, y, 80, 88, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true });
+    hitArea.on("pointerup", () => this.runTapAction(onClick));
   }
 
   private drawInlinePrizeSection() {
@@ -854,7 +1266,9 @@ export class LobbyScene extends Phaser.Scene {
     const rightBadgeX = prizeRowRight - PRIZE_BADGE_VISIBLE_RIGHT;
     const rewardXs = [leftRewardX, rightRewardX, leftRewardX, rightRewardX, leftRewardX];
     const badgeXs = [leftBadgeX, rightBadgeX, leftBadgeX, rightBadgeX, leftBadgeX];
-    const yValues = [4521, 4841, 5161, 5481, 5801].map((y) => y + PRIZE_EXTEND);
+    const yValues = [4521, 4841, 5161, 5481, 5801].map(
+      (y) => y + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND,
+    );
 
     yValues.forEach((y, index) => {
       const rankBadge = this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(1);
@@ -889,7 +1303,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawInlineRulesSection() {
-    const stripeBandTop = 7060 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT;
+    const stripeBandTop = 7060 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT;
     const stripeBandHeight = 340;
     const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
@@ -915,7 +1329,7 @@ export class LobbyScene extends Phaser.Scene {
     stripeBand.setDepth(0);
 
     const termsX = 90;
-    const termsY = 6140 - INLINE_RULES_SECTION_LIFT;
+    const termsY = 6140 + MOBILE_LOBBY_CONTENT_DROP_PX - INLINE_RULES_SECTION_LIFT;
     const termsW = 900;
     const termsH = 1060;
     const termsOuterR = 20;
@@ -934,17 +1348,22 @@ export class LobbyScene extends Phaser.Scene {
     termsPanel.setDepth(1);
 
     const termsTitle = this.add
-      .text(540, 6206 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, prototypeState.t("rules.title"), {
-        fontFamily: FONTS.display,
-        fontSize: "42px",
-        fontStyle: "800",
-        color: "#18aef5",
-      })
+      .text(
+        540,
+        6206 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT,
+        prototypeState.t("rules.title"),
+        {
+          fontFamily: FONTS.display,
+          fontSize: "42px",
+          fontStyle: "800",
+          color: "#18aef5",
+        },
+      )
       .setOrigin(0.5);
     termsTitle.setDepth(2);
 
     this.rulesBodyText = this.add
-      .text(132, 6296 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, "", {
+      .text(132, 6296 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT, "", {
         fontFamily: FONTS.body,
         fontSize: "28px",
         color: "#000000",
@@ -953,13 +1372,24 @@ export class LobbyScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
     this.rulesBodyText.setDepth(2);
+  }
+
+  private drawFloatingDepositButton() {
+    const footerTop = STAGE_HEIGHT - FLOATING_DEPOSIT_FOOTER_HEIGHT;
+    const footer = this.add.graphics();
+    footer.fillStyle(FLOATING_DEPOSIT_FOOTER_BG, FLOATING_DEPOSIT_FOOTER_ALPHA);
+    footer.fillRect(0, footerTop, STAGE_WIDTH, FLOATING_DEPOSIT_FOOTER_HEIGHT);
+    footer.lineStyle(2, COLORS.line, 0.28);
+    footer.lineBetween(0, footerTop, STAGE_WIDTH, footerTop);
+    footer.setScrollFactor(0);
+    footer.setDepth(900);
 
     const depositButton = addTextButton(
       this,
       540,
-      7290 + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT,
-      830,
-      104,
+      STAGE_HEIGHT - FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN - FLOATING_DEPOSIT_BUTTON_HEIGHT / 2,
+      FLOATING_DEPOSIT_BUTTON_WIDTH,
+      FLOATING_DEPOSIT_BUTTON_HEIGHT,
       "Go to Deposit",
       () =>
         this.runTapAction(() => {
@@ -972,7 +1402,8 @@ export class LobbyScene extends Phaser.Scene {
       },
     );
     depositButton.label.setFontSize(34);
-    depositButton.container.setDepth(3);
+    depositButton.container.setScrollFactor(0);
+    depositButton.container.setDepth(901);
   }
 
   private drawDevPanel() {
@@ -981,7 +1412,7 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     this.add
-      .text(540, 2258, prototypeState.t("lobby.devSwitch"), {
+      .text(540, 2258 + MOBILE_LOBBY_CONTENT_DROP_PX, prototypeState.t("lobby.devSwitch"), {
         fontFamily: FONTS.body,
         fontSize: "20px",
         fontStyle: "700",
@@ -991,7 +1422,7 @@ export class LobbyScene extends Phaser.Scene {
 
     DEV_ELIGIBILITY_OPTIONS.forEach((option, index) => {
       const x = 126 + index * 206;
-      const background = this.add.rectangle(x, 2310, 184, 44, 0xeef9ff, 1);
+      const background = this.add.rectangle(x, 2310 + MOBILE_LOBBY_CONTENT_DROP_PX, 184, 44, 0xeef9ff, 1);
       background.setStrokeStyle(2, COLORS.line, 0.75);
       background.setInteractive({ useHandCursor: true });
       background.on("pointerup", () => this.runTapAction(() => {
@@ -999,7 +1430,7 @@ export class LobbyScene extends Phaser.Scene {
       }));
 
       const label = this.add
-        .text(x, 2310, option.label, {
+        .text(x, 2310 + MOBILE_LOBBY_CONTENT_DROP_PX, option.label, {
           fontFamily: FONTS.body,
           fontSize: "18px",
           fontStyle: "700",
@@ -1046,14 +1477,14 @@ export class LobbyScene extends Phaser.Scene {
         this.suppressTapUntil = this.time.now + 220;
       }
 
-      const nextScroll = this.dragStartScrollY - deltaY;
+      const nextScroll = this.dragStartScrollY - deltaY * MOBILE_SCROLL_DRAG_SENSITIVITY;
       this.setScrollY(nextScroll);
 
       const now = this.time.now;
       const elapsed = Math.max(1, now - this.lastDragTime);
-      const scrollDelta = this.lastDragY - pointer.y;
+      const scrollDelta = (this.lastDragY - pointer.y) * MOBILE_SCROLL_DRAG_SENSITIVITY;
       const instantVelocity = scrollDelta / elapsed;
-      this.scrollVelocity = Phaser.Math.Linear(this.scrollVelocity, instantVelocity, 0.35);
+      this.scrollVelocity = Phaser.Math.Linear(this.scrollVelocity, instantVelocity, 0.22);
       this.lastDragY = pointer.y;
       this.lastDragTime = now;
     };
@@ -1077,7 +1508,7 @@ export class LobbyScene extends Phaser.Scene {
       _deltaX: number,
       deltaY: number,
     ) => {
-      this.setScrollY(this.cameras.main.scrollY + deltaY * 0.9);
+      this.setScrollY(this.cameras.main.scrollY + deltaY * MOBILE_SCROLL_WHEEL_SENSITIVITY);
       this.scrollVelocity = 0;
       this.suppressTapUntil = this.time.now + 120;
     };
@@ -1188,8 +1619,10 @@ export class LobbyScene extends Phaser.Scene {
       row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
     });
 
-    this.pageButtons.forEach((button, index) => {
-      button.setAlpha(index + 1 === this.leaderboardPage ? 1 : 0.58);
+    this.pageTabs.forEach((tab, index) => {
+      const isActive = index + 1 === this.leaderboardPage;
+      tab.circle.setVisible(isActive);
+      tab.label.setColor(isActive ? "#ffffff" : INLINE_LEADERBOARD_PAGE_TAB_TEXT_COLOR);
     });
 
     const myRank =
@@ -1279,9 +1712,9 @@ export class LobbyScene extends Phaser.Scene {
   private refreshLeaderboardFooterText() {
     const snapshot = prototypeState.getSnapshot();
     const lastSyncedValue = snapshot.leaderboard?.lastSyncedAt
-      ? formatDate(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
+      ? formatDateWithGmtOffset(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
           dateStyle: "short",
-          timeStyle: "short",
+          timeStyle: "medium",
         })
       : "-";
 
@@ -1360,8 +1793,8 @@ export class LobbyScene extends Phaser.Scene {
       return;
     }
 
-    this.setScrollY(this.cameras.main.scrollY + this.scrollVelocity * delta);
-    this.scrollVelocity *= 0.94;
+    this.setScrollY(this.cameras.main.scrollY + this.scrollVelocity * delta * MOBILE_SCROLL_MOMENTUM_SENSITIVITY);
+    this.scrollVelocity *= MOBILE_SCROLL_MOMENTUM_DECAY;
 
     const maxScroll = CONTENT_HEIGHT - STAGE_HEIGHT;
     if (this.cameras.main.scrollY <= 0 || this.cameras.main.scrollY >= maxScroll) {
@@ -1381,8 +1814,11 @@ export class LobbyScene extends Phaser.Scene {
     bubble.progress = 0;
     bubble.duration = Phaser.Math.Between(2500, 3200);
     bubble.startX = this.getRandomBubbleX(bubble.width / 2);
-    bubble.startY = Phaser.Math.Between(970, 1000);
-    bubble.endY = Phaser.Math.Between(ACTIVITY_BUBBLE_END_Y_MIN, ACTIVITY_BUBBLE_END_Y_MAX);
+    bubble.startY = Phaser.Math.Between(ACTIVITY_BUBBLE_MIN_Y, ACTIVITY_BUBBLE_MAX_Y);
+    bubble.endY = Math.max(
+      ACTIVITY_BUBBLE_MIN_Y,
+      bubble.startY - Phaser.Math.Between(ACTIVITY_BUBBLE_MIN_TRAVEL_Y, ACTIVITY_BUBBLE_MAX_TRAVEL_Y),
+    );
     bubble.startScale = Phaser.Math.FloatBetween(0.78, 0.88);
     bubble.endScale = bubble.startScale + Phaser.Math.FloatBetween(0.08, 0.15);
     bubble.container.setPosition(bubble.startX, bubble.startY);
@@ -1404,7 +1840,7 @@ export class LobbyScene extends Phaser.Scene {
     const playerId = this.formatMarqueePlayerId(entry.playerName);
     const points = this.getRandomMarqueePoints();
 
-    bubble.text.setText(`ID ${playerId} earned ${formatNumber(points, snapshot.locale)} points`);
+    bubble.text.setText(`${playerId} earned ${formatNumber(points, snapshot.locale)} points`);
   }
 
   private getRandomMarqueePoints() {
@@ -1419,8 +1855,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private formatMarqueePlayerId(playerName: string) {
-    const normalized = playerName.replace(/\s+/g, "");
-    return normalized.length > 11 ? `${normalized.slice(0, 11)}...` : normalized;
+    return maskLeaderboardPlayerName(playerName);
   }
 
   private getRandomBubbleX(halfWidth: number) {

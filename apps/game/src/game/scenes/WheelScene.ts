@@ -6,8 +6,14 @@ import {
   type SpinSuccessResponse,
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
-import { playWinningEffect } from "../audio";
-import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../constants";
+import { playSpinningEffect, playWinningEffect, stopSpinningEffect } from "../audio";
+import {
+  COLORS,
+  FONTS,
+  MOBILE_LOBBY_CONTENT_DROP_PX,
+  SCENE_KEYS,
+  shouldShowDevEligibilitySwitch,
+} from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
 import { createRibbonsBurst } from "../ribbonsFx";
 import { prototypeState } from "../state/prototype-state";
@@ -19,7 +25,7 @@ import {
 } from "../winningPopup";
 
 const WHEEL_CENTER_X = 540;
-const WHEEL_CENTER_Y = 1410;
+const WHEEL_CENTER_Y = 1410 + MOBILE_LOBBY_CONTENT_DROP_PX;
 const WHEEL_SCALE = 1.05;
 const WHEEL_BACKDROP_SCALE = 0.86;
 const WHEEL_BACKDROP_SIZE = 972;
@@ -87,7 +93,7 @@ export class WheelScene extends Phaser.Scene {
       this.testSpinButton = addTextButton(
         this,
         192,
-        936,
+        936 + MOBILE_LOBBY_CONTENT_DROP_PX,
         196,
         64,
         "Test_Spins",
@@ -140,6 +146,7 @@ export class WheelScene extends Phaser.Scene {
     this.registry.events.on("changedata", syncScroll);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      stopSpinningEffect(this);
       this.highlightTween?.stop();
       this.highlightGraphic?.destroy();
       this.celebrationTimer?.remove(false);
@@ -218,12 +225,14 @@ export class WheelScene extends Phaser.Scene {
       this.wheelRotation +
       Phaser.Math.DegToRad(travelDegrees <= 0 ? travelDegrees + 360 : travelDegrees);
 
+    playSpinningEffect(this);
     this.tweens.add({
       targets: this.wheelRoot,
       rotation: targetRotation,
       duration: 3800,
       ease: "Cubic.easeOut",
       onComplete: () => {
+        stopSpinningEffect(this);
         this.wheelRotation = targetRotation;
         onComplete?.();
       },
@@ -662,11 +671,11 @@ export class WheelScene extends Phaser.Scene {
     for (let index = 0; index < FIREWORK_BURST_COUNT; index += 1) {
       const timer = this.time.delayedCall(index * FIREWORK_CADENCE_MS, () => {
         const point = popupBounds
-          ? getPointAroundWinningPopup(popupBounds, {
+            ? getPointAroundWinningPopup(popupBounds, {
               minX: 90,
               maxX: 990,
-              minY: 780,
-              maxY: 1370,
+              minY: 780 + MOBILE_LOBBY_CONTENT_DROP_PX,
+              maxY: 1370 + MOBILE_LOBBY_CONTENT_DROP_PX,
             })
           : this.getWinningSegmentFireworkPoint(segmentIndex);
         const isHeroBurst = index % 4 === 0;
@@ -712,8 +721,8 @@ export class WheelScene extends Phaser.Scene {
     );
     const y = Phaser.Math.Clamp(
       centerY + Math.sin(segmentAngle) * radius + Math.sin(tangentAngle) * tangentOffset,
-      850,
-      1695,
+      850 + MOBILE_LOBBY_CONTENT_DROP_PX,
+      1695 + MOBILE_LOBBY_CONTENT_DROP_PX,
     );
 
     return { x, y };
@@ -722,7 +731,7 @@ export class WheelScene extends Phaser.Scene {
   private getNearbyFireworkPoint(origin: { x: number; y: number }) {
     return {
       x: Phaser.Math.Clamp(origin.x + Phaser.Math.Between(-128, 128), 90, 990),
-      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 850, 1695),
+      y: Phaser.Math.Clamp(origin.y + Phaser.Math.Between(-104, 104), 850 + MOBILE_LOBBY_CONTENT_DROP_PX, 1695 + MOBILE_LOBBY_CONTENT_DROP_PX),
     };
   }
 
