@@ -1434,7 +1434,7 @@ export class DesktopMainScene extends DesktopPageScene {
         row.plate.setVisible(visible);
         row.playerText.setVisible(visible);
         row.scoreText.setVisible(visible);
-        row.prizeText.setVisible(visible);
+        row.prizeText.setVisible(false).setText("");
 
         if (!visible || !entry) {
           row.prizeText.setText("");
@@ -1451,11 +1451,6 @@ export class DesktopMainScene extends DesktopPageScene {
         row.playerText.setY(rowTextCenterY);
         row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
         row.scoreText.setY(rowTextCenterY);
-        const prizePosition = getDesktopRankingPrizeTextPosition(row.plate, entry.rank);
-        row.prizeText
-          .setPosition(prizePosition.x, prizePosition.y)
-          .setText(this.getLeaderboardPrizeLabel(entry.rank, entry.prizeName))
-          .setColor(entry.rank <= 3 ? "#149fe4" : "#8d98a1");
         row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
       });
 
@@ -1499,12 +1494,9 @@ export class DesktopMainScene extends DesktopPageScene {
         ?.setVisible(true)
         .setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
-      const summaryPrizePosition = getDesktopRankingPrizeTextPosition(this.leaderboardMyRankPlate!, myRank.rank);
       this.leaderboardMyRankPrizeText
-        ?.setVisible(myRank.rank <= 30)
-        .setPosition(summaryPrizePosition.x, summaryPrizePosition.y)
-        .setText(this.getLeaderboardPrizeLabel(myRank.rank, myRank.prizeName))
-        .setColor(myRank.rank <= 3 ? "#149fe4" : "#8d98a1");
+        ?.setVisible(false)
+        .setText("");
       this.leaderboardMyRankText?.setVisible(false).setText("");
     } else {
       this.leaderboardMyRankPlate?.setVisible(false);
@@ -1531,16 +1523,15 @@ export class DesktopMainScene extends DesktopPageScene {
       row.rankBadge.setVisible(visible);
       row.rewardZone.setVisible(visible);
       row.prizeArt.setVisible(false);
-      row.prizeLabel.setVisible(visible);
-      row.prizeDescription.setVisible(visible);
+      row.prizeLabel.setVisible(false).setText("");
+      row.prizeDescription.setVisible(Boolean(prize && !prize.imageUrl));
 
       if (!prize) {
         return;
       }
 
-      row.prizeLabel.setText(prize.prizeLabel);
       row.prizeDescription.setText(
-        prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
+        prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
       row.rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
       syncPrizeArtImage(
@@ -1551,18 +1542,6 @@ export class DesktopMainScene extends DesktopPageScene {
         308 * PRIZE_ROW_SCALE,
       );
     });
-  }
-
-  private getLeaderboardPrizeLabel(rank: number, prizeName: string | null) {
-    if (prizeName) {
-      return prizeName;
-    }
-
-    const configuredPrize = prototypeState
-      .getSnapshot()
-      .prizes.find((prize) => rank >= prize.rankFrom && rank <= prize.rankTo);
-
-    return configuredPrize?.prizeLabel ?? `Rank #${rank}`;
   }
 
   private refreshLeaderboardFooterText() {
@@ -2557,7 +2536,7 @@ export class DesktopMainScene extends DesktopPageScene {
     drawArcArrow(40, 155, 245);
   }
 
-  private addRankRibbon(x: number, y: number, rank: number, prizeLabel: string) {
+  private addRankRibbon(x: number, y: number, rank: number) {
     const container = this.add.container(x, y);
     const graphics = this.add.graphics();
     const width = 152;
@@ -2602,10 +2581,6 @@ export class DesktopMainScene extends DesktopPageScene {
       true,
     );
 
-    const prizePill = this.add.graphics();
-    prizePill.fillStyle(palette.pillFill, 0.98);
-    prizePill.fillRoundedRect(-64, 7, 88, 20, 7);
-
     const rankSuffix = this.getOrdinalSuffix(rank);
 
     const rankText = this.add
@@ -2626,16 +2601,7 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(0, 0.5);
 
-    const prizeText = this.add
-      .text(-56, 17, prizeLabel, {
-        fontFamily: FONTS.body,
-        fontSize: "12px",
-        fontStyle: "700",
-        color: palette.amountColor,
-      })
-      .setOrigin(0, 0.5);
-
-    container.add([graphics, prizePill, rankText, suffixText, prizeText]);
+    container.add([graphics, rankText, suffixText]);
     return container;
   }
 

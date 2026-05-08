@@ -1,4 +1,4 @@
-import { EligibilityStatus, PlatformLinkType, type AppLocale } from "@lucky-wheel/contracts";
+import { EligibilityStatus, type AppLocale } from "@lucky-wheel/contracts";
 import type {
   CurrentEventResponse,
   EligibilityResponse,
@@ -93,10 +93,7 @@ class PrototypeState {
   getDepositUrl() {
     return (
       this.snapshot.launchDepositUrl ??
-      this.snapshot.eligibility?.depositUrl ??
-      this.snapshot.currentEvent?.platformLinks.find(
-        (link) => link.type === PlatformLinkType.Deposit,
-      )?.url
+      this.snapshot.eligibility?.depositUrl
     );
   }
 

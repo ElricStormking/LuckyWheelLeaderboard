@@ -144,7 +144,6 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
         frame.left + 116,
         y,
         entry.rank,
-        entry.prizeName ?? "RM 88",
       );
       rowsContainer.add(rankRibbon);
 
@@ -361,7 +360,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
     });
   }
 
-  private addRankRibbon(x: number, y: number, rank: number, prizeLabel: string) {
+  private addRankRibbon(x: number, y: number, rank: number) {
     const container = this.add.container(x, y);
     const graphics = this.add.graphics();
     const width = 198;
@@ -406,10 +405,6 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
       true,
     );
 
-    const prizePill = this.add.graphics();
-    prizePill.fillStyle(palette.pillFill, 0.98);
-    prizePill.fillRoundedRect(-84, 8, 106, 26, 8);
-
     const rankSuffix = this.getOrdinalSuffix(rank);
 
     const rankText = this.add
@@ -430,16 +425,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
       })
       .setOrigin(0, 0.5);
 
-    const prizeText = this.add
-      .text(-72, 22, prizeLabel, {
-        fontFamily: FONTS.body,
-        fontSize: "18px",
-        fontStyle: "700",
-        color: palette.amountColor,
-      })
-      .setOrigin(0, 0.5);
-
-    container.add([graphics, prizePill, rankText, suffixText, prizeText]);
+    container.add([graphics, rankText, suffixText]);
     return container;
   }
 

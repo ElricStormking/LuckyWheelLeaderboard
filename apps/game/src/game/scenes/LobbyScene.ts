@@ -1593,7 +1593,7 @@ export class LobbyScene extends Phaser.Scene {
       row.plate.setVisible(visible);
       row.playerText.setVisible(visible);
       row.scoreText.setVisible(visible);
-      row.prizeText.setVisible(visible);
+      row.prizeText.setVisible(false).setText("");
 
       if (!entry || isPending) {
         return;
@@ -1612,10 +1612,8 @@ export class LobbyScene extends Phaser.Scene {
       const textCenterY = this.getLeaderboardTextCenterY(rowY, entry.rank, plateScale);
       row.playerText.setY(textCenterY);
       row.scoreText.setY(textCenterY);
-      row.prizeText.setY(this.getLeaderboardPrizeTextY(rowY, entry.rank, plateScale));
       row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
-      row.prizeText.setText(entry.prizeName ?? `Rank #${entry.rank}`);
       row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
     });
 
@@ -1635,7 +1633,7 @@ export class LobbyScene extends Phaser.Scene {
     this.myRankSummaryPlate?.setVisible(hasMyRank);
     this.myRankSummaryPlayerText?.setVisible(hasMyRank);
     this.myRankSummaryScoreText?.setVisible(hasMyRank);
-    this.myRankSummaryPrizeText?.setVisible(showTopRankSummaryPlate);
+    this.myRankSummaryPrizeText?.setVisible(false).setText("");
 
     if (myRank) {
       const summarySlotBaseY = INLINE_LEADERBOARD_SUMMARY_Y;
@@ -1664,10 +1662,6 @@ export class LobbyScene extends Phaser.Scene {
         ?.setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
 
-      this.myRankSummaryPrizeText
-        ?.setY(this.getLeaderboardPrizeTextY(summaryPlateY, myRank.rank, INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE))
-        .setText(myRank.prizeName ?? `Rank #${myRank.rank}`);
-
       this.myRankSummaryText?.setVisible(false).setText("");
     } else {
       this.myRankSummaryPlayerText?.setVisible(false).setText("");
@@ -1693,16 +1687,15 @@ export class LobbyScene extends Phaser.Scene {
       row.rankBadge.setVisible(visible);
       row.rewardZone.setVisible(visible);
        row.prizeArt.setVisible(false);
-      row.prizeLabel.setVisible(visible);
-      row.prizeDescription.setVisible(visible);
+      row.prizeLabel.setVisible(false).setText("");
+      row.prizeDescription.setVisible(Boolean(prize && !prize.imageUrl));
 
       if (!prize) {
         return;
       }
 
-      row.prizeLabel.setText(prize.prizeLabel);
       row.prizeDescription.setText(
-        prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"),
+        prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
       row.rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
       syncPrizeArtImage(this, row.prizeArt, prize.imageUrl, 624, 308);

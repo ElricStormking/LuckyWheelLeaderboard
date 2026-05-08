@@ -48,26 +48,18 @@ export class PrizeOverlayScene extends BaseOverlayScene {
       const textX = rewardXs[index] + (isRightAligned ? 156 : -156);
       const origin = isRightAligned ? 1 : 0;
 
-      this.add
-        .text(textX, y - 20, prize.prizeLabel, {
-          fontFamily: FONTS.display,
-          fontSize: "30px",
-          fontStyle: "700",
-          color: "#ffffff",
-          align: isRightAligned ? "right" : "left",
-        })
-        .setOrigin(origin, 0.5);
-
-      this.add
-        .text(textX, y + 22, prize.prizeDescription || prize.accentLabel || prototypeState.t("prize.defaultAccent"), {
-          fontFamily: FONTS.body,
-          fontSize: "18px",
-          fontStyle: "700",
-          color: "#0a2942",
-          align: isRightAligned ? "right" : "left",
-          wordWrap: { width: 260, useAdvancedWrap: true },
-        })
-        .setOrigin(origin, 0.5);
+      if (!prize.imageUrl) {
+        this.add
+          .text(textX, y + 10, prize.accentLabel || prototypeState.t("prize.defaultAccent"), {
+            fontFamily: FONTS.body,
+            fontSize: "18px",
+            fontStyle: "700",
+            color: "#0a2942",
+            align: isRightAligned ? "right" : "left",
+            wordWrap: { width: 260, useAdvancedWrap: true },
+          })
+          .setOrigin(origin, 0.5);
+      }
 
       rewardZone.setAlpha(prize.imageUrl ? 0.28 : 1);
       syncPrizeArtImage(

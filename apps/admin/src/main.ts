@@ -258,7 +258,7 @@ function render() {
                   <h1>${localeContent ? escapeHtml(localeContent.title) : "Admin event setup"}</h1>
                   <p>
                     Configure event metadata, roulette segments, localized rules, prizes,
-                    platform links, participants, spin logs, and audit actions in one workspace.
+                    support link, participants, spin logs, and audit actions in one workspace.
                   </p>
                   ${renderHeroMeta(selectedEvent)}
                   <div class="hero-card__actions">
@@ -447,10 +447,6 @@ function renderRouletteSection() {
                     <span>Probability</span>
                     <input type="number" data-segment-index="${index}" data-segment-field="weightPercent" value="${segment.weightPercent}" />
                   </label>
-                  <label class="field field--full">
-                    <span>Display Asset Key</span>
-                    <input data-segment-index="${index}" data-segment-field="displayAssetKey" value="${escapeHtml(segment.displayAssetKey)}" />
-                  </label>
                 </div>
               </article>
             `;
@@ -472,7 +468,6 @@ function renderPrizeSection() {
           <div class="card__eyebrow">Prize Setting</div>
           <h3>Localized prize ladder</h3>
         </div>
-        <button class="button button--success" data-action="add-prize">Add</button>
       </div>
       <div class="locale-tabs">
         ${renderLocaleTabs()}
@@ -481,13 +476,10 @@ function renderPrizeSection() {
         <table class="admin-table">
           <thead>
             <tr>
-              <th>No.</th>
+              <th>Image Order</th>
               <th>Rank</th>
-              <th>Prize Name (${locale})</th>
-              <th>Description (${locale})</th>
-              <th>Accent</th>
-                    <th>Prize Image</th>
-              <th>Sort</th>
+              <th>Default Text</th>
+              <th>Prize Image</th>
               <th>Setting</th>
             </tr>
           </thead>
@@ -500,14 +492,12 @@ function renderPrizeSection() {
 
                 return `
                   <tr>
-                    <td>${index + 1}</td>
+                    <td><input type="number" data-prize-index="${index}" data-prize-field="displayOrder" value="${prize.displayOrder}" /></td>
                     <td class="rank-cell">
                       <input type="number" data-prize-index="${index}" data-prize-field="rankFrom" value="${prize.rankFrom}" />
                       <span>to</span>
                       <input type="number" data-prize-index="${index}" data-prize-field="rankTo" value="${prize.rankTo}" />
                     </td>
-                    <td><input data-prize-index="${index}" data-prize-field="prizeLabel" value="${escapeHtml(translation?.prizeLabel ?? "")}" /></td>
-                    <td><textarea data-prize-index="${index}" data-prize-field="prizeDescription">${escapeHtml(translation?.prizeDescription ?? "")}</textarea></td>
                     <td><input data-prize-index="${index}" data-prize-field="accentLabel" value="${escapeHtml(translation?.accentLabel ?? "")}" /></td>
                     <td>
                       <div class="prize-upload">
@@ -539,7 +529,6 @@ function renderPrizeSection() {
                         />
                       </div>
                     </td>
-                    <td><input type="number" data-prize-index="${index}" data-prize-field="displayOrder" value="${prize.displayOrder}" /></td>
                     <td><button class="text-button" data-action="remove-prize" data-prize-index="${index}">Remove</button></td>
                   </tr>
                 `;
@@ -609,8 +598,8 @@ function renderLinksSection() {
     <div class="card">
       <div class="card__header">
         <div>
-          <div class="card__eyebrow">Platform Links</div>
-          <h3>Deposit & support actions</h3>
+          <div class="card__eyebrow">Support Link</div>
+          <h3>Support action</h3>
         </div>
       </div>
       <div class="locale-tabs">
@@ -618,7 +607,9 @@ function renderLinksSection() {
       </div>
       <div class="link-grid">
         ${draft.platformLinks
-          .map((link, index) => {
+          .map((link, index) => ({ link, index }))
+          .filter(({ link }) => link.type !== PlatformLinkType.Deposit)
+          .map(({ link, index }) => {
             const translation = link.localizations.find((entry) => entry.locale === locale);
             return `
               <article class="link-card">
@@ -921,11 +912,6 @@ async function handleActionClick(event: Event) {
       state.selectedLocaleTab = (target.dataset.locale as AppLocale) ?? "en";
       render();
       return;
-    case "add-prize":
-      syncDraftFromDom();
-      addPrizeRow();
-      render();
-      return;
     case "remove-prize":
       syncDraftFromDom();
       removePrizeRow(Number(target.dataset.prizeIndex));
@@ -1042,9 +1028,6 @@ function syncDraftFromDom() {
       case "weightPercent":
         segment.weightPercent = Number(element.value) || 0;
         break;
-      case "displayAssetKey":
-        segment.displayAssetKey = element.value;
-        break;
       default:
         break;
     }
@@ -1076,16 +1059,6 @@ function syncDraftFromDom() {
         break;
       case "imageUrl":
         prize.imageUrl = (element as HTMLInputElement).value || null;
-        break;
-      case "prizeLabel":
-        if (translation) {
-          translation.prizeLabel = element.value;
-        }
-        break;
-      case "prizeDescription":
-        if (translation) {
-          translation.prizeDescription = element.value;
-        }
         break;
       case "accentLabel":
         if (translation) {
@@ -1276,27 +1249,6 @@ function clearPrizeImage(index: number) {
   render();
 }
 
-function addPrizeRow() {
-  if (!state.draft) {
-    return;
-  }
-
-  const nextIndex = state.draft.prizes.length + 1;
-  state.draft.prizes.push({
-    id: `draft-prize-${nextIndex}`,
-    rankFrom: nextIndex,
-    rankTo: nextIndex,
-    imageUrl: null,
-    displayOrder: nextIndex,
-    localizations: SUPPORTED_LOCALES.map((locale) => ({
-      locale,
-      prizeLabel: "",
-      prizeDescription: "",
-      accentLabel: null,
-    })),
-  });
-}
-
 function removePrizeRow(index: number) {
   if (!state.draft) {
     return;
@@ -1427,7 +1379,11 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       rankTo: entry.rankTo,
       imageUrl: entry.imageUrl,
       displayOrder: entry.displayOrder,
-      localizations: clone(entry.localizations),
+      localizations: entry.localizations.map((translation) => ({
+        ...translation,
+        prizeLabel: "",
+        prizeDescription: "",
+      })),
     })),
     platformLinks: draft.platformLinks.map((entry) => ({
       type: entry.type,
@@ -1466,7 +1422,11 @@ function buildPrizesUpdateRequest(
       rankTo: entry.rankTo,
       imageUrl: entry.imageUrl,
       displayOrder: entry.displayOrder,
-      localizations: clone(entry.localizations),
+      localizations: entry.localizations.map((translation) => ({
+        ...translation,
+        prizeLabel: "",
+        prizeDescription: "",
+      })),
     })),
   };
 }
@@ -1557,7 +1517,7 @@ function formatSectionLabel(section: AdminSection) {
     case "terms":
       return "Terms & Rules";
     case "links":
-      return "Platform Links";
+      return "Support Link";
     case "participants":
       return "Participants";
     case "spins":

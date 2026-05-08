@@ -1153,10 +1153,8 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       id: prize.id,
       rankFrom: prize.rankFrom,
       rankTo: prize.rankTo,
-      prizeLabel: this.resolvePrizeTranslation(prize, locale)?.prizeLabel ?? prize.prizeLabel,
-      prizeDescription:
-        this.resolvePrizeTranslation(prize, locale)?.prizeDescription ??
-        prize.prizeDescription,
+      prizeLabel: "",
+      prizeDescription: "",
       imageUrl: this.resolvePrizeImageUrl(prize.eventCampaignId, prize.id, prize.imageUrl),
       accentLabel:
         this.resolvePrizeTranslation(prize, locale)?.accentLabel ??
@@ -1335,7 +1333,7 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
       prizeName:
         entry.finalRank !== null
           ? this.resolvePrizeName(entry.finalRank, prizes)
-          : entry.prizeName,
+          : null,
       endedAt: entry.endedAt.toISOString(),
     };
   }
@@ -1517,9 +1515,8 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return index >= 0 ? index + 1 : null;
   }
 
-  private resolvePrizeName(rank: number, prizes: EventPrizeDto[]) {
-    const prize = prizes.find((entry) => rank >= entry.rankFrom && rank <= entry.rankTo);
-    return prize?.prizeLabel ?? null;
+  private resolvePrizeName(_rank: number, _prizes: EventPrizeDto[]) {
+    return null;
   }
 
   private resolveLastSyncedAt(eventUpdatedAt: Date, scores: RankedScoreRecord[]) {
