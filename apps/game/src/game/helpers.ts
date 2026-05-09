@@ -24,6 +24,8 @@ type PanelOptions = {
 
 type ButtonOptions = {
   backgroundColor?: number;
+  /** Fill alpha for the button body (0–1). */
+  backgroundAlpha?: number;
   labelColor?: string;
   radius?: number;
   strokeColor?: number;
@@ -263,6 +265,7 @@ export function addTextButton(
   const graphics = scene.add.graphics();
   const radius = options.radius ?? 30;
   const backgroundColor = options.backgroundColor ?? COLORS.primary;
+  const backgroundAlpha = options.backgroundAlpha ?? 1;
   const labelColor = options.labelColor ?? "#ffffff";
   const shape = options.shape ?? "rounded-rect";
   const circleRadius = Math.min(width, height) / 2;
@@ -278,7 +281,7 @@ export function addTextButton(
     graphics.clear();
 
     if (shape === "circle") {
-      graphics.fillStyle(color, 0.94);
+      graphics.fillStyle(color, 0.94 * backgroundAlpha);
       graphics.fillCircle(0, 0, circleRadius);
       if (!skipHighlight) {
         graphics.fillStyle(COLORS.white, 0.14);
@@ -291,7 +294,7 @@ export function addTextButton(
       return;
     }
 
-    graphics.fillStyle(color, 1);
+    graphics.fillStyle(color, backgroundAlpha);
     graphics.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
     if (!skipHighlight) {
       graphics.fillStyle(COLORS.white, 0.18);

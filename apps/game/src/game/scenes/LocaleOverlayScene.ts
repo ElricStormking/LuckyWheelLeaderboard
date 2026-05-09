@@ -81,7 +81,17 @@ export class LocaleOverlayScene extends BaseOverlayScene {
 
     const hitArea = this.add.rectangle(x, y, 136, HEADER_HEIGHT, 0xffffff, 0.001);
     hitArea.setInteractive({ useHandCursor: true });
-    hitArea.on("pointerdown", (
+    const swallowCloseTap = (
+      _pointer: Phaser.Input.Pointer,
+      _localX: number,
+      _localY: number,
+      event: Phaser.Types.Input.EventData,
+    ) => {
+      event.stopPropagation();
+    };
+
+    hitArea.on("pointerdown", swallowCloseTap);
+    hitArea.on("pointerup", (
       _pointer: Phaser.Input.Pointer,
       _localX: number,
       _localY: number,

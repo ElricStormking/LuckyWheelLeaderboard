@@ -1396,7 +1396,8 @@ export class LobbyScene extends Phaser.Scene {
           openExternalLink(prototypeState.getDepositUrl());
         }),
       {
-        backgroundColor: COLORS.primary,
+        backgroundColor: 0x8b939b,
+        backgroundAlpha: 0.78,
         radius: 46,
         skipHighlight: true,
       },

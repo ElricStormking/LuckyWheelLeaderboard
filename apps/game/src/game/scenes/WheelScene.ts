@@ -56,6 +56,9 @@ const ENDED_WHEEL_RIM_INNER = 0xcfd5dc;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
 const ENDED_WHEEL_SEGMENT_RADIUS = 394;
+/** Center spin face when showing ENDED / Go to deposit (mobile). */
+const MOBILE_INACTIVE_SPIN_FACE_ALPHA = 0.5248;
+const MOBILE_SPIN_BUTTON_LABEL_FONT_SIZE = "34px";
 const POINTER_TIP_Y =
   WHEEL_CENTER_Y - (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE * WHEEL_SCALE) / 2 - POINTER_GAP;
 
@@ -842,11 +845,12 @@ export class WheelScene extends Phaser.Scene {
   private createWheelCenterButton() {
     const container = this.add.container(WHEEL_CENTER_X, WHEEL_CENTER_Y);
     const face = this.add.image(0, 0, "Spin_Red").setScale(0.88);
-    const spinArrows = this.add.image(0, 0, "SpinArrow").setScale(0.9);
+    const spinArrows = this.add.graphics();
+    this.drawWheelCenterArrows(spinArrows);
     const label = this.add
       .text(0, 4, "SPIN NOW", {
         fontFamily: FONTS.displayName,
-        fontSize: "40px",
+        fontSize: MOBILE_SPIN_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
         fontStyle: "800",
         align: "center",
@@ -856,24 +860,24 @@ export class WheelScene extends Phaser.Scene {
 
     const drawFace = (color: number) => {
       face.clearTint();
-      spinArrows.clearTint();
       face.setAlpha(1);
       spinArrows.setAlpha(1);
+      spinArrows.setVisible(true);
+      label.setAlpha(1);
       label.setColor("#ffffff");
       face.setTexture("Spin_Red");
 
       if (color === COLORS.accent) {
         face.setTint(0xffd15a);
-        spinArrows.setTint(0xffffff);
         label.setColor("#0a2942");
         return;
       }
 
       if (this.isEventEndedButton(color)) {
-        face.setTintFill(0x9fa6af);
-        spinArrows.setTintFill(0xf0f3f6);
-        spinArrows.setAlpha(0.62);
+        face.setTintFill(0xaab2ba);
+        face.setAlpha(MOBILE_INACTIVE_SPIN_FACE_ALPHA);
         label.setColor("#ffffff");
+        label.setAlpha(1);
         return;
       }
     };
@@ -928,5 +932,41 @@ export class WheelScene extends Phaser.Scene {
         container.setAlpha(1);
       },
     };
+  }
+
+  private drawWheelCenterArrows(graphics: Phaser.GameObjects.Graphics) {
+    const radius = 90;
+    const strokeWidth = 6;
+    graphics.clear();
+    graphics.lineStyle(strokeWidth, 0xffffff, 1);
+
+    const drawArcArrow = (startDeg: number, endDeg: number, arrowAngleDeg: number) => {
+      const startAngle = Phaser.Math.DegToRad(startDeg);
+      const endAngle = Phaser.Math.DegToRad(endDeg);
+      graphics.beginPath();
+      graphics.arc(0, 0, radius, startAngle, endAngle, false);
+      graphics.strokePath();
+
+      const tipX = Math.cos(endAngle) * radius;
+      const tipY = Math.sin(endAngle) * radius;
+      const arrowAngle = Phaser.Math.DegToRad(arrowAngleDeg);
+      const headLength = 20;
+      const headSpread = Phaser.Math.DegToRad(31);
+      graphics.beginPath();
+      graphics.moveTo(tipX, tipY);
+      graphics.lineTo(
+        tipX - Math.cos(arrowAngle - headSpread) * headLength,
+        tipY - Math.sin(arrowAngle - headSpread) * headLength,
+      );
+      graphics.moveTo(tipX, tipY);
+      graphics.lineTo(
+        tipX - Math.cos(arrowAngle + headSpread) * headLength,
+        tipY - Math.sin(arrowAngle + headSpread) * headLength,
+      );
+      graphics.strokePath();
+    };
+
+    drawArcArrow(220, 335, 65);
+    drawArcArrow(40, 155, 245);
   }
 }
