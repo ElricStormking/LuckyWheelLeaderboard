@@ -25,8 +25,9 @@ const PRIZE_IMAGE_RECOMMENDED_WIDTH = 1248;
 const PRIZE_IMAGE_RECOMMENDED_HEIGHT = 616;
 const PRIZE_IMAGE_FRAME_WIDTH = 624;
 const PRIZE_IMAGE_FRAME_HEIGHT = 308;
-const PRIZE_IMAGE_MIN_WIDTH = 300;
-const PRIZE_IMAGE_MIN_HEIGHT = 180;
+const PRIZE_IMAGE_RATIO_LABEL = "156:77 (2.03:1)";
+const PRIZE_IMAGE_MIN_WIDTH = 624;
+const PRIZE_IMAGE_MIN_HEIGHT = 308;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -518,7 +519,7 @@ function renderPrizeSection() {
                           </button>
                         </div>
                         <div class="prize-upload__hint">
-                          Use a direct external image URL. Recommended: ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px, same ratio as the ${PRIZE_IMAGE_FRAME_WIDTH}x${PRIZE_IMAGE_FRAME_HEIGHT}px prize frame. Minimum: ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.
+                          Use a direct external image URL. Correct ratio: ${PRIZE_IMAGE_RATIO_LABEL}, matching the ${PRIZE_IMAGE_FRAME_WIDTH}x${PRIZE_IMAGE_FRAME_HEIGHT}px prize frame. Recommended: ${PRIZE_IMAGE_RECOMMENDED_WIDTH}x${PRIZE_IMAGE_RECOMMENDED_HEIGHT}px. Minimum: ${PRIZE_IMAGE_MIN_WIDTH}x${PRIZE_IMAGE_MIN_HEIGHT}px.
                         </div>
                         <input
                           class="prize-upload__url"
