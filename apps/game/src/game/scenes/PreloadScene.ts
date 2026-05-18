@@ -9,8 +9,8 @@ import {
   isDesktopLayout,
 } from "../constants";
 import { preloadEditorUiAssets } from "../editorUiAssets";
+import { preloadGiftOpenFx } from "../giftOpenFx";
 import { preloadRibbonsFx } from "../ribbonsFx";
-import { preloadWinUiFx } from "../winUiFx";
 
 export class PreloadScene extends Phaser.Scene {
   constructor() {
@@ -21,7 +21,7 @@ export class PreloadScene extends Phaser.Scene {
     preloadEditorUiAssets(this);
     preloadGameAudio(this);
     preloadRibbonsFx(this);
-    preloadWinUiFx(this);
+    preloadGiftOpenFx(this);
   }
 
   async create() {

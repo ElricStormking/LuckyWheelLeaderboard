@@ -102,10 +102,13 @@ export class EventFinalizationService {
   }
 
   private resolvePrizeName(
-    _rank: number,
-    _prizes: FinalizableEventRecord["prizes"],
+    rank: number,
+    prizes: FinalizableEventRecord["prizes"],
   ) {
-    return null;
+    const prize = prizes.find(
+      (entry) => rank >= entry.rankFrom && rank <= entry.rankTo,
+    );
+    return prize?.prizeLabel || null;
   }
 
   private buildSummary(

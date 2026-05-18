@@ -244,41 +244,43 @@ export class DesktopWheelScene extends Phaser.Scene {
 
   private playSpinCelebration(result: SpinSuccessResponse | number) {
     const segmentIndex = typeof result === "number" ? result : result.segmentIndex;
-    const totalPoints =
-      typeof result === "number" ? this.getPreviewTotalPoints(result) : result.runningEventTotal;
+    const spinPoints =
+      typeof result === "number" ? this.getPreviewScoreDelta(result) : result.scoreDelta;
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    const popupBounds = this.showWinningPopup(totalPoints);
+    const popupBounds = this.showWinningPopup(spinPoints);
     this.launchCelebrationFireworks(segmentIndex, popupBounds);
-
-    this.celebrationTimer?.remove(false);
-    this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
-      this.clearCelebrationBursts();
-      this.clearWinningPopup();
-      this.highlightedSegmentIndex = undefined;
-      this.highlightTween?.stop();
-      this.highlightGraphic?.destroy();
-      this.highlightGraphic = undefined;
-      this.highlightTween = undefined;
-      this.spinning = false;
-      prototypeState.acknowledgeSpinResult();
-      this.applyState();
-    });
   }
 
-  private showWinningPopup(totalPoints: number) {
+  private showWinningPopup(spinPoints: number) {
     this.clearWinningPopup();
     const popup = createWinningPopup(this, {
       x: WHEEL_CENTER_X,
       y: WHEEL_CENTER_Y,
-      totalPoints,
+      spinPoints,
       locale: prototypeState.getSnapshot().locale,
       depth: WINNING_POPUP_DEPTH,
       scale: 0.86 * 1.5,
+      onClaim: () => this.finishSpinCelebration(),
     });
     this.winningPopup = popup;
     return popup.bounds;
+  }
+
+  private finishSpinCelebration() {
+    this.celebrationTimer?.remove(false);
+    this.celebrationTimer = undefined;
+    this.clearCelebrationBursts();
+    this.clearWinningPopup();
+    this.highlightedSegmentIndex = undefined;
+    this.highlightTween?.stop();
+    this.highlightGraphic?.destroy();
+    this.highlightGraphic = undefined;
+    this.highlightTween = undefined;
+    this.spinning = false;
+    prototypeState.acknowledgeSpinResult();
+    this.applyState();
   }
 
   private clearWinningPopup() {
@@ -308,6 +310,12 @@ export class DesktopWheelScene extends Phaser.Scene {
       return operand;
     }
     return baseTotal + operand;
+  }
+
+  private getPreviewScoreDelta(segmentIndex: number) {
+    const snapshot = prototypeState.getSnapshot();
+    const baseTotal = snapshot.player?.totalScore ?? 0;
+    return this.getPreviewTotalPoints(segmentIndex) - baseTotal;
   }
 
   private drawWheel(segments: WheelSegmentDto[]) {

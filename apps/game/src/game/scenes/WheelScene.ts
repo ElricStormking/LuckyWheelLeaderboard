@@ -12,6 +12,8 @@ import {
   FONTS,
   MOBILE_LOBBY_CONTENT_DROP_PX,
   SCENE_KEYS,
+  STAGE_HEIGHT,
+  STAGE_WIDTH,
   shouldShowDevEligibilitySwitch,
 } from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
@@ -38,6 +40,14 @@ const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
 const WINNING_POPUP_DEPTH = 8;
 const FIREWORK_EFFECT_DEPTH = WINNING_POPUP_DEPTH + 2;
+const FLOATING_DEPOSIT_BUTTON_WIDTH = 830;
+const FLOATING_DEPOSIT_BUTTON_HEIGHT = 104;
+const FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN = 50;
+const FLOATING_DEPOSIT_FOOTER_HEIGHT = 206;
+const FLOATING_DEPOSIT_FOOTER_BG = 0xf2f4f7;
+const FLOATING_DEPOSIT_FOOTER_ALPHA = 0.8;
+const FLOATING_DEPOSIT_FOOTER_DEPTH = WINNING_POPUP_DEPTH - 2;
+const FLOATING_DEPOSIT_BUTTON_DEPTH = WINNING_POPUP_DEPTH - 1;
 const SEGMENT_HIGHLIGHT_OUTER_RADIUS = 410;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
 const SEGMENT_HIGHLIGHT_DOT_COUNT = 5;
@@ -115,6 +125,7 @@ export class WheelScene extends Phaser.Scene {
     }
 
     this.drawPointer();
+    this.drawFloatingDepositButton();
     this.applyState();
 
     this.cleanup.push(
@@ -206,6 +217,38 @@ export class WheelScene extends Phaser.Scene {
     );
   }
 
+  private drawFloatingDepositButton() {
+    const footerTop = STAGE_HEIGHT - FLOATING_DEPOSIT_FOOTER_HEIGHT;
+    const footer = this.add.graphics();
+    footer.fillStyle(FLOATING_DEPOSIT_FOOTER_BG, FLOATING_DEPOSIT_FOOTER_ALPHA);
+    footer.fillRect(0, footerTop, STAGE_WIDTH, FLOATING_DEPOSIT_FOOTER_HEIGHT);
+    footer.lineStyle(2, COLORS.line, 0.28);
+    footer.lineBetween(0, footerTop, STAGE_WIDTH, footerTop);
+    footer.setScrollFactor(0);
+    footer.setDepth(FLOATING_DEPOSIT_FOOTER_DEPTH);
+
+    const depositButton = addTextButton(
+      this,
+      540,
+      STAGE_HEIGHT - FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN - FLOATING_DEPOSIT_BUTTON_HEIGHT / 2,
+      FLOATING_DEPOSIT_BUTTON_WIDTH,
+      FLOATING_DEPOSIT_BUTTON_HEIGHT,
+      "Go to Deposit",
+      () => {
+        openExternalLink(prototypeState.getDepositUrl());
+      },
+      {
+        backgroundColor: 0x8b939b,
+        backgroundAlpha: 0.78,
+        radius: 46,
+        skipHighlight: true,
+      },
+    );
+    depositButton.label.setFontSize(34);
+    depositButton.container.setScrollFactor(0);
+    depositButton.container.setDepth(FLOATING_DEPOSIT_BUTTON_DEPTH);
+  }
+
   private animateToSegment(result: SpinSuccessResponse) {
     this.animateWheelToSegmentIndex(result.segmentIndex, () => {
       this.playSpinCelebration(result);
@@ -258,41 +301,43 @@ export class WheelScene extends Phaser.Scene {
 
   private playSpinCelebration(result: SpinSuccessResponse | number) {
     const segmentIndex = typeof result === "number" ? result : result.segmentIndex;
-    const totalPoints =
-      typeof result === "number" ? this.getPreviewTotalPoints(result) : result.runningEventTotal;
+    const spinPoints =
+      typeof result === "number" ? this.getPreviewScoreDelta(result) : result.scoreDelta;
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    const popupBounds = this.showWinningPopup(totalPoints);
+    const popupBounds = this.showWinningPopup(spinPoints);
     this.launchCelebrationFireworks(segmentIndex, popupBounds);
-
-    this.celebrationTimer?.remove(false);
-    this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
-      this.clearCelebrationBursts();
-      this.clearWinningPopup();
-      this.highlightedSegmentIndex = undefined;
-      this.highlightTween?.stop();
-      this.highlightGraphic?.destroy();
-      this.highlightGraphic = undefined;
-      this.highlightTween = undefined;
-      this.spinning = false;
-      prototypeState.acknowledgeSpinResult();
-      this.applyState();
-    });
   }
 
-  private showWinningPopup(totalPoints: number) {
+  private showWinningPopup(spinPoints: number) {
     this.clearWinningPopup();
     const popup = createWinningPopup(this, {
       x: WHEEL_CENTER_X,
       y: WHEEL_CENTER_Y - 250,
-      totalPoints,
+      spinPoints,
       locale: prototypeState.getSnapshot().locale,
       depth: WINNING_POPUP_DEPTH,
       scale: 1.5,
+      onClaim: () => this.finishSpinCelebration(),
     });
     this.winningPopup = popup;
     return popup.bounds;
+  }
+
+  private finishSpinCelebration() {
+    this.celebrationTimer?.remove(false);
+    this.celebrationTimer = undefined;
+    this.clearCelebrationBursts();
+    this.clearWinningPopup();
+    this.highlightedSegmentIndex = undefined;
+    this.highlightTween?.stop();
+    this.highlightGraphic?.destroy();
+    this.highlightGraphic = undefined;
+    this.highlightTween = undefined;
+    this.spinning = false;
+    prototypeState.acknowledgeSpinResult();
+    this.applyState();
   }
 
   private clearWinningPopup() {
@@ -322,6 +367,12 @@ export class WheelScene extends Phaser.Scene {
       return operand;
     }
     return baseTotal + operand;
+  }
+
+  private getPreviewScoreDelta(segmentIndex: number) {
+    const snapshot = prototypeState.getSnapshot();
+    const baseTotal = snapshot.player?.totalScore ?? 0;
+    return this.getPreviewTotalPoints(segmentIndex) - baseTotal;
   }
 
   private drawWheel(segments: WheelSegmentDto[]) {

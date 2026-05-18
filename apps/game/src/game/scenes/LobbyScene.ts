@@ -15,7 +15,6 @@ import {
 } from "../constants";
 import {
   addPill,
-  addTextButton,
   addRoundedPanel,
   formatCountdownDuration,
   formatDate,
@@ -181,12 +180,6 @@ const PRIZE_REWARD_VISIBLE_LEFT = 298;
 const PRIZE_REWARD_VISIBLE_RIGHT = 303;
 /** Terms + deposit + bottom stripe: shift up (closer to prize). */
 const INLINE_RULES_SECTION_LIFT = 150;
-const FLOATING_DEPOSIT_BUTTON_WIDTH = 830;
-const FLOATING_DEPOSIT_BUTTON_HEIGHT = 104;
-const FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN = 50;
-const FLOATING_DEPOSIT_FOOTER_HEIGHT = 206;
-const FLOATING_DEPOSIT_FOOTER_BG = 0xf2f4f7;
-const FLOATING_DEPOSIT_FOOTER_ALPHA = 0.8;
 /** 18px + lineSpacing 6 + 18px; `leaderboardLastSyncedText` is origin 0.5,0.5 at `INLINE_LEADERBOARD_FOOTER_Y`. */
 const LEADERBOARD_FOOTER_TEXT_BLOCK_HALF_HEIGHT = (18 + 6 + 18) / 2;
 /** `Title_PrizeArea` at scale 1, origin 0.5,0.5 at `PRIZE_SECTION_TITLE_Y` – tune if asset size changes. */
@@ -333,6 +326,38 @@ const LEADERBOARD_PLATE_TEXT_CENTER_IMG_OFFSETS: Record<number, number> = {
   29: 80,
   30: 80,
 };
+const LEADERBOARD_PLATE_PRIZE_BADGE_CENTER_IMG_OFFSETS: Record<number, number> = {
+  1: 104,
+  2: 99.5,
+  3: 99.5,
+  4: 104,
+  5: 107.5,
+  6: 107.5,
+  7: 118,
+  8: 113.5,
+  9: 112,
+  10: 102,
+  11: 135,
+  12: 105.5,
+  13: 102,
+  14: 120.5,
+  15: 113,
+  16: 70.5,
+  17: 104.5,
+  18: 112.5,
+  19: 104.5,
+  20: 150.5,
+  21: 150.5,
+  22: 150.5,
+  23: 150.5,
+  24: 150.5,
+  25: 150.5,
+  26: 150.5,
+  27: 150.5,
+  28: 150.5,
+  29: 150.5,
+  30: 150.5,
+};
 const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_01",
   "Prize_Ranking_02",
@@ -410,7 +435,6 @@ export class LobbyScene extends Phaser.Scene {
       () => this.drawInlineRulesSection(),
       260,
     );
-    this.drawFloatingDepositButton();
     this.setupScrollControls();
     this.refreshDynamicContent();
     const leaderboardFooterTimer = this.time.addEvent({
@@ -1374,39 +1398,6 @@ export class LobbyScene extends Phaser.Scene {
     this.rulesBodyText.setDepth(2);
   }
 
-  private drawFloatingDepositButton() {
-    const footerTop = STAGE_HEIGHT - FLOATING_DEPOSIT_FOOTER_HEIGHT;
-    const footer = this.add.graphics();
-    footer.fillStyle(FLOATING_DEPOSIT_FOOTER_BG, FLOATING_DEPOSIT_FOOTER_ALPHA);
-    footer.fillRect(0, footerTop, STAGE_WIDTH, FLOATING_DEPOSIT_FOOTER_HEIGHT);
-    footer.lineStyle(2, COLORS.line, 0.28);
-    footer.lineBetween(0, footerTop, STAGE_WIDTH, footerTop);
-    footer.setScrollFactor(0);
-    footer.setDepth(900);
-
-    const depositButton = addTextButton(
-      this,
-      540,
-      STAGE_HEIGHT - FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN - FLOATING_DEPOSIT_BUTTON_HEIGHT / 2,
-      FLOATING_DEPOSIT_BUTTON_WIDTH,
-      FLOATING_DEPOSIT_BUTTON_HEIGHT,
-      "Go to Deposit",
-      () =>
-        this.runTapAction(() => {
-          openExternalLink(prototypeState.getDepositUrl());
-        }),
-      {
-        backgroundColor: 0x8b939b,
-        backgroundAlpha: 0.78,
-        radius: 46,
-        skipHighlight: true,
-      },
-    );
-    depositButton.label.setFontSize(34);
-    depositButton.container.setScrollFactor(0);
-    depositButton.container.setDepth(901);
-  }
-
   private drawDevPanel() {
     if (!shouldShowDevEligibilitySwitch()) {
       return;
@@ -1615,6 +1606,10 @@ export class LobbyScene extends Phaser.Scene {
       row.scoreText.setY(textCenterY);
       row.playerText.setText(maskLeaderboardPlayerName(entry.playerName, entry.isSelf));
       row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
+      row.prizeText
+        .setY(this.getLeaderboardPrizeTextY(rowY, entry.rank, plateScale))
+        .setVisible(Boolean(entry.prizeName))
+        .setText(entry.prizeName ?? "");
       row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
     });
 
@@ -1662,6 +1657,19 @@ export class LobbyScene extends Phaser.Scene {
       this.myRankSummaryScoreText
         ?.setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
+
+      this.myRankSummaryPrizeText
+        ?.setY(
+          showTopRankSummaryPlate
+            ? this.getLeaderboardPrizeTextY(
+                summaryPlateY,
+                myRank.rank,
+                INLINE_LEADERBOARD_SUMMARY_PLATE_SCALE,
+              )
+            : summarySlotBaseY + 32,
+        )
+        .setVisible(Boolean(myRank.prizeName))
+        .setText(myRank.prizeName ?? "");
 
       this.myRankSummaryText?.setVisible(false).setText("");
     } else {
@@ -1943,16 +1951,11 @@ export class LobbyScene extends Phaser.Scene {
     return rowY + offset * plateScale;
   }
 
-  private getLeaderboardPrizeTextY(rowY: number, rank: number, _plateScale: number) {
-    if (rank >= 21) {
-      return rowY + 48;
-    }
-
-    if (rank >= 11) {
-      return rowY + 42;
-    }
-
-    return rowY + 30;
+  private getLeaderboardPrizeTextY(rowY: number, rank: number, plateScale: number) {
+    const offset =
+      LEADERBOARD_PLATE_PRIZE_BADGE_CENTER_IMG_OFFSETS[rank] ??
+      LEADERBOARD_PLATE_PRIZE_BADGE_CENTER_IMG_OFFSETS[30];
+    return rowY + offset * plateScale;
   }
 
   private createActionButton(

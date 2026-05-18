@@ -1149,18 +1149,24 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     prizes: EventWithRelations["prizes"],
     locale: AppLocale,
   ): EventPrizeDto[] {
-    return prizes.map((prize) => ({
-      id: prize.id,
-      rankFrom: prize.rankFrom,
-      rankTo: prize.rankTo,
-      prizeLabel: "",
-      prizeDescription: "",
-      imageUrl: this.resolvePrizeImageUrl(prize.eventCampaignId, prize.id, prize.imageUrl),
-      accentLabel:
-        this.resolvePrizeTranslation(prize, locale)?.accentLabel ??
-        prize.accentLabel ??
-        undefined,
-    }));
+    return prizes.map((prize) => {
+      const translation = this.resolvePrizeTranslation(prize, locale);
+
+      return {
+        id: prize.id,
+        rankFrom: prize.rankFrom,
+        rankTo: prize.rankTo,
+        prizeLabel: translation?.prizeLabel ?? prize.prizeLabel,
+        prizeDescription:
+          translation?.prizeDescription ?? prize.prizeDescription,
+        imageUrl: this.resolvePrizeImageUrl(
+          prize.eventCampaignId,
+          prize.id,
+          prize.imageUrl,
+        ),
+        accentLabel: translation?.accentLabel ?? prize.accentLabel ?? undefined,
+      };
+    });
   }
 
   private resolvePrizeImageUrl(
@@ -1515,8 +1521,11 @@ export class LuckyWheelService implements OnModuleInit, OnModuleDestroy {
     return index >= 0 ? index + 1 : null;
   }
 
-  private resolvePrizeName(_rank: number, _prizes: EventPrizeDto[]) {
-    return null;
+  private resolvePrizeName(rank: number, prizes: EventPrizeDto[]) {
+    const prize = prizes.find(
+      (entry) => rank >= entry.rankFrom && rank <= entry.rankTo,
+    );
+    return prize?.prizeLabel || null;
   }
 
   private resolveLastSyncedAt(eventUpdatedAt: Date, scores: RankedScoreRecord[]) {

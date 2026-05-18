@@ -751,8 +751,8 @@ export class AdminService {
               id: `${eventId}-prize-${index + 1}`,
               rankFrom: entry.rankFrom,
               rankTo: entry.rankTo,
-              prizeLabel: "",
-              prizeDescription: "",
+              prizeLabel: englishPrize.prizeLabel,
+              prizeDescription: englishPrize.prizeDescription,
               accentLabel: englishPrize.accentLabel ?? null,
               imageUrl: entry.imageUrl,
               displayOrder: entry.displayOrder,
@@ -760,8 +760,8 @@ export class AdminService {
                 create: entry.localizations.map((translation) => ({
                   id: `${eventId}-prize-${index + 1}-${translation.locale}`,
                   locale: translation.locale,
-                  prizeLabel: "",
-                  prizeDescription: "",
+                  prizeLabel: translation.prizeLabel,
+                  prizeDescription: translation.prizeDescription,
                   accentLabel: translation.accentLabel ?? null,
                 })),
               },
@@ -1068,8 +1068,9 @@ export class AdminService {
 
           return {
             locale,
-            prizeLabel: "",
-            prizeDescription: "",
+            prizeLabel: translation?.prizeLabel ?? prize.prizeLabel,
+            prizeDescription:
+              translation?.prizeDescription ?? prize.prizeDescription,
             accentLabel: translation?.accentLabel ?? prize.accentLabel,
           };
         }),
@@ -1359,8 +1360,8 @@ export class AdminService {
           id: `${eventId}-prize-${index + 1}`,
           rankFrom: entry.rankFrom,
           rankTo: entry.rankTo,
-          prizeLabel: "",
-          prizeDescription: "",
+          prizeLabel: englishPrize.prizeLabel,
+          prizeDescription: englishPrize.prizeDescription,
           accentLabel: englishPrize.accentLabel ?? null,
           imageUrl: entry.imageUrl,
           displayOrder: entry.displayOrder,
@@ -1368,8 +1369,8 @@ export class AdminService {
             create: entry.localizations.map((translation) => ({
               id: `${eventId}-prize-${index + 1}-${translation.locale}`,
               locale: translation.locale,
-              prizeLabel: "",
-              prizeDescription: "",
+              prizeLabel: translation.prizeLabel,
+              prizeDescription: translation.prizeDescription,
               accentLabel: translation.accentLabel ?? null,
             })),
           },

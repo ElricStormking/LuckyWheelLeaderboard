@@ -478,6 +478,7 @@ function renderPrizeSection() {
             <tr>
               <th>Image Order</th>
               <th>Rank</th>
+              <th>Prize Name (${locale})</th>
               <th>Default Text</th>
               <th>Prize Image</th>
               <th>Setting</th>
@@ -498,6 +499,7 @@ function renderPrizeSection() {
                       <span>to</span>
                       <input type="number" data-prize-index="${index}" data-prize-field="rankTo" value="${prize.rankTo}" />
                     </td>
+                    <td><input data-prize-index="${index}" data-prize-field="prizeLabel" value="${escapeHtml(translation?.prizeLabel ?? "")}" placeholder="RM 1,688" /></td>
                     <td><input data-prize-index="${index}" data-prize-field="accentLabel" value="${escapeHtml(translation?.accentLabel ?? "")}" /></td>
                     <td>
                       <div class="prize-upload">
@@ -1060,6 +1062,16 @@ function syncDraftFromDom() {
       case "imageUrl":
         prize.imageUrl = (element as HTMLInputElement).value || null;
         break;
+      case "prizeLabel":
+        if (translation) {
+          translation.prizeLabel = element.value;
+        }
+        break;
+      case "prizeDescription":
+        if (translation) {
+          translation.prizeDescription = element.value;
+        }
+        break;
       case "accentLabel":
         if (translation) {
           translation.accentLabel = element.value || null;
@@ -1381,8 +1393,6 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       displayOrder: entry.displayOrder,
       localizations: entry.localizations.map((translation) => ({
         ...translation,
-        prizeLabel: "",
-        prizeDescription: "",
       })),
     })),
     platformLinks: draft.platformLinks.map((entry) => ({
@@ -1424,8 +1434,6 @@ function buildPrizesUpdateRequest(
       displayOrder: entry.displayOrder,
       localizations: entry.localizations.map((translation) => ({
         ...translation,
-        prizeLabel: "",
-        prizeDescription: "",
       })),
     })),
   };

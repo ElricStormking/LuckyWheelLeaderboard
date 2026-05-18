@@ -290,7 +290,7 @@ const PRIZE_ROW_LAYOUTS: PrizeRowLayout[] = [
 const CELEBRATION_DURATION_MS = 8000;
 const FIREWORK_CADENCE_MS = 420;
 const FIREWORK_BURST_COUNT = Math.ceil(CELEBRATION_DURATION_MS / FIREWORK_CADENCE_MS);
-const WINNING_POPUP_DEPTH = 8;
+const WINNING_POPUP_DEPTH = MODAL_DEPTH + 40;
 const FIREWORK_EFFECT_DEPTH = WINNING_POPUP_DEPTH + 2;
 const SEGMENT_HIGHLIGHT_OUTER_RADIUS = WHEEL_ASSET_SIZE / 2 - 18;
 const SEGMENT_HIGHLIGHT_INNER_RADIUS = 122;
@@ -1451,6 +1451,11 @@ export class DesktopMainScene extends DesktopPageScene {
         row.playerText.setY(rowTextCenterY);
         row.scoreText.setText(formatNumber(entry.score, snapshot.locale));
         row.scoreText.setY(rowTextCenterY);
+        const prizePosition = getDesktopRankingPrizeTextPosition(row.plate, entry.rank);
+        row.prizeText
+          .setPosition(prizePosition.x, prizePosition.y)
+          .setVisible(Boolean(entry.prizeName))
+          .setText(entry.prizeName ?? "");
         row.playerText.setColor(entry.isSelf ? "#0896d8" : "#0a2942");
       });
 
@@ -1494,9 +1499,16 @@ export class DesktopMainScene extends DesktopPageScene {
         ?.setVisible(true)
         .setY(summaryTextCenterY)
         .setText(formatNumber(myRank.score, snapshot.locale));
-      this.leaderboardMyRankPrizeText
-        ?.setVisible(false)
-        .setText("");
+      if (this.leaderboardMyRankPlate) {
+        const summaryPrizePosition = getDesktopRankingPrizeTextPosition(
+          this.leaderboardMyRankPlate,
+          isListedRank ? myRank.rank : 31,
+        );
+        this.leaderboardMyRankPrizeText
+          ?.setPosition(summaryPrizePosition.x, summaryPrizePosition.y)
+          .setVisible(Boolean(myRank.prizeName))
+          .setText(myRank.prizeName ?? "");
+      }
       this.leaderboardMyRankText?.setVisible(false).setText("");
     } else {
       this.leaderboardMyRankPlate?.setVisible(false);
@@ -1832,41 +1844,43 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private playSpinCelebration(result: SpinSuccessResponse | number) {
     const segmentIndex = typeof result === "number" ? result : result.segmentIndex;
-    const totalPoints =
-      typeof result === "number" ? this.getPreviewTotalPoints(result) : result.runningEventTotal;
+    const spinPoints =
+      typeof result === "number" ? this.getPreviewScoreDelta(result) : result.scoreDelta;
     this.highlightedSegmentIndex = segmentIndex;
     playWinningEffect(this);
     this.applyState();
-    const popupBounds = this.showWinningPopup(totalPoints);
+    const popupBounds = this.showWinningPopup(spinPoints);
     this.launchCelebrationFireworks(segmentIndex, popupBounds);
-
-    this.celebrationTimer?.remove(false);
-    this.celebrationTimer = this.time.delayedCall(CELEBRATION_DURATION_MS, () => {
-      this.clearCelebrationBursts();
-      this.clearWinningPopup();
-      this.highlightedSegmentIndex = undefined;
-      this.highlightTween?.stop();
-      this.highlightGraphic?.destroy();
-      this.highlightGraphic = undefined;
-      this.highlightTween = undefined;
-      this.spinning = false;
-      prototypeState.acknowledgeSpinResult();
-      this.applyState();
-    });
   }
 
-  private showWinningPopup(totalPoints: number) {
+  private showWinningPopup(spinPoints: number) {
     this.clearWinningPopup();
     const popup = createWinningPopup(this, {
       x: WHEEL_CENTER_X,
       y: WHEEL_CENTER_Y,
-      totalPoints,
+      spinPoints,
       locale: prototypeState.getSnapshot().locale,
       depth: WINNING_POPUP_DEPTH,
       scale: 0.86 * 1.5,
+      onClaim: () => this.finishSpinCelebration(),
     });
     this.winningPopup = popup;
     return popup.bounds;
+  }
+
+  private finishSpinCelebration() {
+    this.celebrationTimer?.remove(false);
+    this.celebrationTimer = undefined;
+    this.clearCelebrationBursts();
+    this.clearWinningPopup();
+    this.highlightedSegmentIndex = undefined;
+    this.highlightTween?.stop();
+    this.highlightGraphic?.destroy();
+    this.highlightGraphic = undefined;
+    this.highlightTween = undefined;
+    this.spinning = false;
+    prototypeState.acknowledgeSpinResult();
+    this.applyState();
   }
 
   private clearWinningPopup() {
@@ -1896,6 +1910,12 @@ export class DesktopMainScene extends DesktopPageScene {
       return operand;
     }
     return baseTotal + operand;
+  }
+
+  private getPreviewScoreDelta(segmentIndex: number) {
+    const snapshot = prototypeState.getSnapshot();
+    const baseTotal = snapshot.player?.totalScore ?? 0;
+    return this.getPreviewTotalPoints(segmentIndex) - baseTotal;
   }
 
   private drawWheel(segments: WheelSegmentDto[]) {
