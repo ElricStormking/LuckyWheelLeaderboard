@@ -28,4 +28,4 @@ VOLUME ["/data", "/uploads"]
 
 EXPOSE 4000
 
-CMD ["api-entrypoint.sh"]
+CMD ["/usr/local/bin/api-entrypoint.sh"]
