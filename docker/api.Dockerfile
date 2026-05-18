@@ -16,6 +16,7 @@ RUN npm ci \
   && npm run build --workspace @lucky-wheel/api \
   && mkdir -p node_modules/@lucky-wheel/contracts/dist \
   && cp -a apps/api/dist/contracts/src/. node_modules/@lucky-wheel/contracts/dist/ \
+  && sed -i 's/\r$//' /usr/local/bin/api-entrypoint.sh \
   && chmod +x /usr/local/bin/api-entrypoint.sh \
   && npm cache clean --force
 
