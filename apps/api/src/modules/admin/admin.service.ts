@@ -60,6 +60,7 @@ type DatabaseClient = Prisma.TransactionClient | PrismaService;
 
 const DEFAULT_PAGE_SIZE = 12;
 const DEFAULT_AUDIT_PREVIEW_SIZE = 6;
+const MAX_PRIZE_TIERS = 5;
 
 @Injectable()
 export class AdminService {
@@ -875,6 +876,12 @@ export class AdminService {
       throw new BadRequestException("At least one prize tier is required.");
     }
 
+    if (prizes.length > MAX_PRIZE_TIERS) {
+      throw new BadRequestException(
+        `Prize settings support up to ${MAX_PRIZE_TIERS} prize tiers.`,
+      );
+    }
+
     prizes.forEach((entry, index) => {
       if (entry.rankFrom > entry.rankTo) {
         throw new BadRequestException(
@@ -1055,7 +1062,7 @@ export class AdminService {
             segment.label,
         })),
       })),
-      prizes: event.prizes.map((prize) => ({
+      prizes: event.prizes.slice(0, MAX_PRIZE_TIERS).map((prize) => ({
         id: prize.id,
         rankFrom: prize.rankFrom,
         rankTo: prize.rankTo,

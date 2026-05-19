@@ -28,6 +28,7 @@ const PRIZE_IMAGE_FRAME_HEIGHT = 308;
 const PRIZE_IMAGE_RATIO_LABEL = "156:77 (2.03:1)";
 const PRIZE_IMAGE_MIN_WIDTH = 624;
 const PRIZE_IMAGE_MIN_HEIGHT = 308;
+const MAX_PRIZE_TIERS = 5;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -487,6 +488,7 @@ function renderPrizeSection() {
           </thead>
           <tbody>
             ${draft.prizes
+              .slice(0, MAX_PRIZE_TIERS)
               .map((prize, index) => {
                 const translation = prize.localizations.find(
                   (entry) => entry.locale === locale,
@@ -1387,7 +1389,7 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       displayAssetKey: entry.displayAssetKey,
       localizations: clone(entry.localizations),
     })),
-    prizes: draft.prizes.map((entry) => ({
+    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry) => ({
       rankFrom: entry.rankFrom,
       rankTo: entry.rankTo,
       imageUrl: entry.imageUrl,
@@ -1428,7 +1430,7 @@ function buildPrizesUpdateRequest(
   draft: AdminEventConfigDto,
 ): AdminEventPrizesUpdateRequest {
   return {
-    prizes: draft.prizes.map((entry) => ({
+    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry) => ({
       rankFrom: entry.rankFrom,
       rankTo: entry.rankTo,
       imageUrl: entry.imageUrl,
