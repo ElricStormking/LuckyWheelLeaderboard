@@ -90,7 +90,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
     let scrollOffset = 0;
 
     this.add
-      .text(frame.left + 78, headerY, "Rank", {
+      .text(frame.left + 78, headerY, prototypeState.t("leaderboard.columnRank"), {
         fontFamily: FONTS.body,
         fontSize: "24px",
         fontStyle: "700",
@@ -99,7 +99,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
       .setOrigin(0, 0.5);
 
     this.add
-      .text(frame.left + 300, headerY, "Username", {
+      .text(frame.left + 300, headerY, prototypeState.t("leaderboard.columnUsername"), {
         fontFamily: FONTS.body,
         fontSize: "24px",
         fontStyle: "700",
@@ -108,7 +108,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
       .setOrigin(0, 0.5);
 
     this.add
-      .text(frame.right - 8, headerY, "Total Points", {
+      .text(frame.right - 8, headerY, prototypeState.t("leaderboard.columnTotalPoints"), {
         fontFamily: FONTS.body,
         fontSize: "24px",
         fontStyle: "700",

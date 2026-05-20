@@ -145,6 +145,7 @@ class PrototypeState {
         return;
       }
 
+      const previousLocale = this.snapshot.locale;
       this.snapshot = {
         ...this.snapshot,
         locale: localizationConfig.resolvedLocale,
@@ -165,6 +166,9 @@ class PrototypeState {
       };
       persistLocale(localizationConfig.resolvedLocale);
       this.connectRealtime();
+      if (previousLocale !== localizationConfig.resolvedLocale) {
+        this.emit("locale-change", localizationConfig.resolvedLocale);
+      }
       this.emit("ready");
       this.emit("change");
     } catch (error) {

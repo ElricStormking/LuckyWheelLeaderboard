@@ -69,6 +69,8 @@ const ENDED_WHEEL_SEGMENT_RADIUS = 394;
 /** Center spin face when showing ENDED / Go to deposit (mobile). */
 const MOBILE_INACTIVE_SPIN_FACE_ALPHA = 0.5248;
 const MOBILE_SPIN_BUTTON_LABEL_FONT_SIZE = "34px";
+const SPIN_BUTTON_LABEL_Y = 4;
+const MALAY_SPIN_BUTTON_LABEL_Y = SPIN_BUTTON_LABEL_Y - 10;
 const POINTER_TIP_Y =
   WHEEL_CENTER_Y - (WHEEL_BACKDROP_SIZE * WHEEL_BACKDROP_SCALE * WHEEL_SCALE) / 2 - POINTER_GAP;
 
@@ -78,6 +80,7 @@ export class WheelScene extends Phaser.Scene {
   private renderedWheelSignature = "";
   private renderedHighlightIndex?: number;
   private button?: ReturnType<typeof addTextButton>;
+  private floatingDepositButton?: ReturnType<typeof addTextButton>;
   private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
   private currentWheelVisualState = WheelVisualState.Normal;
@@ -180,6 +183,7 @@ export class WheelScene extends Phaser.Scene {
       this.testSpinButton.setBackground(canTestSpin ? 0xe9f7ff : COLORS.disabled);
       this.testSpinButton.label.setColor("#0a2942");
     }
+    this.floatingDepositButton?.setLabel(prototypeState.t("lobby.goToDeposit"));
 
     if (!snapshot.currentEvent || !snapshot.eligibility || !this.wheelRoot || !this.button) {
       return;
@@ -227,13 +231,13 @@ export class WheelScene extends Phaser.Scene {
     footer.setScrollFactor(0);
     footer.setDepth(FLOATING_DEPOSIT_FOOTER_DEPTH);
 
-    const depositButton = addTextButton(
+    this.floatingDepositButton = addTextButton(
       this,
       540,
       STAGE_HEIGHT - FLOATING_DEPOSIT_BUTTON_BOTTOM_MARGIN - FLOATING_DEPOSIT_BUTTON_HEIGHT / 2,
       FLOATING_DEPOSIT_BUTTON_WIDTH,
       FLOATING_DEPOSIT_BUTTON_HEIGHT,
-      "Go to Deposit",
+      prototypeState.t("lobby.goToDeposit"),
       () => {
         openExternalLink(prototypeState.getDepositUrl());
       },
@@ -244,9 +248,9 @@ export class WheelScene extends Phaser.Scene {
         skipHighlight: true,
       },
     );
-    depositButton.label.setFontSize(34);
-    depositButton.container.setScrollFactor(0);
-    depositButton.container.setDepth(FLOATING_DEPOSIT_BUTTON_DEPTH);
+    this.floatingDepositButton.label.setFontSize(34);
+    this.floatingDepositButton.container.setScrollFactor(0);
+    this.floatingDepositButton.container.setDepth(FLOATING_DEPOSIT_BUTTON_DEPTH);
   }
 
   private animateToSegment(result: SpinSuccessResponse) {
@@ -899,7 +903,7 @@ export class WheelScene extends Phaser.Scene {
     const spinArrows = this.add.graphics();
     this.drawWheelCenterArrows(spinArrows);
     const label = this.add
-      .text(0, 4, "SPIN NOW", {
+      .text(0, SPIN_BUTTON_LABEL_Y, "SPIN NOW", {
         fontFamily: FONTS.displayName,
         fontSize: MOBILE_SPIN_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
@@ -970,6 +974,7 @@ export class WheelScene extends Phaser.Scene {
       label,
       setLabel(nextLabel: string) {
         label.setText(nextLabel);
+        label.setY(prototypeState.getSnapshot().locale === "ms" ? MALAY_SPIN_BUTTON_LABEL_Y : SPIN_BUTTON_LABEL_Y);
       },
       setBackground(color: number) {
         drawFace(color);

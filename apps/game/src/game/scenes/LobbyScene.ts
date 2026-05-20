@@ -858,6 +858,10 @@ export class LobbyScene extends Phaser.Scene {
     const tutorialScale = 0.86;
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
+    const isMalayLocale = prototypeState.getSnapshot().locale === "ms";
+    const tutorialTextStyle = isMalayLocale
+      ? { fontSize: "28px", lineSpacing: 0, wrapWidth: 184 }
+      : { fontSize: "36px", lineSpacing: 4, wrapWidth: 210 };
     this.add
       .text(540, 264, "iBET LUCKY WHEEL", {
         fontFamily: FONTS.display,
@@ -890,12 +894,12 @@ export class LobbyScene extends Phaser.Scene {
       this.add
         .text(x, stepTextY, steps[index], {
           fontFamily: FONTS.body,
-          fontSize: "36px",
+          fontSize: tutorialTextStyle.fontSize,
           fontStyle: "700",
           color: "#119ae0",
           align: "center",
-          lineSpacing: 4,
-          wordWrap: { width: 210, useAdvancedWrap: true },
+          lineSpacing: tutorialTextStyle.lineSpacing,
+          wordWrap: { width: tutorialTextStyle.wrapWidth, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
     });
@@ -1529,7 +1533,9 @@ export class LobbyScene extends Phaser.Scene {
     this.totalPointsText?.setText(formatNumber(snapshot.player?.totalScore ?? 0, snapshot.locale));
     this.eligibilityText?.setText(
       snapshot.currentEvent?.promotionPeriodLabel
-        ? `Promotion Period: ${snapshot.currentEvent.promotionPeriodLabel}`
+        ? prototypeState.t("lobby.promotionPeriod", {
+            period: snapshot.currentEvent.promotionPeriodLabel,
+          })
         : snapshot.isBootstrapping
           ? prototypeState.t("lobby.loadingPayload")
           : prototypeState.t("lobby.loadingLiveEvent"),

@@ -9,6 +9,8 @@ type CopyKey =
   | "lobby.loadingLiveEvent"
   | "lobby.heroFallbackTitle"
   | "lobby.heroFallbackSubtitle"
+  | "lobby.eventPage"
+  | "lobby.myPoints"
   | "lobby.stepDepositTitle"
   | "lobby.stepDepositCopy"
   | "lobby.stepSpinTitle"
@@ -28,11 +30,13 @@ type CopyKey =
   | "lobby.resultsPending"
   | "lobby.loadingPayload"
   | "lobby.eligibilityLine"
+  | "lobby.promotionPeriod"
   | "lobby.leaderboard"
   | "lobby.prizes"
   | "lobby.rules"
   | "lobby.history"
   | "lobby.deposit"
+  | "lobby.goToDeposit"
   | "lobby.support"
   | "lobby.devSwitch"
   | "lobby.feed.connected"
@@ -107,6 +111,8 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.loadingLiveEvent": "Loading live event...",
     "lobby.heroFallbackTitle": "iBET Lucky Wheel",
     "lobby.heroFallbackSubtitle": "Server-driven spins for a Top 30 casino event.",
+    "lobby.eventPage": "EVENT PAGE",
+    "lobby.myPoints": "MY POINTS",
     "lobby.stepDepositTitle": "Deposit",
     "lobby.stepDepositCopy": "RM50 Daily",
     "lobby.stepSpinTitle": "Spin &",
@@ -126,11 +132,13 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.resultsPending": "Results pending finalization",
     "lobby.loadingPayload": "Loading event payload...",
     "lobby.eligibilityLine": "{buttonLabel} - {remaining}/{granted} daily spins left",
+    "lobby.promotionPeriod": "Promotion Period: {period}",
     "lobby.leaderboard": "Leaderboard",
     "lobby.prizes": "Prizes",
     "lobby.rules": "Rules",
     "lobby.history": "History",
     "lobby.deposit": "Deposit",
+    "lobby.goToDeposit": "Go to Deposit",
     "lobby.support": "Support",
     "lobby.devSwitch": "Dev Eligibility Switch",
     "lobby.feed.connected": "Live feed on",
@@ -207,6 +215,8 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.loadingLiveEvent": "Memuat acara langsung...",
     "lobby.heroFallbackTitle": "iBET Roda Tuah",
     "lobby.heroFallbackSubtitle": "Putaran berasaskan pelayan untuk acara kasino Top 30.",
+    "lobby.eventPage": "Halaman Acara",
+    "lobby.myPoints": "Mata Saya",
     "lobby.stepDepositTitle": "Deposit",
     "lobby.stepDepositCopy": "RM50 Harian",
     "lobby.stepSpinTitle": "Putar &",
@@ -226,11 +236,13 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.resultsPending": "Keputusan sedang menunggu pemuktamadan",
     "lobby.loadingPayload": "Memuat data acara...",
     "lobby.eligibilityLine": "{buttonLabel} - baki {remaining}/{granted} putaran harian",
+    "lobby.promotionPeriod": "Tempoh Promosi: {period}",
     "lobby.leaderboard": "Papan Kedudukan",
     "lobby.prizes": "Hadiah",
     "lobby.rules": "Peraturan",
     "lobby.history": "Sejarah",
     "lobby.deposit": "Deposit",
+    "lobby.goToDeposit": "PERGI ke Deposit",
     "lobby.support": "Sokongan",
     "lobby.devSwitch": "Suis Kelayakan Dev",
     "lobby.feed.connected": "Suapan langsung aktif",
@@ -247,12 +259,12 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "leaderboard.pendingSubtitle":
       "Ranking akhir acara disembunyikan sehingga tempoh pengiraan selesai.",
     "leaderboard.sectionSubtitle": "Semak rank anda dan lihat siapa yang mendahului pertandingan.",
-    "leaderboard.columnRank": "Rank",
+    "leaderboard.columnRank": "Pangkat",
     "leaderboard.columnUsername": "Username",
     "leaderboard.columnTotalPoints": "Jumlah Mata",
     "leaderboard.myRank": "Rank Saya",
-    "leaderboard.lastSynced": "Penyegerakan terakhir: {value}",
-    "leaderboard.nextRefreshIn": "Segar semula seterusnya dalam: {value}",
+    "leaderboard.lastSynced": "Kemas kini terakhir: {value}",
+    "leaderboard.nextRefreshIn": "Kemaskini seterusnya dalam masa: {value}",
     "period.title": "Tempoh Acara",
     "period.subtitle":
       "Acara langsung di atas. Tempoh tamat masih boleh dilihat, tetapi keputusan akhir hanya muncul selepas penyelesaian.",
@@ -261,7 +273,7 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "period.ended": "TAMAT",
     "period.finalized": "DIMUKTAMADKAN",
     "prize.title": "Zon Hadiah",
-    "prize.sectionSubtitle": "Naiki ranking dan rebut ganjaran tunai yang lebih besar!",
+    "prize.sectionSubtitle": "Naik pangkat & dapatkan Ganjaran Tunai yang lebih besar!",
     "prize.liveSubtitle": "Tier ganjaran semasa dipetakan kepada Top 30 acara langsung.",
     "prize.archiveSubtitle": "Tier hadiah arkib untuk tempoh acara terpilih.",
     "prize.defaultAccent": "Tier Hadiah",
@@ -303,6 +315,8 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "locale.current": "SEMASA",
   },
   "zh-CN": {
+    "lobby.eventPage": "\u6d3b\u52a8\u9875",
+    "lobby.myPoints": "\u6211\u7684\u79ef\u5206",
     "lobby.selectPeriod": "选择期数",
     "lobby.loadingLiveEvent": "正在加载当前活动...",
     "lobby.heroFallbackTitle": "iBET 幸运转盘",
@@ -330,7 +344,9 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "lobby.prizes": "奖励",
     "lobby.rules": "规则",
     "lobby.history": "历史",
-    "lobby.deposit": "充值",
+    "lobby.deposit": "存款",
+    "lobby.goToDeposit": "\u524d\u5f80\u5b58\u6b3e",
+    "lobby.promotionPeriod": "\u6d3b\u52a8\u65e5\u671f\uff1a{period}",
     "lobby.support": "客服",
     "lobby.devSwitch": "开发资格切换",
     "lobby.feed.connected": "实时连接中",
@@ -345,12 +361,13 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "leaderboard.archiveSubtitle": "所选期数的只读归档排名。",
     "leaderboard.pendingTitle": "活动结果待公布",
     "leaderboard.pendingSubtitle": "最终活动排名会在计算窗口结束后显示。",
-    "leaderboard.sectionSubtitle": "查看你的排名，看看谁正领先这场竞赛。",
+    "leaderboard.sectionSubtitle": "查看你的排名，看看谁在竞赛中领先。",
     "leaderboard.columnRank": "排名",
-    "leaderboard.columnUsername": "用户名",
+    "leaderboard.columnUsername": "帐户名",
     "leaderboard.columnTotalPoints": "总积分",
     "leaderboard.myRank": "我的排名",
-    "leaderboard.lastSynced": "最后同步：{value}",
+    "leaderboard.lastSynced": "最后更新时间: {value}",
+    "leaderboard.nextRefreshIn": "下次刷新时间：{value}",
     "period.title": "活动期数",
     "period.subtitle": "当前活动优先显示，已结束期数仍可查看，但最终结果会在结算后显示。",
     "period.selected": "已选择",
@@ -358,6 +375,7 @@ const COPY: Record<AppLocale, Partial<Record<CopyKey, string>>> = {
     "period.ended": "已结束",
     "period.finalized": "已结算",
     "prize.title": "奖励区",
+    "prize.sectionSubtitle": "提升排名，赢取更多现金奖励！",
     "prize.liveSubtitle": "当前活动奖励档位对应实时前 30 名。",
     "prize.archiveSubtitle": "所选活动期数的归档奖励档位。",
     "prize.defaultAccent": "奖励档位",

@@ -48,6 +48,8 @@ const SEGMENT_HIGHLIGHT_AMBER = 0xffb347;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
 const DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE = "36px";
+const SPIN_BUTTON_LABEL_Y = 4;
+const MALAY_SPIN_BUTTON_LABEL_Y = SPIN_BUTTON_LABEL_Y - 10;
 
 type DesktopWheelButton = {
   container: Phaser.GameObjects.Container;
@@ -790,7 +792,7 @@ export class DesktopWheelScene extends Phaser.Scene {
     const face = this.add.image(0, 0, "Desktop_SpinRed");
     const spinArrows = this.add.image(0, 0, "Desktop_SpinArrow");
     const label = this.add
-      .text(0, 4, "SPIN NOW", {
+      .text(0, SPIN_BUTTON_LABEL_Y, "SPIN NOW", {
         fontFamily: FONTS.displayName,
         fontSize: DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
@@ -874,6 +876,7 @@ export class DesktopWheelScene extends Phaser.Scene {
       label,
       setLabel(nextLabel: string) {
         label.setText(nextLabel);
+        label.setY(prototypeState.getSnapshot().locale === "ms" ? MALAY_SPIN_BUTTON_LABEL_Y : SPIN_BUTTON_LABEL_Y);
       },
       setBackground(color: number) {
         syncVisuals(color === COLORS.primary ? 0xe15693 : color);

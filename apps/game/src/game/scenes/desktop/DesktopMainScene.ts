@@ -305,6 +305,8 @@ const WHEEL_BACKDROP_MASK_RADIUS = WHEEL_REFINED_RIM_RADIUS - 20;
 const ENDED_WHEEL_TEXT_DARK = "#50555d";
 const ENDED_WHEEL_TEXT_LIGHT = "#f3f5f7";
 const DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE = "36px";
+const SPIN_BUTTON_LABEL_Y = 4;
+const MALAY_SPIN_BUTTON_LABEL_Y = SPIN_BUTTON_LABEL_Y - 10;
 
 function getLeaderboardPlateCenterX(rowX: number, rank: number) {
   const rowIndex = (rank - 1) % 10;
@@ -332,6 +334,8 @@ function getLeaderboardRowTextCenterY(rowY: number, rank: number) {
 export class DesktopMainScene extends DesktopPageScene {
   private periodLabel?: Phaser.GameObjects.Text;
   private promotionPeriodText?: Phaser.GameObjects.Text;
+  private headerEventPageText?: Phaser.GameObjects.Text;
+  private headerDepositText?: Phaser.GameObjects.Text;
   private headerPointsText?: Phaser.GameObjects.Text;
   private headerPointsValueText?: Phaser.GameObjects.Text;
   private summaryPointsText?: Phaser.GameObjects.Text;
@@ -498,8 +502,8 @@ export class DesktopMainScene extends DesktopPageScene {
     logo.setScale(1.08);
     logo.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.createHeaderTab(341, "EVENT PAGE", true, () => this.scrollTo(0));
-    this.createHeaderTab(513, "DEPOSIT", false, () => {
+    this.headerEventPageText = this.createHeaderTab(341, prototypeState.t("lobby.eventPage"), true, () => this.scrollTo(0));
+    this.headerDepositText = this.createHeaderTab(513, prototypeState.t("lobby.deposit"), false, () => {
       openExternalLink(getDesktopPlatformLinkUrl(PlatformLinkType.Deposit));
     });
 
@@ -559,12 +563,17 @@ export class DesktopMainScene extends DesktopPageScene {
     const myPointIcon = this.add.image(1307, HEADER_CONTENT_Y, "Desktop_IconMyPoint");
     myPointIcon.setDepth(HEADER_FOREGROUND_DEPTH);
 
-    this.headerPointsText = this.add.text(1333, HEADER_CONTENT_Y, "MY POINTS :", {
+    this.headerPointsText = this.add.text(
+      1333,
+      HEADER_CONTENT_Y,
+      `${prototypeState.t("lobby.myPoints")} :`,
+      {
       fontFamily: FONTS.body,
       fontSize: "18px",
       fontStyle: "700",
       color: "#1b2630",
-    });
+      },
+    );
     this.headerPointsText.setOrigin(0, 0.5).setDepth(HEADER_FOREGROUND_DEPTH);
 
     this.headerPointsValueText = this.add.text(
@@ -663,6 +672,10 @@ export class DesktopMainScene extends DesktopPageScene {
     const tutorialScale = 0.484;
     const tutorialTextureWidth = 990;
     const tutorialIconXs = [161, 498, 830];
+    const isMalayLocale = prototypeState.getSnapshot().locale === "ms";
+    const tutorialTextStyle = isMalayLocale
+      ? { fontSize: "15px", lineSpacing: 1, wrapWidth: 136 }
+      : { fontSize: "18px", lineSpacing: 3, wrapWidth: 156 };
 
     this.add
       .image(960, HERO_TITLE_Y, "Desktop_MainTitle")
@@ -683,12 +696,12 @@ export class DesktopMainScene extends DesktopPageScene {
       this.add
         .text(x, HERO_TUTORIAL_Y + 32, stepCopy[index], {
           fontFamily: FONTS.body,
-          fontSize: "18px",
+          fontSize: tutorialTextStyle.fontSize,
           fontStyle: "400",
           color: "#179fe7",
           align: "center",
-          lineSpacing: 3,
-          wordWrap: { width: 156, useAdvancedWrap: true },
+          lineSpacing: tutorialTextStyle.lineSpacing,
+          wordWrap: { width: tutorialTextStyle.wrapWidth, useAdvancedWrap: true },
         })
         .setOrigin(0.5);
     });
@@ -1280,10 +1293,13 @@ export class DesktopMainScene extends DesktopPageScene {
       .setDepth(6);
 
     this.add
-      .image(STAGE_WIDTH - 45, COPYRIGHT_TEXT_CENTER_Y, "Desktop_CopyrightText")
+      .text(STAGE_WIDTH - 62, COPYRIGHT_TEXT_CENTER_Y, "Copyright \u00a9 2026 iBET All rights reserved.", {
+        fontFamily: FONTS.body,
+        fontSize: "14px",
+        fontStyle: "700",
+        color: "#ffffff",
+      })
       .setOrigin(1, 0.5)
-      .setCrop(25, 103, 614, 25)
-      .setScale(COPYRIGHT_TEXT_SCALE)
       .setDepth(6);
   }
 
@@ -1381,12 +1397,20 @@ export class DesktopMainScene extends DesktopPageScene {
     this.periodLabel?.setText(this.getEventSelectorValue());
     this.promotionPeriodText?.setText(
       snapshot.currentEvent?.promotionPeriodLabel
-        ? `Promotion Period: ${snapshot.currentEvent.promotionPeriodLabel}`
+        ? prototypeState.t("lobby.promotionPeriod", {
+            period: snapshot.currentEvent.promotionPeriodLabel,
+          })
         : snapshot.isBootstrapping
           ? prototypeState.t("lobby.loadingPayload")
           : prototypeState.t("lobby.loadingLiveEvent"),
     );
     this.headerPointsValueText?.setText(totalPoints);
+    this.headerEventPageText?.setText(prototypeState.t("lobby.eventPage"));
+    this.headerDepositText?.setText(prototypeState.t("lobby.deposit"));
+    this.headerPointsText?.setText(`${prototypeState.t("lobby.myPoints")} :`);
+    if (this.headerPointsText && this.headerPointsValueText) {
+      this.headerPointsValueText.setX(this.headerPointsText.x + this.headerPointsText.width + 8);
+    }
     this.summaryPointsText?.setText(totalPoints);
     this.playerText?.setText(this.formatAccountLabel(snapshot.player?.playerName));
 
@@ -2428,7 +2452,7 @@ export class DesktopMainScene extends DesktopPageScene {
     const spinArrows = this.add.graphics();
     this.drawWheelCenterArrows(spinArrows);
     const label = this.add
-      .text(0, 4, "SPIN NOW", {
+      .text(0, SPIN_BUTTON_LABEL_Y, "SPIN NOW", {
         fontFamily: FONTS.displayName,
         fontSize: DESKTOP_WHEEL_BUTTON_LABEL_FONT_SIZE,
         color: "#ffffff",
@@ -2510,6 +2534,7 @@ export class DesktopMainScene extends DesktopPageScene {
       label,
       setLabel(nextLabel: string) {
         label.setText(nextLabel);
+        label.setY(prototypeState.getSnapshot().locale === "ms" ? MALAY_SPIN_BUTTON_LABEL_Y : SPIN_BUTTON_LABEL_Y);
       },
       setBackground(color: number) {
         syncVisuals(color === COLORS.primary ? 0xe15693 : color);

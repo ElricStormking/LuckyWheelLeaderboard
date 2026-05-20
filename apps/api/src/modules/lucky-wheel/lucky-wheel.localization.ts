@@ -24,7 +24,7 @@ const ELIGIBILITY_BUTTON_LABELS: Record<AppLocale, Record<EligibilityStatus, str
   "zh-CN": {
     [EligibilityStatus.PlayableNow]: "立即旋转",
     [EligibilityStatus.AlreadySpin]: "今日已使用",
-    [EligibilityStatus.GoToDeposit]: "前往充值",
+    [EligibilityStatus.GoToDeposit]: "前往存款",
     [EligibilityStatus.EventEnded]: "已结束",
   },
 };
