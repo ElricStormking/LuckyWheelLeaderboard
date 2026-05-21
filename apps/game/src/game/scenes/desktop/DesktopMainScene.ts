@@ -28,6 +28,10 @@ import {
 } from "../../constants";
 import { prototypeState } from "../../state/prototype-state";
 import { syncPrizeArtImage } from "../../prizeImageLoader";
+import {
+  createPrizeRankRangeText,
+  type PrizeRankRangeText,
+} from "../../prizeRankRangeText";
 import { createRibbonsBurst } from "../../ribbonsFx";
 import {
   createWinningPopup,
@@ -112,6 +116,7 @@ type DesktopLeaderboardRow = {
 
 type DesktopPrizeRow = {
   rankBadge: Phaser.GameObjects.Image;
+  rankRangeText?: PrizeRankRangeText;
   rewardZone: Phaser.GameObjects.Image;
   prizeArt: Phaser.GameObjects.Image;
   prizeLabel: Phaser.GameObjects.Text;
@@ -1179,6 +1184,10 @@ export class DesktopMainScene extends DesktopPageScene {
       const rankBadge = this.add
         .image(row.badgeX, row.y, DESKTOP_PRIZE_BADGE_KEYS[index])
         .setScale(row.badgeScale);
+      const rankRangeText =
+        index >= 3
+          ? createPrizeRankRangeText(this, row.badgeX, row.y, row.badgeScale)
+          : undefined;
       const rewardZone = this.add
         .image(row.rewardX, row.y, "Desktop_PrizeRewardZone")
         .setScale(row.rewardScale);
@@ -1211,7 +1220,7 @@ export class DesktopMainScene extends DesktopPageScene {
         })
         .setOrigin(origin, 0.5);
 
-      this.prizeRows.push({ rankBadge, rewardZone, prizeArt, prizeLabel, prizeDescription });
+      this.prizeRows.push({ rankBadge, rankRangeText, rewardZone, prizeArt, prizeLabel, prizeDescription });
     });
 
   }
@@ -1557,6 +1566,7 @@ export class DesktopMainScene extends DesktopPageScene {
       const prize = snapshot.prizes[index];
       const visible = Boolean(prize);
       row.rankBadge.setVisible(visible);
+      row.rankRangeText?.setVisible(visible);
       row.rewardZone.setVisible(visible);
       row.prizeArt.setVisible(false);
       row.prizeLabel.setVisible(false).setText("");
@@ -1566,6 +1576,7 @@ export class DesktopMainScene extends DesktopPageScene {
         return;
       }
 
+      row.rankRangeText?.setRange(prize.rankFrom, prize.rankTo);
       row.prizeDescription.setText(
         prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );

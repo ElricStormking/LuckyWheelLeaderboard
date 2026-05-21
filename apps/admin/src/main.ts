@@ -29,6 +29,7 @@ const PRIZE_IMAGE_RATIO_LABEL = "156:77 (2.03:1)";
 const PRIZE_IMAGE_MIN_WIDTH = 624;
 const PRIZE_IMAGE_MIN_HEIGHT = 308;
 const MAX_PRIZE_TIERS = 5;
+const FIXED_SINGLE_RANK_PRIZE_COUNT = 3;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -493,15 +494,24 @@ function renderPrizeSection() {
                 const translation = prize.localizations.find(
                   (entry) => entry.locale === locale,
                 );
-
-                return `
-                  <tr>
-                    <td><input type="number" data-prize-index="${index}" data-prize-field="displayOrder" value="${prize.displayOrder}" /></td>
+                const rankCell = isFixedSingleRankPrize(index)
+                  ? `
+                    <td class="rank-cell rank-cell--fixed">
+                      <span class="fixed-rank">${index + 1}</span>
+                    </td>
+                  `
+                  : `
                     <td class="rank-cell">
                       <input type="number" data-prize-index="${index}" data-prize-field="rankFrom" value="${prize.rankFrom}" />
                       <span>to</span>
                       <input type="number" data-prize-index="${index}" data-prize-field="rankTo" value="${prize.rankTo}" />
                     </td>
+                  `;
+
+                return `
+                  <tr>
+                    <td><span class="fixed-order">${index + 1}</span></td>
+                    ${rankCell}
                     <td><input data-prize-index="${index}" data-prize-field="prizeLabel" value="${escapeHtml(translation?.prizeLabel ?? "")}" placeholder="RM 1,688" /></td>
                     <td><input data-prize-index="${index}" data-prize-field="accentLabel" value="${escapeHtml(translation?.accentLabel ?? "")}" /></td>
                     <td>
@@ -1112,6 +1122,14 @@ function syncDraftFromDom() {
       }
     }
   });
+
+  draft.prizes.slice(0, FIXED_SINGLE_RANK_PRIZE_COUNT).forEach((prize, index) => {
+    prize.rankFrom = index + 1;
+    prize.rankTo = index + 1;
+  });
+  draft.prizes.slice(0, MAX_PRIZE_TIERS).forEach((prize, index) => {
+    prize.displayOrder = index + 1;
+  });
 }
 
 async function createNewEventFromTemplate() {
@@ -1389,11 +1407,11 @@ function buildUpsertRequest(draft: AdminEventConfigDto): AdminEventUpsertRequest
       displayAssetKey: entry.displayAssetKey,
       localizations: clone(entry.localizations),
     })),
-    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry) => ({
-      rankFrom: entry.rankFrom,
-      rankTo: entry.rankTo,
+    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry, index) => ({
+      rankFrom: getPrizeRequestRank(entry.rankFrom, index),
+      rankTo: getPrizeRequestRank(entry.rankTo, index),
       imageUrl: entry.imageUrl,
-      displayOrder: entry.displayOrder,
+      displayOrder: getPrizeDisplayOrder(index),
       localizations: entry.localizations.map((translation) => ({
         ...translation,
       })),
@@ -1430,11 +1448,11 @@ function buildPrizesUpdateRequest(
   draft: AdminEventConfigDto,
 ): AdminEventPrizesUpdateRequest {
   return {
-    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry) => ({
-      rankFrom: entry.rankFrom,
-      rankTo: entry.rankTo,
+    prizes: draft.prizes.slice(0, MAX_PRIZE_TIERS).map((entry, index) => ({
+      rankFrom: getPrizeRequestRank(entry.rankFrom, index),
+      rankTo: getPrizeRequestRank(entry.rankTo, index),
       imageUrl: entry.imageUrl,
-      displayOrder: entry.displayOrder,
+      displayOrder: getPrizeDisplayOrder(index),
       localizations: entry.localizations.map((translation) => ({
         ...translation,
       })),
@@ -1515,6 +1533,18 @@ function fromDatetimeLocal(value: string, fallback: string) {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isFixedSingleRankPrize(index: number) {
+  return index >= 0 && index < FIXED_SINGLE_RANK_PRIZE_COUNT;
+}
+
+function getPrizeRequestRank(rank: number, index: number) {
+  return isFixedSingleRankPrize(index) ? index + 1 : rank;
+}
+
+function getPrizeDisplayOrder(index: number) {
+  return index + 1;
 }
 
 function formatSectionLabel(section: AdminSection) {

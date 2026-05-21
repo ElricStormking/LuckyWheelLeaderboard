@@ -617,6 +617,24 @@ button {
   min-width: 58px;
 }
 
+.rank-cell--fixed {
+  display: block;
+}
+
+.fixed-rank {
+  display: inline-flex;
+  align-items: center;
+  min-height: 39px;
+  padding: 0 10px;
+}
+
+.fixed-order {
+  display: inline-flex;
+  align-items: center;
+  min-height: 39px;
+  padding: 0 10px;
+}
+
 .text-button {
   border: 0;
   color: var(--blue);

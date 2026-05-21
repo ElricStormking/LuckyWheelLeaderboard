@@ -2,6 +2,7 @@ import { prototypeState } from "../state/prototype-state";
 import { BaseOverlayScene } from "./BaseOverlayScene";
 import { FONTS, SCENE_KEYS } from "../constants";
 import { syncPrizeArtImage } from "../prizeImageLoader";
+import { createPrizeRankRangeText } from "../prizeRankRangeText";
 
 const PRIZE_BADGE_KEYS = [
   "Prize_Ranking_01",
@@ -40,6 +41,10 @@ export class PrizeOverlayScene extends BaseOverlayScene {
     prizes.forEach((prize, index) => {
       const y = frame.top + 74 + index * 184;
       this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(PRIZE_ROW_SCALE);
+      if (index >= 3) {
+        createPrizeRankRangeText(this, badgeXs[index], y, PRIZE_ROW_SCALE)
+          .setRange(prize.rankFrom, prize.rankTo);
+      }
       const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(PRIZE_ROW_SCALE);
       const prizeArt = this.add
         .image(rewardXs[index], y, "Prize_RewardZone")

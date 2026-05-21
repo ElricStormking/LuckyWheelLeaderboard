@@ -26,6 +26,10 @@ import {
   openExternalLink,
 } from "../helpers";
 import { syncPrizeArtImage } from "../prizeImageLoader";
+import {
+  createPrizeRankRangeText,
+  type PrizeRankRangeText,
+} from "../prizeRankRangeText";
 
 type ActivityBubble = {
   container: Phaser.GameObjects.Container;
@@ -57,6 +61,7 @@ type InlineLeaderboardRow = {
 
 type PrizeSectionRow = {
   rankBadge: Phaser.GameObjects.Image;
+  rankRangeText?: PrizeRankRangeText;
   rewardZone: Phaser.GameObjects.Image;
   prizeArt: Phaser.GameObjects.Image;
   prizeLabel: Phaser.GameObjects.Text;
@@ -1300,6 +1305,8 @@ export class LobbyScene extends Phaser.Scene {
 
     yValues.forEach((y, index) => {
       const rankBadge = this.add.image(badgeXs[index], y, PRIZE_BADGE_KEYS[index]).setScale(1);
+      const rankRangeText =
+        index >= 3 ? createPrizeRankRangeText(this, badgeXs[index], y) : undefined;
       const rewardZone = this.add.image(rewardXs[index], y, "Prize_RewardZone").setScale(1);
       const prizeArt = this.add.image(rewardXs[index], y, "Prize_RewardZone").setVisible(false);
       const textAlign = index % 2 === 0 ? 0 : 1;
@@ -1326,7 +1333,7 @@ export class LobbyScene extends Phaser.Scene {
         })
         .setOrigin(textAlign, 0.5);
 
-      this.inlinePrizeRows.push({ rankBadge, rewardZone, prizeArt, prizeLabel, prizeDescription });
+      this.inlinePrizeRows.push({ rankBadge, rankRangeText, rewardZone, prizeArt, prizeLabel, prizeDescription });
     });
   }
 
@@ -1700,8 +1707,9 @@ export class LobbyScene extends Phaser.Scene {
       const prize = prizes[index];
       const visible = Boolean(prize);
       row.rankBadge.setVisible(visible);
+      row.rankRangeText?.setVisible(visible);
       row.rewardZone.setVisible(visible);
-       row.prizeArt.setVisible(false);
+      row.prizeArt.setVisible(false);
       row.prizeLabel.setVisible(false).setText("");
       row.prizeDescription.setVisible(Boolean(prize && !prize.imageUrl));
 
@@ -1709,6 +1717,7 @@ export class LobbyScene extends Phaser.Scene {
         return;
       }
 
+      row.rankRangeText?.setRange(prize.rankFrom, prize.rankTo);
       row.prizeDescription.setText(
         prize.accentLabel || prototypeState.t("prize.defaultAccent"),
       );
