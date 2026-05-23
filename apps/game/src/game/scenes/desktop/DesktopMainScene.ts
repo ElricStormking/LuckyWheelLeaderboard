@@ -1597,6 +1597,7 @@ export class DesktopMainScene extends DesktopPageScene {
       ? formatDateWithGmtOffset(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
           dateStyle: "short",
           timeStyle: "medium",
+          hour12: false,
         })
       : "-";
 

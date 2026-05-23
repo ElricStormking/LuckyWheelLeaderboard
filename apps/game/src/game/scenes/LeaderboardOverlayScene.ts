@@ -326,6 +326,7 @@ export class LeaderboardOverlayScene extends BaseOverlayScene {
         ? formatDateWithGmtOffset(currentSnapshot.leaderboard.lastSyncedAt, currentSnapshot.locale, {
             dateStyle: "short",
             timeStyle: "medium",
+            hour12: false,
           })
         : "-";
 

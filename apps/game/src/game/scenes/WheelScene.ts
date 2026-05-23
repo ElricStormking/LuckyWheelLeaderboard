@@ -242,8 +242,8 @@ export class WheelScene extends Phaser.Scene {
         openExternalLink(prototypeState.getDepositUrl());
       },
       {
-        backgroundColor: 0x8b939b,
-        backgroundAlpha: 0.78,
+        backgroundColor: 0x00a3e0,
+        backgroundAlpha: 1,
         radius: 46,
         skipHighlight: true,
       },

@@ -1732,6 +1732,7 @@ export class LobbyScene extends Phaser.Scene {
       ? formatDateWithGmtOffset(snapshot.leaderboard.lastSyncedAt, snapshot.locale, {
           dateStyle: "short",
           timeStyle: "medium",
+          hour12: false,
         })
       : "-";
 
