@@ -20,6 +20,7 @@ import type {
 import "./styles.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api";
+const ADMIN_TOKEN_STORAGE_KEY = "lucky-wheel-admin-token";
 const SUPPORTED_LOCALES: AppLocale[] = ["en", "ms", "zh-CN"];
 const PRIZE_IMAGE_RECOMMENDED_WIDTH = 1248;
 const PRIZE_IMAGE_RECOMMENDED_HEIGHT = 616;
@@ -43,11 +44,22 @@ const SECTION_ORDER = [
 
 type AdminSection = (typeof SECTION_ORDER)[number];
 type ToastState = { tone: "success" | "error"; message: string } | null;
+type AdminLoginResponse = {
+  token: string;
+  username: string;
+  expiresAt: string;
+};
+type AdminSessionResponse = {
+  username: string;
+};
 
 type AdminState = {
   locale: AppLocale;
   selectedLocaleTab: AppLocale;
   activeSection: AdminSection;
+  authToken?: string;
+  authUser?: string;
+  authError?: string;
   overview?: AdminOverviewResponse;
   editor?: AdminEventEditorResponse;
   dashboard?: AdminEventDashboardResponse;
@@ -57,6 +69,7 @@ type AdminState = {
   draft?: AdminEventConfigDto;
   selectedEventId?: string;
   isBootstrapping: boolean;
+  isAuthenticating: boolean;
   isSaving: boolean;
   toast: ToastState;
   error?: string;
@@ -73,26 +86,80 @@ const state: AdminState = {
   locale: "en",
   selectedLocaleTab: "en",
   activeSection: "capital",
+  authToken: readStoredAdminToken(),
   isBootstrapping: true,
+  isAuthenticating: false,
   isSaving: false,
   toast: null,
 };
+let refreshTimer: number | undefined;
 
 void bootstrap();
 
 async function bootstrap() {
   render();
 
-  try {
-    await loadOverview(true);
-    window.setInterval(() => {
-      void refreshCurrentWorkspace();
-    }, 30000);
-  } catch (error) {
-    state.error = toErrorMessage(error);
+  if (!state.authToken) {
     state.isBootstrapping = false;
     render();
+    return;
   }
+
+  state.isAuthenticating = true;
+  render();
+
+  try {
+    const session = await request<AdminSessionResponse>("/v2/admin/auth/session");
+    state.authUser = session.username;
+    state.authError = undefined;
+    state.isAuthenticating = false;
+    await loadOverview(true);
+    startWorkspaceRefresh();
+  } catch (error) {
+    clearAdminSession();
+    state.authError = toErrorMessage(error);
+    state.isBootstrapping = false;
+    state.isAuthenticating = false;
+    render();
+  }
+}
+
+async function login(username: string, password: string) {
+  state.isAuthenticating = true;
+  state.authError = undefined;
+  render();
+
+  try {
+    const session = await request<AdminLoginResponse>(
+      "/v2/admin/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        skipAuth: true,
+      },
+    );
+    state.authToken = session.token;
+    state.authUser = session.username;
+    writeStoredAdminToken(session.token);
+    await loadOverview(true);
+    state.isAuthenticating = false;
+    startWorkspaceRefresh();
+  } catch (error) {
+    clearAdminSession();
+    state.authError = toErrorMessage(error);
+    state.isBootstrapping = false;
+    state.isAuthenticating = false;
+    render();
+  }
+}
+
+function logout(message?: string) {
+  clearAdminSession();
+  stopWorkspaceRefresh();
+  state.authError = message;
+  state.isBootstrapping = false;
+  state.isAuthenticating = false;
+  render();
 }
 
 async function loadOverview(shouldLoadWorkspace: boolean) {
@@ -163,7 +230,7 @@ async function loadEventWorkspace(eventId: string) {
 }
 
 async function refreshCurrentWorkspace() {
-  if (!state.selectedEventId || state.isSaving) {
+  if (!state.authToken || !state.selectedEventId || state.isSaving) {
     return;
   }
 
@@ -193,7 +260,70 @@ async function refreshCurrentWorkspace() {
   }
 }
 
+function startWorkspaceRefresh() {
+  if (refreshTimer !== undefined) {
+    return;
+  }
+
+  refreshTimer = window.setInterval(() => {
+    void refreshCurrentWorkspace();
+  }, 30000);
+}
+
+function stopWorkspaceRefresh() {
+  if (refreshTimer === undefined) {
+    return;
+  }
+
+  window.clearInterval(refreshTimer);
+  refreshTimer = undefined;
+}
+
+function readStoredAdminToken() {
+  try {
+    return window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeStoredAdminToken(token: string) {
+  try {
+    window.sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // Session storage may be unavailable in hardened browsers.
+  }
+}
+
+function clearAdminSession() {
+  state.authToken = undefined;
+  state.authUser = undefined;
+  state.overview = undefined;
+  state.editor = undefined;
+  state.dashboard = undefined;
+  state.participants = undefined;
+  state.spins = undefined;
+  state.audit = undefined;
+  state.draft = undefined;
+  state.selectedEventId = undefined;
+  state.error = undefined;
+  state.toast = null;
+  state.isSaving = false;
+
+  try {
+    window.sessionStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+  } catch {
+    // Session storage may be unavailable in hardened browsers.
+  }
+}
+
 function render() {
+  if (!state.authToken || !state.authUser) {
+    app.innerHTML = renderLoginScreen();
+    bindLoginEvents();
+    return;
+  }
+
   const events = state.overview?.events ?? [];
   const selectedEvent =
     events.find((entry) => entry.id === state.selectedEventId) ?? events[0];
@@ -218,6 +348,10 @@ function render() {
               ).join("")}
             </select>
           </label>
+        </div>
+        <div class="topbar__user">
+          <span>${escapeHtml(state.authUser)}</span>
+          <button class="button button--topbar" data-action="logout">Log out</button>
         </div>
       </header>
 
@@ -308,6 +442,50 @@ function render() {
   `;
 
   bindEvents();
+}
+
+function renderLoginScreen() {
+  return `
+    <main class="login-shell">
+      <section class="login-panel">
+        <div class="login-panel__brand">iBET</div>
+        <div class="login-panel__copy">
+          <p class="login-panel__eyebrow">Lucky Wheel Admin</p>
+          <h1>Admin Sign In</h1>
+        </div>
+        <form class="login-form" data-auth-form>
+          <label class="field">
+            <span>Account</span>
+            <input
+              name="username"
+              autocomplete="username"
+              value="Admin"
+              ${state.isAuthenticating ? "disabled" : ""}
+            />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input
+              type="password"
+              name="password"
+              autocomplete="current-password"
+              ${state.isAuthenticating ? "disabled" : ""}
+            />
+          </label>
+          ${
+            state.authError
+              ? `<div class="login-error">${escapeHtml(state.authError)}</div>`
+              : ""
+          }
+          <button class="button button--primary login-button" type="submit" ${
+            state.isAuthenticating ? "disabled" : ""
+          }>
+            ${state.isAuthenticating ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </section>
+    </main>
+  `;
 }
 
 function renderActiveSection() {
@@ -905,11 +1083,29 @@ function bindEvents() {
   });
 }
 
+function bindLoginEvents() {
+  app.querySelector<HTMLFormElement>("[data-auth-form]")?.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const formData = new FormData(form);
+      void login(
+        String(formData.get("username") ?? ""),
+        String(formData.get("password") ?? ""),
+      );
+    },
+  );
+}
+
 async function handleActionClick(event: Event) {
   const target = event.currentTarget as HTMLElement;
   const action = target.dataset.action;
 
   switch (action) {
+    case "logout":
+      logout();
+      return;
     case "refresh":
       await refreshCurrentWorkspace();
       return;
@@ -1489,23 +1685,53 @@ function getSaveTarget(draft: AdminEventConfigDto, section: AdminSection) {
   }
 }
 
-async function request<T>(pathname: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers ?? {});
-  if (!(init?.body instanceof FormData) && !headers.has("Content-Type")) {
+type AdminRequestInit = RequestInit & {
+  skipAuth?: boolean;
+};
+
+async function request<T>(pathname: string, init?: AdminRequestInit): Promise<T> {
+  const { skipAuth, ...fetchInit } = init ?? {};
+  const headers = new Headers(fetchInit.headers ?? {});
+  if (!skipAuth && state.authToken) {
+    headers.set("Authorization", `Bearer ${state.authToken}`);
+  }
+  if (!(fetchInit.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
   const response = await fetch(`${API_BASE_URL}${pathname}`, {
     headers,
-    ...init,
+    ...fetchInit,
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed with status ${response.status}`);
+    if (response.status === 401 && !skipAuth) {
+      logout("Session expired. Sign in again.");
+    }
+    throw new Error(
+      parseResponseErrorMessage(text) || `Request failed with status ${response.status}`,
+    );
   }
 
   return (await response.json()) as T;
+}
+
+function parseResponseErrorMessage(text: string) {
+  if (!text) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { message?: string | string[]; error?: string };
+    if (Array.isArray(parsed.message)) {
+      return parsed.message.join(" ");
+    }
+
+    return parsed.message ?? parsed.error ?? text;
+  } catch {
+    return text;
+  }
 }
 
 function getInputValue(name: string, fallback: string) {

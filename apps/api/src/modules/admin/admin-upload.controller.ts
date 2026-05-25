@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -14,6 +15,7 @@ import type {
   AdminUploadedImageDeleteRequest,
   AdminUploadedImageDeleteResponse,
 } from "@lucky-wheel/contracts";
+import { AdminAuthGuard } from "./admin-auth.guard";
 import { AdminUploadService } from "./admin-upload.service";
 
 type UploadedImageFile = {
@@ -24,6 +26,7 @@ type UploadedImageFile = {
 };
 
 @Controller("v2/admin/uploads")
+@UseGuards(AdminAuthGuard)
 export class AdminUploadController {
   constructor(private readonly adminUploadService: AdminUploadService) {}
 
@@ -59,4 +62,3 @@ export class AdminUploadController {
     return this.adminUploadService.deleteUploadedImage(request.imageUrl);
   }
 }
-

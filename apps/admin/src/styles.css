@@ -40,6 +40,77 @@ button {
   cursor: pointer;
 }
 
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.login-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(12, 161, 217, 0.16), rgba(255, 179, 66, 0.12)),
+    var(--page-bg);
+}
+
+.login-panel {
+  width: min(420px, 100%);
+  padding: 34px;
+  border: 1px solid rgba(12, 161, 217, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.login-panel__brand {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  color: #fff;
+  font-weight: 800;
+  background: var(--brand);
+}
+
+.login-panel__copy {
+  margin: 24px 0;
+}
+
+.login-panel__eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.login-panel h1 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+}
+
+.login-button {
+  width: 100%;
+  min-height: 46px;
+}
+
+.login-error {
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #7d2636;
+  background: #ffe2e7;
+}
+
 .admin-shell {
   min-height: 100vh;
 }
@@ -80,6 +151,23 @@ button {
   border-radius: 10px;
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
+}
+
+.topbar__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar__user span {
+  font-weight: 700;
+}
+
+.button--topbar {
+  padding: 8px 12px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .workspace {

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   AdminEventPrizesUpdateRequest,
   AdminEventTermsUpdateRequest,
@@ -6,9 +16,11 @@ import {
   AdminPlatformLinksUpdateRequest,
 } from "@lucky-wheel/contracts";
 import { resolveRequestedLocale } from "../lucky-wheel/lucky-wheel.localization";
+import { AdminAuthGuard } from "./admin-auth.guard";
 import { AdminService } from "./admin.service";
 
 @Controller("v2/admin")
+@UseGuards(AdminAuthGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
