@@ -3,7 +3,9 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 ARG VITE_API_BASE_URL=/api
+ARG VITE_BASE_PATH=./
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY apps ./apps

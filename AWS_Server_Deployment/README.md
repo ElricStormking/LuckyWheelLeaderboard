@@ -61,5 +61,5 @@ Keep these restricted unless explicitly needed:
 After deployment:
 
 - Game: `https://ibetlucky.org`
-- Admin: `http://47.236.166.230:4002`
+- Admin: `https://ibetlucky.org/admin`
 - Merchant launch endpoint: `http://47.236.166.230:4003/merchant-api/integration/launch`

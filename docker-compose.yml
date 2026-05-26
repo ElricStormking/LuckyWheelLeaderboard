@@ -94,6 +94,7 @@ services:
       dockerfile: docker/admin.Dockerfile
       args:
         VITE_API_BASE_URL: /api
+        VITE_BASE_PATH: ${ADMIN_VITE_BASE_PATH:-./}
     depends_on:
       api:
         condition: service_healthy
