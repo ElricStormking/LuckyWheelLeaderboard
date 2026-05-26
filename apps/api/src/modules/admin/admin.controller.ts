@@ -17,10 +17,11 @@ import {
 } from "@lucky-wheel/contracts";
 import { resolveRequestedLocale } from "../lucky-wheel/lucky-wheel.localization";
 import { AdminAuthGuard } from "./admin-auth.guard";
+import { AdminRateLimitGuard } from "./admin-rate-limit.guard";
 import { AdminService } from "./admin.service";
 
 @Controller("v2/admin")
-@UseGuards(AdminAuthGuard)
+@UseGuards(AdminRateLimitGuard, AdminAuthGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

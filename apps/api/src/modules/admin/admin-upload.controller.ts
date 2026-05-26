@@ -16,6 +16,7 @@ import type {
   AdminUploadedImageDeleteResponse,
 } from "@lucky-wheel/contracts";
 import { AdminAuthGuard } from "./admin-auth.guard";
+import { AdminRateLimitGuard } from "./admin-rate-limit.guard";
 import { AdminUploadService } from "./admin-upload.service";
 
 type UploadedImageFile = {
@@ -26,7 +27,7 @@ type UploadedImageFile = {
 };
 
 @Controller("v2/admin/uploads")
-@UseGuards(AdminAuthGuard)
+@UseGuards(AdminRateLimitGuard, AdminAuthGuard)
 export class AdminUploadController {
   constructor(private readonly adminUploadService: AdminUploadService) {}
 

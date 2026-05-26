@@ -26,6 +26,7 @@ export class PreloadScene extends Phaser.Scene {
 
   async create() {
     await this.ensureFontsLoaded();
+    this.hideInitialLoadingScreen();
 
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
     this.add
@@ -222,5 +223,17 @@ export class PreloadScene extends Phaser.Scene {
       document.fonts.load(`700 32px "${FONTS.bodyName}"`),
       document.fonts.load(`400 32px "${FONTS.bodyName}"`),
     ]);
+  }
+
+  private hideInitialLoadingScreen() {
+    const loadingScreen = document.querySelector<HTMLElement>(
+      "#initial-loading-screen",
+    );
+    if (!loadingScreen) {
+      return;
+    }
+
+    loadingScreen.classList.add("is-hidden");
+    window.setTimeout(() => loadingScreen.remove(), 260);
   }
 }

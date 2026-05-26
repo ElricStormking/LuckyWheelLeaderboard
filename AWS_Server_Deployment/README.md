@@ -29,7 +29,7 @@ Run from the project root. `-UseGcpJump` routes SSH/SCP through the existing GCP
 1. local prerequisite and SSH checks
 2. Docker installation/start on AlmaLinux
 3. source package upload
-4. `.env.production` upload with public URLs rewritten to `http://47.236.166.230:3000`
+4. `.env.production` upload with public URLs rewritten to `https://ibetlucky.org`
 5. `docker compose up -d --build`
 6. local endpoint verification on the server
 
@@ -46,20 +46,20 @@ After the first deployment, avoid overwriting the remote environment file unless
 Allow inbound TCP:
 
 - `22`: SSH from your deployment workstation IP
-- `80`: public game without an explicit port
-- `3000`: public game
+- `80`: HTTP redirect and ACME certificate renewal
+- `443`: public game over HTTPS
 - `4002`: public admin tool, protected by admin login
 - `4003`: public Merchant API integration endpoint, if the customer platform calls it directly
 
 Keep these restricted unless explicitly needed:
 
 - `4000`: platform API, intended for internal Docker/network access
+- `3000`: game container, intended for localhost reverse-proxy access
 
 ## Public URLs
 
 After deployment:
 
-- Game: `http://47.236.166.230:3000`
-- Game without port: `http://47.236.166.230`
+- Game: `https://ibetlucky.org`
 - Admin: `http://47.236.166.230:4002`
 - Merchant launch endpoint: `http://47.236.166.230:4003/merchant-api/integration/launch`

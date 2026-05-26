@@ -11,12 +11,111 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Lucky Wheel" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" href="/src/UI/favicon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <title>Lucky Wheel Prototype</title>
+    <style>
+      #initial-loading-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 50% 28%, rgba(74, 205, 255, 0.26), transparent 34%),
+          linear-gradient(180deg, #ffffff 0%, #eefaff 46%, #c7f1ff 100%);
+        color: #00649d;
+        font-family: "Roboto", "Segoe UI", sans-serif;
+        opacity: 1;
+        transition: opacity 220ms ease, visibility 220ms ease;
+      }
+
+      #initial-loading-screen.is-hidden {
+        visibility: hidden;
+        opacity: 0;
+      }
+
+      .initial-loading-panel {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+        transform: translateY(-3vh);
+      }
+
+      .initial-loading-brand {
+        display: grid;
+        place-items: center;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, #0ab0f5, #006cae);
+        color: #ffffff;
+        font-size: 20px;
+        font-weight: 900;
+        box-shadow:
+          0 16px 34px rgba(5, 105, 168, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.32);
+      }
+
+      .initial-loading-text {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .initial-loading-dots {
+        display: flex;
+        gap: 7px;
+      }
+
+      .initial-loading-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #08aeea;
+        animation: initialLoadingPulse 900ms ease-in-out infinite;
+      }
+
+      .initial-loading-dots span:nth-child(2) {
+        animation-delay: 120ms;
+      }
+
+      .initial-loading-dots span:nth-child(3) {
+        animation-delay: 240ms;
+      }
+
+      @keyframes initialLoadingPulse {
+        0%,
+        100% {
+          opacity: 0.36;
+          transform: translateY(0);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(-5px);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="initial-loading-screen" role="status" aria-live="polite">
+      <div class="initial-loading-panel">
+        <div class="initial-loading-brand" aria-hidden="true">iBET</div>
+        <p class="initial-loading-text">loading...</p>
+        <div class="initial-loading-dots" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    </div>
     <div id="app-shell">
       <div id="game-root"></div>
     </div>

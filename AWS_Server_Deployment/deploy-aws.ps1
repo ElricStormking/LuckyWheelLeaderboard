@@ -21,6 +21,7 @@ $Script:ComposeFilePath = Join-Path $Script:ProjectRoot $Script:ComposeFileName
 $Script:SshKeyPath = Join-Path $PSScriptRoot "ALYSG-Unix-TW20060318.pem"
 $Script:ServerUser = "root"
 $Script:ServerHost = "47.236.166.230"
+$Script:PublicBaseUrl = "https://ibetlucky.org"
 $Script:JumpSshKeyPath = Join-Path $Script:ProjectRoot "GCP_Server_SSHKey\gcp_ubuntu_rsa"
 $Script:JumpServerUser = "ehooraygm"
 $Script:JumpServerHost = "34.81.237.79"
@@ -167,9 +168,9 @@ function New-AwsEnvFile {
   }
 
   $content = Get-Content -Raw $sourceEnv
-  $content = Set-DotenvValue $content "LUCKY_WHEEL_CLIENT_BASE_URL" "http://$($Script:ServerHost):3000"
-  $content = Set-DotenvValue $content "UPLOAD_PUBLIC_BASE_URL" "http://$($Script:ServerHost):3000/api/uploads"
-  $content = Set-DotenvValue $content "CUSTOMER_PLATFORM_DEPOSIT_URL" "http://$($Script:ServerHost):3000/?deposit=1"
+  $content = Set-DotenvValue $content "LUCKY_WHEEL_CLIENT_BASE_URL" $Script:PublicBaseUrl
+  $content = Set-DotenvValue $content "UPLOAD_PUBLIC_BASE_URL" "$($Script:PublicBaseUrl)/api/uploads"
+  $content = Set-DotenvValue $content "CUSTOMER_PLATFORM_DEPOSIT_URL" "$($Script:PublicBaseUrl)/?deposit=1"
 
   $tempEnvPath = Join-Path $env:TEMP $Script:TmpEnvName
   $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -373,8 +374,8 @@ cd "$Script:RemoteAppDir"
 cat > "$Script:AwsComposeOverrideFileName" <<'YAML'
 services:
   game:
-    ports:
-      - "80:3000"
+    ports: !override
+      - "127.0.0.1:3000:3000"
 YAML
 for svc in merchant-api api game admin; do
   echo "==> Building `$svc"
@@ -395,8 +396,8 @@ cd "$Script:RemoteAppDir"
 cat > "$Script:AwsComposeOverrideFileName" <<'YAML'
 services:
   game:
-    ports:
-      - "80:3000"
+    ports: !override
+      - "127.0.0.1:3000:3000"
 YAML
 docker compose --env-file "$Script:RemoteEnvFileName" -f "$Script:ComposeFileName" -f "$Script:AwsComposeOverrideFileName" up -d --remove-orphans
 docker compose --env-file "$Script:RemoteEnvFileName" -f "$Script:ComposeFileName" -f "$Script:AwsComposeOverrideFileName" ps
@@ -457,7 +458,7 @@ fi
   Invoke-RemoteScript $remoteCmd
 
   Write-Host "Public URLs:" -ForegroundColor Yellow
-  Write-Host "  Game        : http://$($Script:ServerHost):3000"
+  Write-Host "  Game        : $($Script:PublicBaseUrl)"
   Write-Host "  Admin       : http://$($Script:ServerHost):4002"
   Write-Host "  Merchant API: http://$($Script:ServerHost):4003/merchant-api/integration/launch"
   Write-Host "Restricted URLs via SSH tunnel or allow-list only:" -ForegroundColor Yellow
