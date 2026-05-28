@@ -1,7 +1,7 @@
 # Lucky Wheel 公開整合 API 文件
 
-**Version:** 1.11  
-**Last Updated:** April 24, 2026
+**Version:** 1.12
+**Last Updated:** 2026 年 5 月 28 日
 
 ---
 
@@ -61,14 +61,18 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 整合時有兩種不同的網路資訊需要分清楚：
 
 - Customer Platform 呼叫 Merchant API launch 時使用的 inbound endpoint：
-  - 測試環境範例：`http://34.81.237.79:4003/merchant-api/integration/launch`
+  - AWS production endpoint：`https://ibetlucky.org/merchant-api/integration/launch`
+  - AWS direct-IP fallback endpoint：`http://47.236.166.230:4003/merchant-api/integration/launch`
 - Merchant API 對 Customer Platform SOAP/WCF 發出 server-to-server 請求時使用的 outbound egress IP：
-  - 測試環境範例：`34.81.237.79`
+  - AWS production egress IP：`47.236.166.230`
 
 重要：
 
-- Customer Platform 呼叫 Merchant API launch 時，請使用完整的 host 與 port
+- Customer Platform 應使用完整 URL 呼叫建議的 HTTPS Merchant API launch endpoint
+- direct-IP fallback 的 port `4003` 僅供暫時連線測試使用
 - Customer Platform 只需要 allow-list Merchant API 的來源 IP，供 server-to-server deposit eligibility 請求使用
+- Merchant API egress allow-list 項目只需要 IP，不需要 `IP:port`
+- Customer Platform 的 launch 呼叫來源 public IP 也必須先由 Lucky Wheel Provider 加入 allow-list，才能進行 launch 測試
 
 ---
 
@@ -76,9 +80,22 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 
 | Environment | Base URL |
 |------------|----------|
-| Current UAT | `http://34.81.237.79:4003/merchant-api` |
+| AWS Production - Preferred | `https://ibetlucky.org/merchant-api` |
+| AWS Production - Direct IP Fallback | `http://47.236.166.230:4003/merchant-api` |
+| Legacy GCP UAT | `http://34.81.237.79:4003/merchant-api` |
 
 所有公開整合端點皆以 `/integration/` 為前綴。
+
+### AWS Production Public URLs
+
+| Service | URL |
+|---------|-----|
+| Lucky Wheel game | `https://ibetlucky.org/` |
+| Merchant API launch | `https://ibetlucky.org/merchant-api/integration/launch` |
+| Merchant API direct-IP fallback | `http://47.236.166.230:4003/merchant-api/integration/launch` |
+| AWS server origin/source IP | `47.236.166.230` |
+
+AWS production 成功啟動後回傳的 Lucky Wheel game URL 會使用 `https://ibetlucky.org/`。
 
 ---
 
@@ -99,7 +116,7 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 | 環境 | Customer Platform SiteID | X-Integration-Guid |
 |------|--------------------------|--------------------|
 | Close Beta / UAT | `A` | `f549b22d-b2f6-4224-aabb-0489a2cb7390` |
-| 正式 Production | `C` | `0f16f1d2-445b-49f2-ac80-6a092818f122` |
+| Production / AWS | `C` | 使用 Lucky Wheel Provider 另行提供的 production `X-Integration-Guid` |
 
 ### Timestamp 規則
 
@@ -132,7 +149,7 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 | `errorMessage` | string | 成功時為空字串，失敗時為錯誤訊息 |
 | `data` | object/null | 成功時的回應資料，失敗時為 `null` |
 
-公開整合端點在成功與業務錯誤情境下都會回傳 HTTP `200`。請務必檢查 `success` 與 `errorCode`。
+AWS production launch endpoint 目前在成功啟動與業務層級錯誤時都會回傳 HTTP `201`。請務必檢查 JSON body 中的 `success` 與 `errorCode`。
 
 ---
 
@@ -159,6 +176,18 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 
 **Endpoint:** `POST /integration/launch`
 
+AWS production full endpoint：
+
+```text
+POST https://ibetlucky.org/merchant-api/integration/launch
+```
+
+Direct-IP fallback endpoint 僅供暫時連線測試：
+
+```text
+POST http://47.236.166.230:4003/merchant-api/integration/launch
+```
+
 #### Request
 
 必要 header：
@@ -183,10 +212,16 @@ Lucky Wheel 也不需要 Customer Platform 額外提供玩家顯示名稱。此�
 #### Header 範例
 
 ```text
-X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
+X-Integration-Guid: <production-guid-provided-by-lucky-wheel-provider>
 ```
 
 #### Request 範例
+
+Production request URL：
+
+```text
+POST https://ibetlucky.org/merchant-api/integration/launch
+```
 
 ```json
 {
@@ -207,7 +242,7 @@ X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
   "errorCode": 0,
   "errorMessage": "",
   "data": {
-    "url": "https://merchant-api.luckywheel.example.com/?playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f",
+    "url": "https://ibetlucky.org/?playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f&eventId=evt_2026_march&accessToken=eyJ...",
     "sessionId": "lw_sess_8f6c4d8f",
     "expiresAt": "2026-03-23T10:15:00.000Z"
   }
@@ -219,6 +254,26 @@ X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
 | `url` | string | Lucky Wheel 啟動網址。請將它視為 opaque value，直接開啟，不要自行解析或改寫 query parameters。 |
 | `sessionId` | string | 產生出的 Lucky Wheel session ID |
 | `expiresAt` | string | 啟動 session 的 ISO 8601 到期時間 |
+
+`url` 值會包含 signed player access token，因此可能較長。請將它視為 opaque value，直接開啟即可。
+
+#### Minimal cURL 範例
+
+```bash
+curl -X POST "https://ibetlucky.org/merchant-api/integration/launch" \
+  -H "Content-Type: application/json" \
+  -H "X-Integration-Guid: <production-guid-provided-by-lucky-wheel-provider>" \
+  -d '{
+    "playerId": "merchant-player-789",
+    "initialEligibility": {
+      "depositQualified": true
+    },
+    "depositUrl": "https://www.customer-current-domain.com/deposit",
+    "timestamp": 1780000000
+  }'
+```
+
+實際送出請求時，請將 `timestamp` 換成目前 Unix timestamp 秒數。超出設定 freshness window 的請求會回傳 `success=false`，並帶有 `errorCode=1002`。
 
 ### Eligibility 行為
 
@@ -262,6 +317,14 @@ Customer Platform 若要針對 SOAP/WCF 做 allow-list，應使用 Merchant API 
   - `http://34.81.237.79:4003/merchant-api/integration/launch`
 - Merchant API 對外呼叫 Customer Platform SOAP/WCF 時的來源 IP：
   - `34.81.237.79`
+
+AWS production 測試：
+
+- Customer Platform launch endpoint：
+  - preferred：`https://ibetlucky.org/merchant-api/integration/launch`
+  - direct-IP fallback：`http://47.236.166.230:4003/merchant-api/integration/launch`
+- Merchant API 對外呼叫 Customer Platform SOAP/WCF 時的來源 IP：
+  - `47.236.166.230`
 
 ### 重要說明
 
@@ -321,4 +384,5 @@ Customer Platform 可以在 launch 時傳入最上層的 `depositUrl`，讓 Luck
 - `depositUrl` 是 launch request 的 top-level 欄位，不是 `initialEligibility` 內的欄位
 - 最大接受長度為 2048 字元
 - 只接受 absolute `http` 與 `https` URL
+- 若同時傳入 `depositUrl` 與 `DepositURL`，會以 `depositUrl` 優先
 - Lucky Wheel 只會將此值保存在 launch flow 使用的 signed player session token 內

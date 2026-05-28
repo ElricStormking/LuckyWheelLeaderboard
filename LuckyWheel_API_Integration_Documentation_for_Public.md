@@ -1,7 +1,7 @@
 # Lucky Wheel Public Integration API Documentation
 
-**Version:** 1.11  
-**Last Updated:** April 24, 2026
+**Version:** 1.12
+**Last Updated:** May 28, 2026
 
 ---
 
@@ -63,15 +63,18 @@ All public integration endpoints use **HTTP POST** and exchange **JSON** payload
 Two different network values matter during integration:
 
 - inbound Merchant API endpoint for Customer Platform launch requests:
-  - example test endpoint: `http://34.81.237.79:4003/merchant-api/integration/launch`
+  - AWS production endpoint: `https://ibetlucky.org/merchant-api/integration/launch`
+  - AWS direct-IP fallback endpoint: `http://47.236.166.230:4003/merchant-api/integration/launch`
 - outbound Merchant API egress IP for Customer Platform SOAP/WCF allow-listing:
-  - example test egress IP: `34.81.237.79`
+  - AWS production egress IP: `47.236.166.230`
 
 Important:
 
-- Customer Platform should call the Merchant API launch endpoint using the full host and port
+- Customer Platform should call the preferred HTTPS Merchant API launch endpoint using the full URL
+- direct-IP fallback on port `4003` is for temporary connectivity testing only
 - Customer Platform should allow-list only the Merchant API source IP for server-to-server deposit eligibility requests
 - the Merchant API egress allow-list entry is the IP only, not `IP:port`
+- Customer Platform's launch-caller public IP must also be allow-listed by Lucky Wheel Provider before launch testing
 
 ---
 
@@ -79,9 +82,22 @@ Important:
 
 | Environment | Base URL |
 |------------|----------|
-| Current UAT | `http://34.81.237.79:4003/merchant-api` |
+| AWS Production - Preferred | `https://ibetlucky.org/merchant-api` |
+| AWS Production - Direct IP Fallback | `http://47.236.166.230:4003/merchant-api` |
+| Legacy GCP UAT | `http://34.81.237.79:4003/merchant-api` |
 
 All public integration endpoints are prefixed with `/integration/`.
+
+### AWS Production Public URLs
+
+| Service | URL |
+|---------|-----|
+| Lucky Wheel game | `https://ibetlucky.org/` |
+| Merchant API launch | `https://ibetlucky.org/merchant-api/integration/launch` |
+| Merchant API direct-IP fallback | `http://47.236.166.230:4003/merchant-api/integration/launch` |
+| AWS server origin/source IP | `47.236.166.230` |
+
+Successful launch responses from AWS production return Lucky Wheel game URLs under `https://ibetlucky.org/`.
 
 ---
 
@@ -102,7 +118,7 @@ Use the credential that matches the target environment. `X-Integration-Guid` is 
 | Environment | Customer Platform SiteID | X-Integration-Guid |
 |-------------|--------------------------|--------------------|
 | Close Beta / UAT | `A` | `f549b22d-b2f6-4224-aabb-0489a2cb7390` |
-| Production | `C` | `0f16f1d2-445b-49f2-ac80-6a092818f122` |
+| Production / AWS | `C` | Use the production `X-Integration-Guid` provided separately by Lucky Wheel Provider |
 
 ### Timestamp Rules
 
@@ -135,7 +151,7 @@ All public Lucky Wheel API responses use this structure:
 | `errorMessage` | string | Empty on success, otherwise a message describing the failure |
 | `data` | object/null | Response payload on success, otherwise `null` |
 
-Public integration endpoints return HTTP `200` for both success and business errors. Always check `success` and `errorCode`.
+The AWS production launch endpoint currently returns HTTP `201` for both successful launch responses and business-level launch errors. Always check `success` and `errorCode` in the JSON body.
 
 ---
 
@@ -162,6 +178,18 @@ Launches Lucky Wheel for a player and returns the game URL.
 
 **Endpoint:** `POST /integration/launch`
 
+AWS production full endpoint:
+
+```text
+POST https://ibetlucky.org/merchant-api/integration/launch
+```
+
+Direct-IP fallback endpoint for temporary connectivity testing:
+
+```text
+POST http://47.236.166.230:4003/merchant-api/integration/launch
+```
+
 #### Request
 
 Required header:
@@ -186,10 +214,16 @@ Lucky Wheel also does not require a separate player display name from Customer P
 #### Header Example
 
 ```text
-X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
+X-Integration-Guid: <production-guid-provided-by-lucky-wheel-provider>
 ```
 
 #### Request Example
+
+Production request URL:
+
+```text
+POST https://ibetlucky.org/merchant-api/integration/launch
+```
 
 ```json
 {
@@ -210,7 +244,7 @@ X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
   "errorCode": 0,
   "errorMessage": "",
   "data": {
-    "url": "https://merchant-api.luckywheel.example.com/?playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f",
+    "url": "https://ibetlucky.org/?playerId=merchant-player-789&sessionId=lw_sess_8f6c4d8f&eventId=evt_2026_march&accessToken=eyJ...",
     "sessionId": "lw_sess_8f6c4d8f",
     "expiresAt": "2026-03-23T10:15:00.000Z"
   }
@@ -222,6 +256,26 @@ X-Integration-Guid: f549b22d-b2f6-4224-aabb-0489a2cb7390
 | `url` | string | Lucky Wheel launch URL. Treat this as an opaque value and open it directly without parsing or rewriting query parameters. |
 | `sessionId` | string | Generated Lucky Wheel session ID |
 | `expiresAt` | string | Launch session expiry time in ISO 8601 format |
+
+The `url` value is intentionally long because it includes a signed player access token. Treat it as opaque and open it directly.
+
+#### Minimal cURL Example
+
+```bash
+curl -X POST "https://ibetlucky.org/merchant-api/integration/launch" \
+  -H "Content-Type: application/json" \
+  -H "X-Integration-Guid: <production-guid-provided-by-lucky-wheel-provider>" \
+  -d '{
+    "playerId": "merchant-player-789",
+    "initialEligibility": {
+      "depositQualified": true
+    },
+    "depositUrl": "https://www.customer-current-domain.com/deposit",
+    "timestamp": 1780000000
+  }'
+```
+
+Replace `timestamp` with the current Unix timestamp in seconds when sending a real request. Requests outside the configured freshness window return `success=false` with `errorCode=1002`.
 
 ### Eligibility Behavior
 
@@ -265,6 +319,14 @@ Example for the current GCP test environment:
   - `http://34.81.237.79:4003/merchant-api/integration/launch`
 - Merchant API outbound source IP to allow-list for SOAP/WCF:
   - `34.81.237.79`
+
+For AWS production testing:
+
+- Customer Platform launch endpoint:
+  - preferred: `https://ibetlucky.org/merchant-api/integration/launch`
+  - direct-IP fallback: `http://47.236.166.230:4003/merchant-api/integration/launch`
+- Merchant API outbound source IP to allow-list for SOAP/WCF:
+  - `47.236.166.230`
 
 ### Important Notes
 
