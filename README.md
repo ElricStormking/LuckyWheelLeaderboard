@@ -90,6 +90,12 @@ Playtest URLs:
 - Merchant API health check: `http://localhost:4003/merchant-api/v1/health`
 - Admin tool: `http://localhost:4002`
 
+Admin login:
+
+- The API loads root `.env` locally and `.env.production` when `NODE_ENV=production`.
+- `ADMIN_PASSWORD` is required; without it the admin login returns `Admin login is not configured.`
+- For local playtest, copy `.env.example` to `.env`; the example account is `Admin` / `ibet1234`.
+
 Locale examples:
 
 - `http://localhost:3000/?lang=en`

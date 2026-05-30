@@ -142,7 +142,16 @@ type PrizeRowLayout = {
   align: "left" | "right";
 };
 
-const CONTENT_HEIGHT = 5020;
+type DesktopRulesLayout = {
+  termsPanelTop: number;
+  baseTermsPanelHeight: number;
+  stripeBandTop: number;
+};
+
+const TERMS_SECTION_EXTRA_SCROLL_HEIGHT = 920;
+const CONTENT_HEIGHT = 5020 + TERMS_SECTION_EXTRA_SCROLL_HEIGHT;
+const DESKTOP_RULES_PANEL_BOTTOM_PADDING = 120;
+const DESKTOP_RULES_SCROLL_BOTTOM_CLEARANCE = 100;
 const TOP_SECTION_END = 1460;
 const LEADERBOARD_SECTION_TOP = 1460;
 const PRIZE_SECTION_TOP = 2960;
@@ -356,7 +365,16 @@ export class DesktopMainScene extends DesktopPageScene {
   private leaderboardMyRankText?: Phaser.GameObjects.Text;
   private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
   private prizeSubtitleText?: Phaser.GameObjects.Text;
+  private mainBackground?: Phaser.GameObjects.Graphics;
+  private sectionBackgrounds?: Phaser.GameObjects.Graphics;
+  private rulesStripeBand?: Phaser.GameObjects.Graphics;
+  private termsPlate?: Phaser.GameObjects.Graphics;
   private rulesBodyText?: Phaser.GameObjects.Text;
+  private rulesLayout?: DesktopRulesLayout;
+  private footer?: Phaser.GameObjects.Graphics;
+  private footerLicenseText?: Phaser.GameObjects.Image;
+  private footerCopyrightText?: Phaser.GameObjects.Text;
+  private contentHeight = CONTENT_HEIGHT;
   private pickerContainer?: Phaser.GameObjects.Container;
   private pickerBusy = false;
   private activityPills: ActivityPill[] = [];
@@ -397,7 +415,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.pageTop);
-    this.cameras.main.setBounds(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
+    this.cameras.main.setBounds(0, 0, STAGE_WIDTH, this.contentHeight);
 
     this.drawScrollableBackground();
     this.createHeader();
@@ -452,7 +470,7 @@ export class DesktopMainScene extends DesktopPageScene {
     if (scrollParam !== null) {
       const parsed = Number.parseInt(scrollParam, 10);
       if (Number.isFinite(parsed)) {
-        this.setScrollY(Phaser.Math.Clamp(parsed, 0, CONTENT_HEIGHT - STAGE_HEIGHT));
+        this.setScrollY(Phaser.Math.Clamp(parsed, 0, this.contentHeight - STAGE_HEIGHT));
       }
     }
 
@@ -478,16 +496,11 @@ export class DesktopMainScene extends DesktopPageScene {
       gradient.fillStyle(Phaser.Display.Color.GetColor(color.r, color.g, color.b), 1);
       gradient.fillRect(0, y, STAGE_WIDTH, nextY - y + 1);
     }
-    gradient.fillStyle(desktopMainBackground, 1);
-    gradient.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, CONTENT_HEIGHT - LEADERBOARD_BACKGROUND_TOP);
+    this.mainBackground = gradient;
 
     const sectionBands = this.add.graphics();
-    sectionBands.fillStyle(leaderboardBackground, 1);
-    sectionBands.fillRect(0, LEADERBOARD_BACKGROUND_TOP, STAGE_WIDTH, PRIZE_BACKGROUND_TOP - LEADERBOARD_BACKGROUND_TOP);
-    sectionBands.fillStyle(COLORS.white, 1);
-    sectionBands.fillRect(0, PRIZE_BACKGROUND_TOP, STAGE_WIDTH, TERMS_SECTION_TOP - PRIZE_BACKGROUND_TOP);
-    sectionBands.fillStyle(COLORS.white, 1);
-    sectionBands.fillRect(0, TERMS_SECTION_TOP, STAGE_WIDTH, CONTENT_HEIGHT - TERMS_SECTION_TOP);
+    this.sectionBackgrounds = sectionBands;
+    this.redrawScrollableBackground(this.contentHeight);
 
     const separators = this.add.graphics();
     separators.fillStyle(0xffffff, 0.88);
@@ -1227,41 +1240,21 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private createTermsSection() {
     const termsPanelTop = TERMS_SECTION_TOP + 118 - TERMS_SECTION_CONTENT_LIFT;
-    const termsPanelHeight = 414;
+    const termsPanelHeight = 414 + TERMS_SECTION_EXTRA_SCROLL_HEIGHT;
     const stripeBandTop = termsPanelTop - 46;
-    const stripeBandHeight = CONTENT_HEIGHT - stripeBandTop;
-    const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
-    const stripeSpacing = 18;
-    const stripeSegments = 18;
-    const stripeColor = 0xc8f2ff;
-    const stripeWidth = 3;
-    const stripeMaxAlpha = 0.66;
-    const stripeTopFadeHeight = 170;
-    const stripeOffsetStart = -stripeBandHeight - stripeSpacing * 2;
-    const stripeOffsetEnd = STAGE_WIDTH + stripeSpacing * 2;
-
-    for (let offset = stripeOffsetStart; offset < stripeOffsetEnd; offset += stripeSpacing) {
-      for (let segment = 0; segment < stripeSegments; segment += 1) {
-        const progressStart = segment / stripeSegments;
-        const progressEnd = (segment + 1) / stripeSegments;
-        const startX = offset + stripeBandHeight * progressStart;
-        const startY = stripeBandBottom - stripeBandHeight * progressStart;
-        const endX = offset + stripeBandHeight * progressEnd;
-        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
-        const segmentMidY = (startY + endY) / 2;
-        const fadeProgress = Math.min(Math.max((segmentMidY - stripeBandTop) / stripeTopFadeHeight, 0), 1);
-
-        stripeBand.lineStyle(stripeWidth, stripeColor, stripeMaxAlpha * fadeProgress);
-        stripeBand.lineBetween(startX, startY, endX, endY);
-      }
-    }
+    this.rulesStripeBand = stripeBand;
     stripeBand.setDepth(0);
 
     /** Sample terms panel: rgb(242,242,242) content band, full-width inset. */
     const termsPlate = this.add.graphics();
-    termsPlate.fillStyle(0xf2f2f2, 1);
-    termsPlate.fillRect(210, termsPanelTop, 1500, termsPanelHeight);
+    this.termsPlate = termsPlate;
+    this.rulesLayout = {
+      termsPanelTop,
+      baseTermsPanelHeight: termsPanelHeight,
+      stripeBandTop,
+    };
+    this.redrawDesktopRulesSurfaces(termsPanelHeight);
     termsPlate.setDepth(1);
 
     const termsTitle = this.add
@@ -1290,18 +1283,17 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private createCopyrightBlock() {
     const footer = this.add.graphics();
-    footer.fillStyle(0x202020, 1);
-    footer.fillRect(0, COPYRIGHT_BLOCK_Y, STAGE_WIDTH, COPYRIGHT_BLOCK_HEIGHT);
+    this.footer = footer;
     footer.setDepth(5);
 
-    this.add
+    this.footerLicenseText = this.add
       .image(45, COPYRIGHT_TEXT_CENTER_Y, "Desktop_LicenseText")
       .setOrigin(0, 0.5)
       .setCrop(71, 90, 1228, 38)
       .setScale(COPYRIGHT_TEXT_SCALE)
       .setDepth(6);
 
-    this.add
+    this.footerCopyrightText = this.add
       .text(STAGE_WIDTH - 62, COPYRIGHT_TEXT_CENTER_Y, "Copyright \u00a9 2026 iBET All rights reserved.", {
         fontFamily: FONTS.body,
         fontSize: "14px",
@@ -1310,6 +1302,7 @@ export class DesktopMainScene extends DesktopPageScene {
       })
       .setOrigin(1, 0.5)
       .setDepth(6);
+    this.redrawCopyrightBlock(this.contentHeight);
   }
 
   private setupScrollControls() {
@@ -1624,6 +1617,7 @@ export class DesktopMainScene extends DesktopPageScene {
   private refreshRulesSection() {
     const snapshot = prototypeState.getSnapshot();
     this.rulesBodyText?.setText(snapshot.currentEvent?.rulesContent || prototypeState.t("rules.loading"));
+    this.syncRulesSectionHeight();
   }
 
   private updateScene(_time: number, delta: number) {
@@ -1639,7 +1633,7 @@ export class DesktopMainScene extends DesktopPageScene {
     this.setScrollY(this.cameras.main.scrollY + this.scrollVelocity * delta);
     this.scrollVelocity *= 0.94;
 
-    const maxScroll = CONTENT_HEIGHT - STAGE_HEIGHT;
+    const maxScroll = this.contentHeight - STAGE_HEIGHT;
     if (this.cameras.main.scrollY <= 0 || this.cameras.main.scrollY >= maxScroll) {
       this.scrollVelocity *= 0.55;
     }
@@ -3603,7 +3597,7 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private scrollTo(targetY: number) {
     this.scrollVelocity = 0;
-    const target = Phaser.Math.Clamp(targetY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    const target = Phaser.Math.Clamp(targetY, 0, this.contentHeight - STAGE_HEIGHT);
     this.tweens.addCounter({
       from: this.cameras.main.scrollY,
       to: target,
@@ -3616,9 +3610,126 @@ export class DesktopMainScene extends DesktopPageScene {
   }
 
   private setScrollY(scrollY: number) {
-    const clamped = Phaser.Math.Clamp(scrollY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    const clamped = Phaser.Math.Clamp(scrollY, 0, this.contentHeight - STAGE_HEIGHT);
     this.cameras.main.setScroll(0, clamped);
     this.registry.set("desktopScrollY", clamped);
+  }
+
+  private syncRulesSectionHeight() {
+    if (!this.rulesBodyText || !this.rulesLayout) {
+      return;
+    }
+
+    const rulesTextBottom = this.rulesBodyText.y + Math.ceil(this.rulesBodyText.height);
+    const requiredPanelHeight =
+      rulesTextBottom - this.rulesLayout.termsPanelTop + DESKTOP_RULES_PANEL_BOTTOM_PADDING;
+    const termsPanelHeight = Math.max(this.rulesLayout.baseTermsPanelHeight, requiredPanelHeight);
+    this.redrawDesktopRulesSurfaces(termsPanelHeight);
+    this.setContentHeight(
+      this.rulesLayout.termsPanelTop +
+        termsPanelHeight +
+        DESKTOP_RULES_SCROLL_BOTTOM_CLEARANCE +
+        COPYRIGHT_BLOCK_HEIGHT,
+    );
+  }
+
+  private setContentHeight(nextHeight: number) {
+    const normalizedHeight = Math.max(CONTENT_HEIGHT, Math.ceil(nextHeight));
+    if (normalizedHeight === this.contentHeight) {
+      return;
+    }
+
+    this.contentHeight = normalizedHeight;
+    this.cameras.main.setBounds(0, 0, STAGE_WIDTH, this.contentHeight);
+    this.redrawScrollableBackground(this.contentHeight);
+    this.redrawCopyrightBlock(this.contentHeight);
+    this.setScrollY(this.cameras.main.scrollY);
+  }
+
+  private redrawScrollableBackground(contentHeight: number) {
+    this.mainBackground?.fillStyle(0xd8f4ff, 1);
+    this.mainBackground?.fillRect(
+      0,
+      LEADERBOARD_BACKGROUND_TOP,
+      STAGE_WIDTH,
+      contentHeight - LEADERBOARD_BACKGROUND_TOP,
+    );
+
+    this.sectionBackgrounds?.clear();
+    this.sectionBackgrounds?.fillStyle(0xf1f3f7, 1);
+    this.sectionBackgrounds?.fillRect(
+      0,
+      LEADERBOARD_BACKGROUND_TOP,
+      STAGE_WIDTH,
+      PRIZE_BACKGROUND_TOP - LEADERBOARD_BACKGROUND_TOP,
+    );
+    this.sectionBackgrounds?.fillStyle(COLORS.white, 1);
+    this.sectionBackgrounds?.fillRect(
+      0,
+      PRIZE_BACKGROUND_TOP,
+      STAGE_WIDTH,
+      TERMS_SECTION_TOP - PRIZE_BACKGROUND_TOP,
+    );
+    this.sectionBackgrounds?.fillStyle(COLORS.white, 1);
+    this.sectionBackgrounds?.fillRect(
+      0,
+      TERMS_SECTION_TOP,
+      STAGE_WIDTH,
+      contentHeight - TERMS_SECTION_TOP,
+    );
+  }
+
+  private redrawDesktopRulesSurfaces(termsPanelHeight: number) {
+    if (!this.rulesLayout || !this.rulesStripeBand || !this.termsPlate) {
+      return;
+    }
+
+    const stripeBandHeight =
+      this.rulesLayout.termsPanelTop + termsPanelHeight - this.rulesLayout.stripeBandTop + 120;
+    const stripeBandBottom = this.rulesLayout.stripeBandTop + stripeBandHeight;
+    const stripeSpacing = 18;
+    const stripeSegments = 18;
+    const stripeColor = 0xc8f2ff;
+    const stripeWidth = 3;
+    const stripeMaxAlpha = 0.66;
+    const stripeTopFadeHeight = 170;
+    const stripeOffsetStart = -stripeBandHeight - stripeSpacing * 2;
+    const stripeOffsetEnd = STAGE_WIDTH + stripeSpacing * 2;
+
+    this.rulesStripeBand.clear();
+    for (let offset = stripeOffsetStart; offset < stripeOffsetEnd; offset += stripeSpacing) {
+      for (let segment = 0; segment < stripeSegments; segment += 1) {
+        const progressStart = segment / stripeSegments;
+        const progressEnd = (segment + 1) / stripeSegments;
+        const startX = offset + stripeBandHeight * progressStart;
+        const startY = stripeBandBottom - stripeBandHeight * progressStart;
+        const endX = offset + stripeBandHeight * progressEnd;
+        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
+        const segmentMidY = (startY + endY) / 2;
+        const fadeProgress = Math.min(
+          Math.max((segmentMidY - this.rulesLayout.stripeBandTop) / stripeTopFadeHeight, 0),
+          1,
+        );
+
+        this.rulesStripeBand.lineStyle(stripeWidth, stripeColor, stripeMaxAlpha * fadeProgress);
+        this.rulesStripeBand.lineBetween(startX, startY, endX, endY);
+      }
+    }
+
+    this.termsPlate.clear();
+    this.termsPlate.fillStyle(0xf2f2f2, 1);
+    this.termsPlate.fillRect(210, this.rulesLayout.termsPanelTop, 1500, termsPanelHeight);
+  }
+
+  private redrawCopyrightBlock(contentHeight: number) {
+    const footerY = contentHeight - COPYRIGHT_BLOCK_HEIGHT;
+    const footerTextCenterY = footerY + COPYRIGHT_BLOCK_HEIGHT / 2 - 10;
+
+    this.footer?.clear();
+    this.footer?.fillStyle(0x202020, 1);
+    this.footer?.fillRect(0, footerY, STAGE_WIDTH, COPYRIGHT_BLOCK_HEIGHT);
+    this.footerLicenseText?.setY(footerTextCenterY);
+    this.footerCopyrightText?.setY(footerTextCenterY);
   }
 
   private runTapAction(action: () => void) {

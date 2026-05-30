@@ -382,6 +382,15 @@ input:disabled {
   box-shadow: var(--shadow);
 }
 
+.toast {
+  position: fixed;
+  top: 92px;
+  left: 50%;
+  z-index: 1000;
+  width: min(640px, calc(100vw - 32px));
+  transform: translateX(-50%);
+}
+
 .toast--success {
   color: #11553b;
   background: #def7ea;
@@ -595,8 +604,13 @@ input:disabled {
   background: #fff;
 }
 
-.rules-area {
-  min-height: 340px;
+.field textarea.short-description-area {
+  min-height: 20px;
+  height: 44px;
+}
+
+.field textarea.rules-area {
+  min-height: 604px;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -613,6 +627,18 @@ input:disabled {
 
 .roulette-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.roulette-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.roulette-save-button {
+  min-width: 92px;
 }
 
 .segment-card__header {
@@ -677,6 +703,11 @@ input:disabled {
   min-width: 150px;
 }
 
+.admin-table th:nth-child(6),
+.admin-table td:nth-child(6) {
+  min-width: 116px;
+}
+
 .admin-table th {
   font-size: 13px;
   color: var(--muted);
@@ -694,6 +725,36 @@ input:disabled {
   min-width: 58px;
 }
 
+.prize-table th:nth-child(1),
+.prize-table td:nth-child(1) {
+  width: 62px;
+  min-width: 62px;
+}
+
+.prize-table th:nth-child(2),
+.prize-table td:nth-child(2) {
+  width: 112px;
+  min-width: 112px;
+}
+
+.prize-table th:nth-child(3),
+.prize-table td:nth-child(3) {
+  width: 128px;
+  min-width: 128px;
+}
+
+.prize-table th:nth-child(4),
+.prize-table td:nth-child(4) {
+  width: 138px;
+  min-width: 138px;
+}
+
+.prize-table th:nth-child(6),
+.prize-table td:nth-child(6) {
+  width: 104px;
+  min-width: 104px;
+}
+
 .rank-cell {
   display: grid;
   grid-template-columns: minmax(58px, 1fr) auto minmax(58px, 1fr);
@@ -703,6 +764,17 @@ input:disabled {
 
 .rank-cell input {
   min-width: 58px;
+}
+
+.prize-table .rank-cell {
+  grid-template-columns: minmax(46px, 1fr) auto minmax(46px, 1fr);
+  gap: 6px;
+}
+
+.prize-table .rank-cell input {
+  min-width: 46px;
+  padding-right: 8px;
+  padding-left: 8px;
 }
 
 .rank-cell--fixed {
@@ -732,6 +804,24 @@ input:disabled {
 .text-button[disabled] {
   cursor: not-allowed;
   opacity: 0.48;
+}
+
+.prize-setting-cell {
+  height: 1px;
+}
+
+.prize-row-actions {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.prize-row-save-button {
+  margin-top: auto;
+  min-width: 92px;
+  padding: 10px 18px;
 }
 
 .prize-upload {

@@ -31,6 +31,7 @@ const PRIZE_IMAGE_MIN_WIDTH = 624;
 const PRIZE_IMAGE_MIN_HEIGHT = 308;
 const MAX_PRIZE_TIERS = 5;
 const FIXED_SINGLE_RANK_PRIZE_COUNT = 3;
+const SAVE_SUCCESS_TOAST_DURATION_MS = 4000;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -52,6 +53,7 @@ type AdminLoginResponse = {
 type AdminSessionResponse = {
   username: string;
 };
+type AdminPrizeConfig = AdminEventConfigDto["prizes"][number];
 
 type AdminState = {
   locale: AppLocale;
@@ -93,6 +95,7 @@ const state: AdminState = {
   toast: null,
 };
 let refreshTimer: number | undefined;
+let toastTimer: number | undefined;
 
 void bootstrap();
 
@@ -296,6 +299,7 @@ function writeStoredAdminToken(token: string) {
 }
 
 function clearAdminSession() {
+  clearToastTimer();
   state.authToken = undefined;
   state.authUser = undefined;
   state.overview = undefined;
@@ -315,6 +319,27 @@ function clearAdminSession() {
   } catch {
     // Session storage may be unavailable in hardened browsers.
   }
+}
+
+function clearToastTimer() {
+  if (toastTimer === undefined) {
+    return;
+  }
+
+  window.clearTimeout(toastTimer);
+  toastTimer = undefined;
+}
+
+function showTimedToast(toast: NonNullable<ToastState>, durationMs: number) {
+  clearToastTimer();
+  state.toast = toast;
+  render();
+
+  toastTimer = window.setTimeout(() => {
+    state.toast = null;
+    toastTimer = undefined;
+    render();
+  }, durationMs);
 }
 
 function render() {
@@ -585,7 +610,10 @@ function renderRouletteSection() {
           <div class="card__eyebrow">Roulette Settings</div>
           <h3>Six fixed segments</h3>
         </div>
-        <div class="weight-badge">Total ${draft.wheelSegments.reduce((sum, entry) => sum + entry.weightPercent, 0)}%</div>
+        <div class="roulette-header-actions">
+          <div class="weight-badge">Total ${draft.wheelSegments.reduce((sum, entry) => sum + entry.weightPercent, 0)}%</div>
+          <button class="button button--primary roulette-save-button" data-action="save">Save</button>
+        </div>
       </div>
       <div class="locale-tabs">
         ${renderLocaleTabs()}
@@ -654,7 +682,7 @@ function renderPrizeSection() {
         ${renderLocaleTabs()}
       </div>
       <div class="table-wrap">
-        <table class="admin-table">
+        <table class="admin-table prize-table">
           <thead>
             <tr>
               <th>Image Order</th>
@@ -672,6 +700,7 @@ function renderPrizeSection() {
                 const translation = prize.localizations.find(
                   (entry) => entry.locale === locale,
                 );
+                const previewSrc = resolvePrizePreviewSrc(prize);
                 const rankCell = isFixedSingleRankPrize(index)
                   ? `
                     <td class="rank-cell rank-cell--fixed">
@@ -696,8 +725,8 @@ function renderPrizeSection() {
                       <div class="prize-upload">
                         <div class="prize-upload__preview">
                           ${
-                            prize.imageUrl
-                              ? `<img class="prize-upload__preview-image" src="${escapeAttribute(prize.imageUrl)}" alt="Prize preview ${index + 1}" />`
+                            previewSrc
+                              ? `<img class="prize-upload__preview-image" src="${escapeAttribute(previewSrc)}" alt="Prize preview ${index + 1}" referrerpolicy="no-referrer" loading="lazy" decoding="async" />`
                               : `<div class="prize-upload__preview-empty">No image</div>`
                           }
                         </div>
@@ -722,7 +751,12 @@ function renderPrizeSection() {
                         />
                       </div>
                     </td>
-                    <td><button class="text-button" data-action="remove-prize" data-prize-index="${index}">Remove</button></td>
+                    <td class="prize-setting-cell">
+                      <div class="prize-row-actions">
+                        <button class="text-button" data-action="remove-prize" data-prize-index="${index}">Remove</button>
+                        <button class="button button--primary prize-row-save-button" data-action="save">Save</button>
+                      </div>
+                    </td>
                   </tr>
                 `;
               })
@@ -732,6 +766,61 @@ function renderPrizeSection() {
       </div>
     </div>
   `;
+}
+
+function resolvePrizePreviewSrc(prize: AdminPrizeConfig) {
+  const imageUrl = prize.imageUrl?.trim();
+  if (!imageUrl) {
+    return null;
+  }
+
+  if (!shouldUsePrizeImageProxy(prize, imageUrl)) {
+    return imageUrl;
+  }
+
+  const eventId = state.selectedEventId ?? state.draft?.id;
+  if (!eventId) {
+    return imageUrl;
+  }
+
+  return `/api/v2/events/${encodeURIComponent(eventId)}/prizes/${encodeURIComponent(
+    prize.id,
+  )}/image?v=${encodeURIComponent(hashString(imageUrl))}`;
+}
+
+function shouldUsePrizeImageProxy(prize: AdminPrizeConfig, imageUrl: string) {
+  if (!state.editor || !state.selectedEventId || prize.id.startsWith("draft-")) {
+    return false;
+  }
+
+  const savedPrize = state.editor.event.prizes.find((entry) => entry.id === prize.id);
+  if (savedPrize?.imageUrl?.trim() !== imageUrl) {
+    return false;
+  }
+
+  const parsedUrl = parseAbsoluteUrl(imageUrl);
+  if (!parsedUrl || !["http:", "https:"].includes(parsedUrl.protocol)) {
+    return false;
+  }
+
+  return parsedUrl.origin !== window.location.origin;
+}
+
+function parseAbsoluteUrl(value: string) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) | 0;
+  }
+
+  return Math.abs(hash).toString(36);
 }
 
 function renderTermsSection() {
@@ -745,7 +834,7 @@ function renderTermsSection() {
       <div class="card__header">
         <div>
           <div class="card__eyebrow">Rules</div>
-          <h3>Terms & rules editor</h3>
+          <h3>Terms and Conditions editor</h3>
         </div>
       </div>
       <div class="locale-tabs">
@@ -758,7 +847,7 @@ function renderTermsSection() {
         </label>
         <label class="field field--full">
           <span>Short Description (${state.selectedLocaleTab})</span>
-          <textarea name="locale-shortDescription">${escapeHtml(localeContent?.shortDescription ?? "")}</textarea>
+          <textarea class="short-description-area" name="locale-shortDescription">${escapeHtml(localeContent?.shortDescription ?? "")}</textarea>
         </label>
         <label class="field field--full">
           <span>Promotion Period Label (${state.selectedLocaleTab})</span>
@@ -1168,7 +1257,29 @@ function handlePrizeImageUrlChange(event: Event) {
   }
 
   prize.imageUrl = input.value.trim() || null;
-  render();
+  updatePrizeImagePreview(input, prize, prizeIndex);
+}
+
+function updatePrizeImagePreview(
+  input: HTMLInputElement,
+  prize: AdminPrizeConfig,
+  prizeIndex: number,
+) {
+  const upload = input.closest(".prize-upload");
+  const preview = upload?.querySelector<HTMLElement>(".prize-upload__preview");
+  if (preview) {
+    const previewSrc = resolvePrizePreviewSrc(prize);
+    preview.innerHTML = previewSrc
+      ? `<img class="prize-upload__preview-image" src="${escapeAttribute(previewSrc)}" alt="Prize preview ${prizeIndex + 1}" referrerpolicy="no-referrer" loading="lazy" decoding="async" />`
+      : `<div class="prize-upload__preview-empty">No image</div>`;
+  }
+
+  const clearButton = upload?.querySelector<HTMLButtonElement>(
+    '[data-action="clear-prize-image"]',
+  );
+  if (clearButton) {
+    clearButton.disabled = !prize.imageUrl;
+  }
 }
 
 function syncDraftFromDom() {
@@ -1377,13 +1488,17 @@ async function saveDraft() {
         body: JSON.stringify(saveTarget.body),
       },
     );
-    state.toast = {
-      tone: "success",
-      message: saveTarget.successMessage,
-    };
     await loadOverview(false);
     await loadEventWorkspace(state.selectedEventId);
+    showTimedToast(
+      {
+        tone: "success",
+        message: saveTarget.successMessage,
+      },
+      SAVE_SUCCESS_TOAST_DURATION_MS,
+    );
   } catch (error) {
+    clearToastTimer();
     state.toast = {
       tone: "error",
       message: toErrorMessage(error),
@@ -1782,7 +1897,7 @@ function formatSectionLabel(section: AdminSection) {
     case "prizes":
       return "Prize Setting";
     case "terms":
-      return "Terms & Rules";
+      return "Terms and Conditions";
     case "links":
       return "Support Link";
     case "participants":

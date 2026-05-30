@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import "./runtime-env";
 import { AppModule } from "./app.module";
 import { resolveUploadRoot } from "./modules/admin/upload-storage";
 

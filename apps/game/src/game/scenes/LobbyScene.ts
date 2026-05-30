@@ -88,7 +88,21 @@ type SectionBand = {
   overscan: number;
 };
 
-const CONTENT_HEIGHT = 7776 + MOBILE_LOBBY_CONTENT_DROP_PX;
+type MobileRulesLayout = {
+  stripeBandTop: number;
+  termsX: number;
+  termsPanelTop: number;
+  termsW: number;
+  baseTermsH: number;
+  termsOuterR: number;
+  termsInnerPad: number;
+  termsInnerGray: number;
+};
+
+const TERMS_SECTION_EXTRA_SCROLL_HEIGHT = 1600;
+const CONTENT_HEIGHT = 7776 + MOBILE_LOBBY_CONTENT_DROP_PX + TERMS_SECTION_EXTRA_SCROLL_HEIGHT;
+const MOBILE_RULES_PANEL_BOTTOM_PADDING = 120;
+const MOBILE_RULES_SCROLL_BOTTOM_CLEARANCE = 190;
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_TOP_GAP_BELOW_QUICK = 100;
 const LEADERBOARD_ROW_PITCH = 150;
@@ -379,9 +393,16 @@ export class LobbyScene extends Phaser.Scene {
   private periodChevron?: Phaser.GameObjects.Graphics;
   private eventPickerContainer?: Phaser.GameObjects.Container;
   private eventPickerBusy = false;
+  private backgroundGradient?: Phaser.GameObjects.Graphics;
+  private prizeTermsBackground?: Phaser.GameObjects.Graphics;
   private totalPointsText?: Phaser.GameObjects.Text;
   private eligibilityText?: Phaser.GameObjects.Text;
   private rulesBodyText?: Phaser.GameObjects.Text;
+  private rulesStripeBand?: Phaser.GameObjects.Graphics;
+  private rulesPanel?: Phaser.GameObjects.Graphics;
+  private rulesLayout?: MobileRulesLayout;
+  private rulesSectionBand?: SectionBand;
+  private contentHeight = CONTENT_HEIGHT;
   private leaderboardPendingText?: Phaser.GameObjects.Text;
   private leaderboardLastSyncedText?: Phaser.GameObjects.Text;
   private myRankSummaryPlate?: Phaser.GameObjects.Image;
@@ -440,6 +461,7 @@ export class LobbyScene extends Phaser.Scene {
       () => this.drawInlineRulesSection(),
       260,
     );
+    this.rulesSectionBand = this.sectionBands[this.sectionBands.length - 1];
     this.setupScrollControls();
     this.refreshDynamicContent();
     const leaderboardFooterTimer = this.time.addEvent({
@@ -487,18 +509,11 @@ export class LobbyScene extends Phaser.Scene {
 
   private drawBackground() {
     const gradient = this.add.graphics();
-    gradient.fillGradientStyle(
-      COLORS.pageTop,
-      COLORS.pageTop,
-      COLORS.pageBottom,
-      COLORS.pageBottom,
-      1,
-    );
-    gradient.fillRect(0, 0, STAGE_WIDTH, CONTENT_HEIGHT);
+    this.backgroundGradient = gradient;
 
     const prizeTermsBg = this.add.graphics();
-    prizeTermsBg.fillStyle(COLORS.white, 1);
-    prizeTermsBg.fillRect(0, PRIZE_AND_TERMS_PAGE_BG_TOP, STAGE_WIDTH, CONTENT_HEIGHT - PRIZE_AND_TERMS_PAGE_BG_TOP);
+    this.prizeTermsBackground = prizeTermsBg;
+    this.redrawPageBackground(CONTENT_HEIGHT);
   }
 
   private drawHeader() {
@@ -1339,47 +1354,30 @@ export class LobbyScene extends Phaser.Scene {
 
   private drawInlineRulesSection() {
     const stripeBandTop = 7060 + MOBILE_LOBBY_CONTENT_DROP_PX + PRIZE_EXTEND - INLINE_RULES_SECTION_LIFT;
-    const stripeBandHeight = 340;
-    const stripeBandBottom = stripeBandTop + stripeBandHeight;
     const stripeBand = this.add.graphics();
-    const stripeSpacing = 24;
-    const stripeSegments = 10;
-    const stripeColor = 0xe9f8ff;
-    const stripeWidth = 5;
-
-    for (let offset = -220; offset < STAGE_WIDTH + 220; offset += stripeSpacing) {
-      for (let segment = 0; segment < stripeSegments; segment += 1) {
-        const progressStart = segment / stripeSegments;
-        const progressEnd = (segment + 1) / stripeSegments;
-        const startX = offset + stripeBandHeight * progressStart;
-        const startY = stripeBandBottom - stripeBandHeight * progressStart;
-        const endX = offset + stripeBandHeight * progressEnd;
-        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
-        const alpha = Phaser.Math.Linear(0.92, 0.18, progressStart);
-
-        stripeBand.lineStyle(stripeWidth, stripeColor, alpha);
-        stripeBand.lineBetween(startX, startY, endX, endY);
-      }
-    }
+    this.rulesStripeBand = stripeBand;
     stripeBand.setDepth(0);
 
     const termsX = 90;
     const termsY = 6140 + MOBILE_LOBBY_CONTENT_DROP_PX - INLINE_RULES_SECTION_LIFT;
     const termsW = 900;
-    const termsH = 1060;
+    const termsH = 1060 + TERMS_SECTION_EXTRA_SCROLL_HEIGHT;
     const termsOuterR = 20;
     const termsInnerPad = 18;
     const termsInnerGray = 0xf2f2f2; // rgb(242,242,242)
     const termsPanel = this.add.graphics();
-    termsPanel.fillStyle(COLORS.white, 0.98);
-    termsPanel.fillRoundedRect(termsX, termsY + PRIZE_EXTEND, termsW, termsH, termsOuterR);
-    termsPanel.fillStyle(termsInnerGray, 1);
-    termsPanel.fillRect(
-      termsX + termsInnerPad,
-      termsY + termsInnerPad + PRIZE_EXTEND,
-      termsW - 2 * termsInnerPad,
-      termsH - 2 * termsInnerPad,
-    );
+    this.rulesPanel = termsPanel;
+    this.rulesLayout = {
+      stripeBandTop,
+      termsX,
+      termsPanelTop: termsY + PRIZE_EXTEND,
+      termsW,
+      baseTermsH: termsH,
+      termsOuterR,
+      termsInnerPad,
+      termsInnerGray,
+    };
+    this.redrawInlineRulesSurfaces(termsH);
     termsPanel.setDepth(1);
 
     const termsTitle = this.add
@@ -1550,6 +1548,7 @@ export class LobbyScene extends Phaser.Scene {
     this.rulesBodyText?.setText(
       snapshot.currentEvent?.rulesContent || prototypeState.t("rules.loading"),
     );
+    this.syncRulesSectionHeight();
 
     const showActivityBubbles = snapshot.currentEvent?.status === "live";
     this.activityBubbles.forEach((bubble) => {
@@ -1814,7 +1813,7 @@ export class LobbyScene extends Phaser.Scene {
     this.setScrollY(this.cameras.main.scrollY + this.scrollVelocity * delta * MOBILE_SCROLL_MOMENTUM_SENSITIVITY);
     this.scrollVelocity *= MOBILE_SCROLL_MOMENTUM_DECAY;
 
-    const maxScroll = CONTENT_HEIGHT - STAGE_HEIGHT;
+    const maxScroll = this.contentHeight - STAGE_HEIGHT;
     if (this.cameras.main.scrollY <= 0 || this.cameras.main.scrollY >= maxScroll) {
       this.scrollVelocity *= 0.55;
     }
@@ -2076,7 +2075,7 @@ export class LobbyScene extends Phaser.Scene {
 
   private scrollTo(targetY: number) {
     this.scrollVelocity = 0;
-    const target = Phaser.Math.Clamp(targetY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    const target = Phaser.Math.Clamp(targetY, 0, this.contentHeight - STAGE_HEIGHT);
     this.tweens.addCounter({
       from: this.cameras.main.scrollY,
       to: target,
@@ -2089,10 +2088,108 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private setScrollY(scrollY: number) {
-    const clamped = Phaser.Math.Clamp(scrollY, 0, CONTENT_HEIGHT - STAGE_HEIGHT);
+    const clamped = Phaser.Math.Clamp(scrollY, 0, this.contentHeight - STAGE_HEIGHT);
     this.cameras.main.setScroll(0, clamped);
     this.registry.set("mainScrollY", clamped);
     this.refreshSectionVisibility();
+  }
+
+  private syncRulesSectionHeight() {
+    if (!this.rulesBodyText || !this.rulesLayout) {
+      return;
+    }
+
+    const rulesTextBottom = this.rulesBodyText.y + Math.ceil(this.rulesBodyText.height);
+    const requiredTermsH =
+      rulesTextBottom - this.rulesLayout.termsPanelTop + MOBILE_RULES_PANEL_BOTTOM_PADDING;
+    const termsH = Math.max(this.rulesLayout.baseTermsH, requiredTermsH);
+    this.redrawInlineRulesSurfaces(termsH);
+    this.setContentHeight(
+      this.rulesLayout.termsPanelTop + termsH + MOBILE_RULES_SCROLL_BOTTOM_CLEARANCE,
+    );
+  }
+
+  private setContentHeight(nextHeight: number) {
+    const normalizedHeight = Math.max(CONTENT_HEIGHT, Math.ceil(nextHeight));
+    if (normalizedHeight === this.contentHeight) {
+      return;
+    }
+
+    this.contentHeight = normalizedHeight;
+    this.cameras.main.setBounds(0, 0, STAGE_WIDTH, this.contentHeight);
+    this.redrawPageBackground(this.contentHeight);
+    if (this.rulesSectionBand) {
+      this.rulesSectionBand.bottom = this.contentHeight;
+    }
+    this.setScrollY(this.cameras.main.scrollY);
+  }
+
+  private redrawPageBackground(contentHeight: number) {
+    this.backgroundGradient?.clear();
+    this.backgroundGradient?.fillGradientStyle(
+      COLORS.pageTop,
+      COLORS.pageTop,
+      COLORS.pageBottom,
+      COLORS.pageBottom,
+      1,
+    );
+    this.backgroundGradient?.fillRect(0, 0, STAGE_WIDTH, contentHeight);
+
+    this.prizeTermsBackground?.clear();
+    this.prizeTermsBackground?.fillStyle(COLORS.white, 1);
+    this.prizeTermsBackground?.fillRect(
+      0,
+      PRIZE_AND_TERMS_PAGE_BG_TOP,
+      STAGE_WIDTH,
+      contentHeight - PRIZE_AND_TERMS_PAGE_BG_TOP,
+    );
+  }
+
+  private redrawInlineRulesSurfaces(termsH: number) {
+    if (!this.rulesLayout || !this.rulesPanel || !this.rulesStripeBand) {
+      return;
+    }
+
+    const stripeBandHeight =
+      this.rulesLayout.termsPanelTop + termsH - this.rulesLayout.stripeBandTop + 120;
+    const stripeBandBottom = this.rulesLayout.stripeBandTop + stripeBandHeight;
+    const stripeSpacing = 24;
+    const stripeSegments = 10;
+    const stripeColor = 0xe9f8ff;
+    const stripeWidth = 5;
+
+    this.rulesStripeBand.clear();
+    for (let offset = -220; offset < STAGE_WIDTH + 220; offset += stripeSpacing) {
+      for (let segment = 0; segment < stripeSegments; segment += 1) {
+        const progressStart = segment / stripeSegments;
+        const progressEnd = (segment + 1) / stripeSegments;
+        const startX = offset + stripeBandHeight * progressStart;
+        const startY = stripeBandBottom - stripeBandHeight * progressStart;
+        const endX = offset + stripeBandHeight * progressEnd;
+        const endY = stripeBandBottom - stripeBandHeight * progressEnd;
+        const alpha = Phaser.Math.Linear(0.92, 0.18, progressStart);
+
+        this.rulesStripeBand.lineStyle(stripeWidth, stripeColor, alpha);
+        this.rulesStripeBand.lineBetween(startX, startY, endX, endY);
+      }
+    }
+
+    this.rulesPanel.clear();
+    this.rulesPanel.fillStyle(COLORS.white, 0.98);
+    this.rulesPanel.fillRoundedRect(
+      this.rulesLayout.termsX,
+      this.rulesLayout.termsPanelTop,
+      this.rulesLayout.termsW,
+      termsH,
+      this.rulesLayout.termsOuterR,
+    );
+    this.rulesPanel.fillStyle(this.rulesLayout.termsInnerGray, 1);
+    this.rulesPanel.fillRect(
+      this.rulesLayout.termsX + this.rulesLayout.termsInnerPad,
+      this.rulesLayout.termsPanelTop + this.rulesLayout.termsInnerPad,
+      this.rulesLayout.termsW - 2 * this.rulesLayout.termsInnerPad,
+      termsH - 2 * this.rulesLayout.termsInnerPad,
+    );
   }
 
   private runTapAction(action: () => void) {
