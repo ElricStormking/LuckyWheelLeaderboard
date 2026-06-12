@@ -546,6 +546,41 @@ export interface AdminSpinRecordsResponse {
   items: AdminSpinRecordDto[];
 }
 
+export type AdminDatabaseTableKey = "spinTransactions" | "playerAccounts";
+
+export interface AdminDatabaseTableSummaryDto {
+  key: AdminDatabaseTableKey;
+  label: string;
+  recordCount: number;
+  description: string;
+}
+
+export interface AdminDatabasePlayerAccountDto {
+  id: string;
+  externalUserId: string;
+  playerName: string;
+  status: string;
+  totalScore: number;
+  rank?: number | null;
+  hasSpun: boolean;
+  spinCount: number;
+  lastSpinAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminDatabaseSnapshotResponse {
+  generatedAt: string;
+  activeTable: AdminDatabaseTableKey;
+  search: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  tables: AdminDatabaseTableSummaryDto[];
+  spinTransactions: AdminSpinRecordDto[];
+  playerAccounts: AdminDatabasePlayerAccountDto[];
+}
+
 export interface AdminAuditLogResponse {
   page: number;
   pageSize: number;

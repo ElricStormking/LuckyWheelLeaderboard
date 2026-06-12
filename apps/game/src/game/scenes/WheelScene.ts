@@ -14,7 +14,6 @@ import {
   SCENE_KEYS,
   STAGE_HEIGHT,
   STAGE_WIDTH,
-  shouldShowDevEligibilitySwitch,
 } from "../constants";
 import { addTextButton, openExternalLink } from "../helpers";
 import { createRibbonsBurst } from "../ribbonsFx";
@@ -81,7 +80,6 @@ export class WheelScene extends Phaser.Scene {
   private renderedHighlightIndex?: number;
   private button?: ReturnType<typeof addTextButton>;
   private floatingDepositButton?: ReturnType<typeof addTextButton>;
-  private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
   private currentWheelVisualState = WheelVisualState.Normal;
   private spinning = false;
@@ -104,28 +102,6 @@ export class WheelScene extends Phaser.Scene {
     this.drawWheel([]);
     this.button = this.createWheelCenterButton();
     this.cameras.main.setScroll(0, Number(this.registry.get("mainScrollY") ?? 0));
-
-    if (shouldShowDevEligibilitySwitch()) {
-      this.testSpinButton = addTextButton(
-        this,
-        192,
-        936 + MOBILE_LOBBY_CONTENT_DROP_PX,
-        196,
-        64,
-        "Test_Spins",
-        () => {
-          this.runVisualTestSpin();
-        },
-        {
-          backgroundColor: 0xe9f7ff,
-          labelColor: "#0a2942",
-          radius: 28,
-        },
-      );
-      this.testSpinButton.label.setFontSize("22px");
-      this.testSpinButton.label.setWordWrapWidth(150, true);
-      this.testSpinButton.label.setAlign("center");
-    }
 
     this.drawPointer();
     this.drawFloatingDepositButton();
@@ -177,12 +153,6 @@ export class WheelScene extends Phaser.Scene {
 
   private applyState() {
     const snapshot = prototypeState.getSnapshot();
-    const canTestSpin = !this.spinning && Boolean(snapshot.currentEvent?.wheelSegments.length);
-    if (this.testSpinButton) {
-      this.testSpinButton.setEnabled(canTestSpin);
-      this.testSpinButton.setBackground(canTestSpin ? 0xe9f7ff : COLORS.disabled);
-      this.testSpinButton.label.setColor("#0a2942");
-    }
     this.floatingDepositButton?.setLabel(prototypeState.t("lobby.goToDeposit"));
 
     if (!snapshot.currentEvent || !snapshot.eligibility || !this.wheelRoot || !this.button) {

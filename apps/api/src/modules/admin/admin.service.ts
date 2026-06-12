@@ -8,6 +8,8 @@ import { Prisma } from "@prisma/client";
 import {
   AdminAuditLogDto,
   AdminAuditLogResponse,
+  AdminDatabaseSnapshotResponse,
+  AdminDatabaseTableKey,
   AdminEventConfigDto,
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
@@ -655,6 +657,134 @@ export class AdminService {
         rewardType: entry.rewardType,
         rewardValue: this.parseStoredRewardValue(entry.rewardValue),
       })),
+    };
+  }
+
+  async getDatabaseSnapshot(
+    eventId: string,
+    requestedTable?: string,
+    search?: string,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+  ): Promise<AdminDatabaseSnapshotResponse> {
+    await this.ensureEventExists(eventId);
+
+    const activeTable = this.resolveDatabaseTableKey(requestedTable);
+    const searchTerm = this.normalizeDatabaseSearch(search);
+    const safePage = Math.max(page, 1);
+    const safePageSize = Math.min(Math.max(pageSize, 1), 50);
+    const skip = (safePage - 1) * safePageSize;
+    const spinWhere = this.buildSpinTransactionSearchWhere(eventId, searchTerm);
+    const playerWhere = this.buildPlayerAccountSearchWhere(eventId, searchTerm);
+
+    const [
+      spinTransactionCount,
+      playerAccountCount,
+    ] = await Promise.all([
+      this.prisma.spinTransaction.count({ where: spinWhere }),
+      this.prisma.playerEventScore.count({ where: playerWhere }),
+    ]);
+
+    const spinTransactions =
+      activeTable === "spinTransactions"
+        ? await this.prisma.spinTransaction.findMany({
+            where: spinWhere,
+            include: { player: true },
+            orderBy: { createdAt: "desc" },
+            skip,
+            take: safePageSize,
+          })
+        : [];
+
+    const playerScores =
+      activeTable === "playerAccounts"
+        ? await this.prisma.playerEventScore.findMany({
+            where: playerWhere,
+            include: { player: true },
+            orderBy: [{ totalScore: "desc" }, { updatedAt: "asc" }],
+            skip,
+            take: safePageSize,
+          })
+        : [];
+
+    const playerIds = playerScores.map((entry) => entry.playerId);
+    const spinAggregates =
+      playerIds.length > 0
+        ? await this.prisma.spinTransaction.groupBy({
+            by: ["playerId"],
+            where: {
+              eventCampaignId: eventId,
+              playerId: { in: playerIds },
+            },
+            _count: { _all: true },
+            _max: { createdAt: true },
+          })
+        : [];
+    const spinStatsByPlayer = new Map(
+      spinAggregates.map((entry) => [
+        entry.playerId,
+        {
+          spinCount: entry._count._all,
+          lastSpinAt: entry._max.createdAt?.toISOString() ?? null,
+        },
+      ]),
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      activeTable,
+      search: searchTerm,
+      page: safePage,
+      pageSize: safePageSize,
+      total:
+        activeTable === "spinTransactions"
+          ? spinTransactionCount
+          : playerAccountCount,
+      tables: [
+        {
+          key: "spinTransactions",
+          label: "Spin Transactions",
+          recordCount: spinTransactionCount,
+          description:
+            "Successful spin ledger with player, segment, score delta, total, and reward result.",
+        },
+        {
+          key: "playerAccounts",
+          label: "Player Accounts",
+          recordCount: playerAccountCount,
+          description:
+            "Player account rows participating in this event, joined with score and spin activity.",
+        },
+      ],
+      spinTransactions: spinTransactions.map((entry) => ({
+        id: entry.id,
+        playerId: entry.playerId,
+        playerName: entry.player.displayName,
+        createdAt: entry.createdAt.toISOString(),
+        segmentIndex: entry.segmentIndex,
+        segmentLabel: entry.segmentLabel,
+        scoreDelta: entry.scoreDelta,
+        runningEventTotal: entry.runningEventTotal,
+        rewardType: entry.rewardType,
+        rewardValue: this.parseStoredRewardValue(entry.rewardValue),
+      })),
+      playerAccounts: playerScores.map((entry, index) => {
+        const stats = spinStatsByPlayer.get(entry.playerId);
+
+        return {
+          id: entry.playerId,
+          externalUserId: entry.player.externalUserId,
+          playerName: entry.player.displayName,
+          status: entry.player.status,
+          totalScore: entry.totalScore,
+          rank: skip + index + 1,
+          hasSpun: entry.hasSpun,
+          spinCount: stats?.spinCount ?? 0,
+          lastSpinAt: stats?.lastSpinAt ?? null,
+          createdAt: entry.player.createdAt.toISOString(),
+          updatedAt: entry.updatedAt.toISOString(),
+        };
+      }),
     };
   }
 
@@ -1406,6 +1536,104 @@ export class AdminService {
     }
     const numericValue = Number(value);
     return Number.isNaN(numericValue) ? value : numericValue;
+  }
+
+  private normalizeDatabaseSearch(value?: string) {
+    return (value ?? "").trim().slice(0, 120);
+  }
+
+  private buildSpinTransactionSearchWhere(
+    eventId: string,
+    searchTerm: string,
+  ): Prisma.SpinTransactionWhereInput {
+    if (!searchTerm) {
+      return { eventCampaignId: eventId };
+    }
+
+    const numericValue = Number(searchTerm);
+    const integerValue = Number.isInteger(numericValue) ? numericValue : null;
+    const orFilters: Prisma.SpinTransactionWhereInput[] = [
+      { id: { contains: searchTerm } },
+      { playerId: { contains: searchTerm } },
+      { segmentLabel: { contains: searchTerm } },
+      { rewardType: { contains: searchTerm } },
+      { rewardValue: { contains: searchTerm } },
+      {
+        player: {
+          is: {
+            OR: [
+              { id: { contains: searchTerm } },
+              { externalUserId: { contains: searchTerm } },
+              { displayName: { contains: searchTerm } },
+              { status: { contains: searchTerm } },
+            ],
+          },
+        },
+      },
+    ];
+
+    if (integerValue !== null) {
+      orFilters.push(
+        { segmentIndex: integerValue },
+        { scoreDelta: integerValue },
+        { runningEventTotal: integerValue },
+      );
+    }
+
+    return {
+      eventCampaignId: eventId,
+      OR: orFilters,
+    };
+  }
+
+  private buildPlayerAccountSearchWhere(
+    eventId: string,
+    searchTerm: string,
+  ): Prisma.PlayerEventScoreWhereInput {
+    if (!searchTerm) {
+      return { eventCampaignId: eventId };
+    }
+
+    const numericValue = Number(searchTerm);
+    const integerValue = Number.isInteger(numericValue) ? numericValue : null;
+    const normalized = searchTerm.toLowerCase();
+    const orFilters: Prisma.PlayerEventScoreWhereInput[] = [
+      { id: { contains: searchTerm } },
+      { playerId: { contains: searchTerm } },
+      {
+        player: {
+          is: {
+            OR: [
+              { id: { contains: searchTerm } },
+              { externalUserId: { contains: searchTerm } },
+              { displayName: { contains: searchTerm } },
+              { status: { contains: searchTerm } },
+            ],
+          },
+        },
+      },
+    ];
+
+    if (integerValue !== null) {
+      orFilters.push({ totalScore: integerValue });
+    }
+
+    if (["true", "yes", "spun"].includes(normalized)) {
+      orFilters.push({ hasSpun: true });
+    }
+
+    if (["false", "no", "not spun"].includes(normalized)) {
+      orFilters.push({ hasSpun: false });
+    }
+
+    return {
+      eventCampaignId: eventId,
+      OR: orFilters,
+    };
+  }
+
+  private resolveDatabaseTableKey(value?: string): AdminDatabaseTableKey {
+    return value === "playerAccounts" ? "playerAccounts" : "spinTransactions";
   }
 
   private resolveRewardMetadata(

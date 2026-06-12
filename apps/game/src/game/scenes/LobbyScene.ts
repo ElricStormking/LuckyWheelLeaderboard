@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { EventStatus, type EligibilityStatus, PlatformLinkType } from "@lucky-wheel/contracts";
 import { prototypeState } from "../state/prototype-state";
-import type { WheelScene } from "./WheelScene";
 import {
   COLORS,
   DEV_ELIGIBILITY_OPTIONS,
@@ -167,12 +166,12 @@ const INLINE_LEADERBOARD_FOOTER_Y =
   INLINE_LEADERBOARD_PAGE_CLUSTER_LIFT +
   INLINE_LEADERBOARD_SUMMARY_FOOTER_DROP;
 const MY_TOTAL_POINTS_Y = 1990 + MOBILE_LOBBY_CONTENT_DROP_PX;
-const HISTORY_AND_TEST_SPIN_Y = 2188 + MOBILE_LOBBY_CONTENT_DROP_PX;
+const HISTORY_ACTION_Y = 2188 + MOBILE_LOBBY_CONTENT_DROP_PX;
 const LEADERBOARD_TITLE_IMAGE_Y = 2340 + LEADERBOARD_TOP_GAP_BELOW_QUICK + MOBILE_LOBBY_CONTENT_DROP_PX;
 const PRIZE_EXTEND = LEADERBOARD_TOP_GAP_BELOW_QUICK + LEADERBOARD_LIST_HEIGHT_DELTA;
 /** Scroll section: gray from midpoint (History row ↔ title) through footer sync lines. */
 const INLINE_LEADERBOARD_SECTION_TOP = Math.round(
-  (HISTORY_AND_TEST_SPIN_Y + LEADERBOARD_TITLE_IMAGE_Y) / 2,
+  (HISTORY_ACTION_Y + LEADERBOARD_TITLE_IMAGE_Y) / 2,
 );
 const INLINE_LEADERBOARD_SECTION_HEIGHT =
   4125 - 2340 + PRIZE_EXTEND + (LEADERBOARD_TITLE_IMAGE_Y - INLINE_LEADERBOARD_SECTION_TOP);
@@ -1007,12 +1006,8 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawQuickActions() {
-    this.createHistoryActionButton(540, HISTORY_AND_TEST_SPIN_Y, () => {
+    this.createHistoryActionButton(540, HISTORY_ACTION_Y, () => {
       this.toggleOverlay(SCENE_KEYS.HistoryOverlay);
-    });
-
-    this.createActionButton(820, HISTORY_AND_TEST_SPIN_Y, 240, 88, "test_spin", () => {
-      (this.scene.get(SCENE_KEYS.Wheel) as WheelScene | undefined)?.runVisualTestSpin();
     });
   }
 
@@ -1971,31 +1966,6 @@ export class LobbyScene extends Phaser.Scene {
       LEADERBOARD_PLATE_PRIZE_BADGE_CENTER_IMG_OFFSETS[rank] ??
       LEADERBOARD_PLATE_PRIZE_BADGE_CENTER_IMG_OFFSETS[30];
     return rowY + offset * plateScale;
-  }
-
-  private createActionButton(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    label: string,
-    onClick: () => void,
-  ) {
-    const button = this.add.rectangle(x, y, width, height, COLORS.white, 0.98);
-    button.setStrokeStyle(2, COLORS.line, 0.7);
-    button.setInteractive({ useHandCursor: true });
-    button.on("pointerover", () => button.setScale(1.02));
-    button.on("pointerout", () => button.setScale(1));
-    button.on("pointerup", () => this.runTapAction(onClick));
-
-    this.add
-      .text(x, y, label, {
-        fontFamily: FONTS.display,
-        fontSize: "34px",
-        fontStyle: "700",
-        color: "#18aef5",
-      })
-      .setOrigin(0.5);
   }
 
   private createHistoryActionButton(x: number, y: number, onClick: () => void) {

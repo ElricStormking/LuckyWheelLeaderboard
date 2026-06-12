@@ -5,6 +5,8 @@ import {
 } from "@lucky-wheel/contracts";
 import type {
   AdminAuditLogResponse,
+  AdminDatabaseSnapshotResponse,
+  AdminDatabaseTableKey,
   AdminEventConfigDto,
   AdminEventDashboardResponse,
   AdminEventEditorResponse,
@@ -14,7 +16,6 @@ import type {
   AdminEventUpsertRequest,
   AdminOverviewResponse,
   AdminParticipantsResponse,
-  AdminSpinRecordsResponse,
   AppLocale,
 } from "@lucky-wheel/contracts";
 import "./styles.css";
@@ -32,6 +33,7 @@ const PRIZE_IMAGE_MIN_HEIGHT = 308;
 const MAX_PRIZE_TIERS = 5;
 const FIXED_SINGLE_RANK_PRIZE_COUNT = 3;
 const SAVE_SUCCESS_TOAST_DURATION_MS = 4000;
+const DATABASE_PAGE_SIZE = 25;
 const SECTION_ORDER = [
   "capital",
   "roulette",
@@ -39,7 +41,7 @@ const SECTION_ORDER = [
   "terms",
   "links",
   "participants",
-  "spins",
+  "database",
   "audit",
 ] as const;
 
@@ -66,7 +68,7 @@ type AdminState = {
   editor?: AdminEventEditorResponse;
   dashboard?: AdminEventDashboardResponse;
   participants?: AdminParticipantsResponse;
-  spins?: AdminSpinRecordsResponse;
+  database?: AdminDatabaseSnapshotResponse;
   audit?: AdminAuditLogResponse;
   draft?: AdminEventConfigDto;
   selectedEventId?: string;
@@ -75,6 +77,8 @@ type AdminState = {
   isSaving: boolean;
   toast: ToastState;
   error?: string;
+  databaseTable: AdminDatabaseTableKey;
+  databaseSearch: string;
 };
 
 const appRoot = document.querySelector<HTMLDivElement>("#app");
@@ -93,6 +97,8 @@ const state: AdminState = {
   isAuthenticating: false,
   isSaving: false,
   toast: null,
+  databaseTable: "spinTransactions",
+  databaseSearch: "",
 };
 let refreshTimer: number | undefined;
 let toastTimer: number | undefined;
@@ -196,7 +202,7 @@ async function loadEventWorkspace(eventId: string) {
   render();
 
   try {
-    const [editor, dashboard, participants, spins, audit] = await Promise.all([
+    const [editor, dashboard, participants, database, audit] = await Promise.all([
       request<AdminEventEditorResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/editor?locale=${encodeURIComponent(state.locale)}`,
       ),
@@ -206,8 +212,8 @@ async function loadEventWorkspace(eventId: string) {
       request<AdminParticipantsResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/participants?page=1&pageSize=12`,
       ),
-      request<AdminSpinRecordsResponse>(
-        `/v2/admin/events/${encodeURIComponent(eventId)}/spins?page=1&pageSize=12`,
+      request<AdminDatabaseSnapshotResponse>(
+        buildDatabaseSnapshotPath(eventId, state.databaseTable, 1, DATABASE_PAGE_SIZE),
       ),
       request<AdminAuditLogResponse>(
         `/v2/admin/events/${encodeURIComponent(eventId)}/audit?page=1&pageSize=12`,
@@ -218,7 +224,9 @@ async function loadEventWorkspace(eventId: string) {
     state.editor = editor;
     state.dashboard = dashboard;
     state.participants = participants;
-    state.spins = spins;
+    state.databaseTable = database.activeTable;
+    state.databaseSearch = database.search;
+    state.database = database;
     state.audit = audit;
     state.draft = clone(editor.event);
     state.isBootstrapping = false;
@@ -238,15 +246,20 @@ async function refreshCurrentWorkspace() {
   }
 
   try {
-    const [dashboard, participants, spins, audit] = await Promise.all([
+    const [dashboard, participants, database, audit] = await Promise.all([
       request<AdminEventDashboardResponse>(
         `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/dashboard?locale=${encodeURIComponent(state.locale)}`,
       ),
       request<AdminParticipantsResponse>(
         `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/participants?page=${state.participants?.page ?? 1}&pageSize=${state.participants?.pageSize ?? 12}`,
       ),
-      request<AdminSpinRecordsResponse>(
-        `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/spins?page=${state.spins?.page ?? 1}&pageSize=${state.spins?.pageSize ?? 12}`,
+      request<AdminDatabaseSnapshotResponse>(
+        buildDatabaseSnapshotPath(
+          state.selectedEventId,
+          state.databaseTable,
+          state.database?.page ?? 1,
+          state.database?.pageSize ?? DATABASE_PAGE_SIZE,
+        ),
       ),
       request<AdminAuditLogResponse>(
         `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/audit?page=${state.audit?.page ?? 1}&pageSize=${state.audit?.pageSize ?? 12}`,
@@ -255,7 +268,9 @@ async function refreshCurrentWorkspace() {
 
     state.dashboard = dashboard;
     state.participants = participants;
-    state.spins = spins;
+    state.databaseTable = database.activeTable;
+    state.databaseSearch = database.search;
+    state.database = database;
     state.audit = audit;
     render();
   } catch {
@@ -306,7 +321,8 @@ function clearAdminSession() {
   state.editor = undefined;
   state.dashboard = undefined;
   state.participants = undefined;
-  state.spins = undefined;
+  state.database = undefined;
+  state.databaseSearch = "";
   state.audit = undefined;
   state.draft = undefined;
   state.selectedEventId = undefined;
@@ -531,8 +547,8 @@ function renderActiveSection() {
       return renderLinksSection();
     case "participants":
       return renderParticipantsSection();
-    case "spins":
-      return renderSpinsSection();
+    case "database":
+      return renderDatabaseSection();
     case "audit":
       return renderAuditSection();
     default:
@@ -965,57 +981,155 @@ function renderParticipantsSection() {
   `;
 }
 
-function renderSpinsSection() {
-  const spins = state.spins;
+function renderDatabaseSection() {
+  const database = state.database;
 
-  if (!spins) {
-    return `<div class="empty-panel">Spin records unavailable.</div>`;
+  if (!database) {
+    return `<div class="empty-panel">Database snapshot unavailable.</div>`;
   }
 
+  const activeTable = database.activeTable;
+  const activeSummary = database.tables.find((entry) => entry.key === activeTable);
+  const searchPlaceholder =
+    activeTable === "spinTransactions"
+      ? "Search id, playerId, displayName, segment, reward..."
+      : "Search id, externalUserId, displayName, status...";
+
   return `
-    <div class="card">
+    <div class="card database-browser">
       <div class="card__header">
         <div>
-          <div class="card__eyebrow">Spin Records</div>
-          <h3>Transaction history</h3>
+          <div class="card__eyebrow">Database</div>
+          <h3>${escapeHtml(activeSummary?.label ?? "Game Data")}</h3>
         </div>
+        <span class="snapshot-time">Updated ${formatDateTime(database.generatedAt)}</span>
       </div>
-      ${renderPager("spins", spins.page, spins.pageSize, spins.total)}
+      <div class="database-tabs" role="tablist">
+        ${database.tables
+          .map(
+            (entry) => `
+              <button
+                class="database-tab ${entry.key === activeTable ? "database-tab--active" : ""}"
+                data-action="database-table"
+                data-database-table="${entry.key}"
+                type="button"
+              >
+                <span>${escapeHtml(entry.label)}</span>
+                <strong>${formatNumber(entry.recordCount)}</strong>
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
+      <p class="database-description">${escapeHtml(activeSummary?.description ?? "")}</p>
+      <form class="database-search" data-database-search-form>
+        <label class="database-search__field">
+          <span>Search</span>
+          <input
+            name="databaseSearch"
+            value="${escapeHtml(database.search)}"
+            placeholder="${escapeHtml(searchPlaceholder)}"
+          />
+        </label>
+        <button class="button button--primary" type="submit">Search</button>
+        <button
+          class="button button--ghost"
+          data-action="database-clear-search"
+          type="button"
+          ${database.search ? "" : "disabled"}
+        >Clear</button>
+      </form>
       <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Player</th>
-              <th>Segment</th>
-              <th>Delta</th>
-              <th>Total</th>
-              <th>Reward</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${spins.items
-              .map(
-                (entry) => `
-                  <tr>
-                    <td>${formatDateTime(entry.createdAt)}</td>
-                    <td>${escapeHtml(entry.playerName)}</td>
-                    <td>${escapeHtml(entry.segmentLabel)}</td>
-                    <td>${entry.scoreDelta >= 0 ? "+" : ""}${formatNumber(entry.scoreDelta)}</td>
-                    <td>${formatNumber(entry.runningEventTotal)}</td>
-                    <td>${escapeHtml(entry.rewardType)} ${
-                      entry.rewardValue !== null && entry.rewardValue !== undefined
-                        ? `(${escapeHtml(String(entry.rewardValue))})`
-                        : ""
-                    }</td>
-                  </tr>
-                `,
-              )
-              .join("")}
-          </tbody>
-        </table>
+        ${
+          activeTable === "spinTransactions"
+            ? renderDatabaseSpinTransactionsTable(database)
+            : renderDatabasePlayerAccountsTable(database)
+        }
       </div>
+      ${renderPager("database", database.page, database.pageSize, database.total)}
     </div>
+  `;
+}
+
+function renderDatabaseSpinTransactionsTable(database: AdminDatabaseSnapshotResponse) {
+  return `
+    <table class="admin-table database-table">
+      <thead>
+        <tr>
+          <th>Created At</th>
+          <th>Transaction ID</th>
+          <th>Player</th>
+          <th>Player ID</th>
+          <th>Segment</th>
+          <th>Delta</th>
+          <th>Total</th>
+          <th>Reward</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${renderDatabaseRows(
+          database.spinTransactions,
+          (entry) => `
+            <tr>
+              <td>${formatDateTime(entry.createdAt)}</td>
+              <td><span class="mono-cell">${escapeHtml(entry.id)}</span></td>
+              <td>${escapeHtml(entry.playerName)}</td>
+              <td><span class="mono-cell">${escapeHtml(entry.playerId)}</span></td>
+              <td>${escapeHtml(entry.segmentLabel)} <small>#${entry.segmentIndex}</small></td>
+              <td>${formatOptionalDelta(entry.scoreDelta)}</td>
+              <td>${formatNumber(entry.runningEventTotal)}</td>
+              <td>${escapeHtml(entry.rewardType)}${
+                entry.rewardValue === null || entry.rewardValue === undefined
+                  ? ""
+                  : ` (${escapeHtml(String(entry.rewardValue))})`
+              }</td>
+            </tr>
+          `,
+        )}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderDatabasePlayerAccountsTable(database: AdminDatabaseSnapshotResponse) {
+  return `
+    <table class="admin-table database-table">
+      <thead>
+        <tr>
+          <th>id</th>
+          <th>externalUserId</th>
+          <th>displayName</th>
+          <th>status</th>
+          <th>createdAt</th>
+          <th>updatedAt</th>
+          <th>totalScore</th>
+          <th>rank</th>
+          <th>hasSpun</th>
+          <th>spinCount</th>
+          <th>lastSpinAt</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${renderDatabaseRows(
+          database.playerAccounts,
+          (entry) => `
+            <tr>
+              <td><span class="mono-cell">${escapeHtml(entry.id)}</span></td>
+              <td><span class="mono-cell">${escapeHtml(entry.externalUserId)}</span></td>
+              <td>${escapeHtml(entry.playerName)}</td>
+              <td>${escapeHtml(entry.status)}</td>
+              <td>${formatDateTime(entry.createdAt)}</td>
+              <td>${formatDateTime(entry.updatedAt)}</td>
+              <td>${formatNumber(entry.totalScore)}</td>
+              <td>${entry.rank ? `#${entry.rank}` : "-"}</td>
+              <td>${entry.hasSpun ? "Yes" : "No"}</td>
+              <td>${formatNumber(entry.spinCount)}</td>
+              <td>${entry.lastSpinAt ? formatDateTime(entry.lastSpinAt) : "-"}</td>
+            </tr>
+          `,
+        )}
+      </tbody>
+    </table>
   `;
 }
 
@@ -1128,7 +1242,7 @@ function renderLocaleTabs() {
 }
 
 function renderPager(
-  kind: "participants" | "spins" | "audit",
+  kind: "participants" | "database" | "audit",
   page: number,
   pageSize: number,
   total: number,
@@ -1170,6 +1284,17 @@ function bindEvents() {
     state.locale = (event.currentTarget as HTMLSelectElement).value as AppLocale;
     await loadOverview(true);
   });
+
+  app.querySelector<HTMLFormElement>("[data-database-search-form]")?.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const formData = new FormData(form);
+      state.databaseSearch = String(formData.get("databaseSearch") ?? "").trim();
+      void loadDatabaseSnapshot(state.databaseTable, 1);
+    },
+  );
 }
 
 function bindLoginEvents() {
@@ -1235,9 +1360,18 @@ async function handleActionClick(event: Event) {
       return;
     case "page":
       await loadPagedResource(
-        target.dataset.kind as "participants" | "spins" | "audit",
+        target.dataset.kind as "participants" | "database" | "audit",
         Number(target.dataset.page),
       );
+      return;
+    case "database-table":
+      state.databaseTable =
+        (target.dataset.databaseTable as AdminDatabaseTableKey) ?? "spinTransactions";
+      await loadDatabaseSnapshot(state.databaseTable, 1);
+      return;
+    case "database-clear-search":
+      state.databaseSearch = "";
+      await loadDatabaseSnapshot(state.databaseTable, 1);
       return;
     default:
       return;
@@ -1541,23 +1675,25 @@ async function runEventAction(action: "publish" | "cancel") {
 }
 
 async function loadPagedResource(
-  kind: "participants" | "spins" | "audit",
+  kind: "participants" | "database" | "audit",
   page: number,
 ) {
   if (!state.selectedEventId) {
     return;
   }
 
+  if (kind === "database") {
+    await loadDatabaseSnapshot(state.databaseTable, page);
+    return;
+  }
+
   const pageSize =
     kind === "participants"
       ? state.participants?.pageSize ?? 12
-      : kind === "spins"
-        ? state.spins?.pageSize ?? 12
-        : state.audit?.pageSize ?? 12;
+      : state.audit?.pageSize ?? 12;
 
   const response = await request<
     | AdminParticipantsResponse
-    | AdminSpinRecordsResponse
     | AdminAuditLogResponse
   >(
     `/v2/admin/events/${encodeURIComponent(state.selectedEventId)}/${kind}?page=${page}&pageSize=${pageSize}`,
@@ -1565,13 +1701,45 @@ async function loadPagedResource(
 
   if (kind === "participants") {
     state.participants = response as AdminParticipantsResponse;
-  } else if (kind === "spins") {
-    state.spins = response as AdminSpinRecordsResponse;
   } else {
     state.audit = response as AdminAuditLogResponse;
   }
 
   render();
+}
+
+async function loadDatabaseSnapshot(table: AdminDatabaseTableKey, page: number) {
+  if (!state.selectedEventId) {
+    return;
+  }
+
+  const pageSize = state.database?.pageSize ?? DATABASE_PAGE_SIZE;
+  const database = await request<AdminDatabaseSnapshotResponse>(
+    buildDatabaseSnapshotPath(state.selectedEventId, table, page, pageSize),
+  );
+
+  state.databaseTable = database.activeTable;
+  state.databaseSearch = database.search;
+  state.database = database;
+  render();
+}
+
+function buildDatabaseSnapshotPath(
+  eventId: string,
+  table: AdminDatabaseTableKey,
+  page: number,
+  pageSize: number,
+) {
+  const params = new URLSearchParams({
+    table,
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (state.databaseSearch) {
+    params.set("search", state.databaseSearch);
+  }
+
+  return `/v2/admin/events/${encodeURIComponent(eventId)}/database?${params.toString()}`;
 }
 
 function clearPrizeImage(index: number) {
@@ -1902,8 +2070,8 @@ function formatSectionLabel(section: AdminSection) {
       return "Support Link";
     case "participants":
       return "Participants";
-    case "spins":
-      return "Spin Records";
+    case "database":
+      return "Game Data";
     case "audit":
       return "Audit";
   }
@@ -1928,6 +2096,13 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
+function formatOptionalDelta(value?: number | null) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  return `${value >= 0 ? "+" : ""}${formatNumber(value)}`;
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -1935,6 +2110,18 @@ function formatDateTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function renderDatabaseRows<T>(items: T[], renderRow: (entry: T) => string) {
+  if (items.length === 0) {
+    return `
+      <tr>
+        <td class="empty-cell" colspan="12">No records found.</td>
+      </tr>
+    `;
+  }
+
+  return items.map(renderRow).join("");
 }
 
 function escapeHtml(value: string) {

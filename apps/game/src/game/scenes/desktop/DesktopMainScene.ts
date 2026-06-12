@@ -98,13 +98,6 @@ type DesktopWheelButton = {
   setEnabled: (enabled: boolean) => void;
 };
 
-type DesktopActionButton = {
-  background: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-  setBackground: (color: number) => void;
-  setEnabled: (enabled: boolean) => void;
-};
-
 type DesktopLeaderboardRow = {
   x: number;
   y: number;
@@ -387,7 +380,6 @@ export class DesktopMainScene extends DesktopPageScene {
   private renderedWheelSignature = "";
   private renderedHighlightIndex?: number;
   private button?: DesktopWheelButton;
-  private testSpinButton?: DesktopActionButton;
   private currentEligibility?: EligibilityStatus;
   private currentWheelVisualState = WheelVisualState.Normal;
   private spinning = false;
@@ -815,7 +807,6 @@ export class DesktopMainScene extends DesktopPageScene {
       .setOrigin(1, 0.5);
 
     this.createHistoryButton(960, HISTORY_BUTTON_Y);
-    this.testSpinButton = this.createTestSpinButton(1140, HISTORY_BUTTON_Y);
   }
 
   private createTotalPointsFrame(x: number, y: number) {
@@ -915,53 +906,6 @@ export class DesktopMainScene extends DesktopPageScene {
       });
     });
 
-  }
-
-  private createTestSpinButton(x: number, y: number): DesktopActionButton {
-    const width = 156;
-    const height = 48;
-    const enabledFill = 0xe9f7ff;
-    const background = this.add.rectangle(x, y, width, height, enabledFill, 1);
-    background.setDepth(8);
-    background.setStrokeStyle(2, COLORS.line, 0.75);
-    background.setInteractive({ useHandCursor: true });
-
-    const label = this.add
-      .text(x, y, "test_spin", {
-        fontFamily: FONTS.display,
-        fontSize: "18px",
-        fontStyle: "700",
-        color: "#0a2942",
-      })
-      .setOrigin(0.5)
-      .setDepth(9);
-
-    const setHover = (hovered: boolean) => {
-      background.setScale(hovered ? 1.03 : 1);
-      label.setScale(hovered ? 1.03 : 1);
-    };
-
-    background.on("pointerover", () => setHover(true));
-    background.on("pointerout", () => setHover(false));
-    background.on("pointerup", () => this.runTapAction(() => this.runVisualTestSpin()));
-
-    return {
-      background,
-      label,
-      setBackground(color: number) {
-        background.setFillStyle(color, 1);
-      },
-      setEnabled(enabled: boolean) {
-        background.disableInteractive();
-        if (enabled) {
-          background.setInteractive({ useHandCursor: true });
-        }
-
-        background.setAlpha(enabled ? 1 : 0.72);
-        label.setAlpha(enabled ? 1 : 0.72);
-        setHover(false);
-      },
-    };
   }
 
   private createLeaderboardSection() {
@@ -1772,12 +1716,6 @@ export class DesktopMainScene extends DesktopPageScene {
 
   private applyState() {
     const snapshot = prototypeState.getSnapshot();
-    const canTestSpin = !this.spinning && Boolean(snapshot.currentEvent?.wheelSegments.length);
-    if (this.testSpinButton) {
-      this.testSpinButton.setEnabled(canTestSpin);
-      this.testSpinButton.setBackground(canTestSpin ? 0xe9f7ff : COLORS.disabled);
-      this.testSpinButton.label.setColor("#0a2942");
-    }
 
     if (!this.wheelRoot || !this.button) {
       return;

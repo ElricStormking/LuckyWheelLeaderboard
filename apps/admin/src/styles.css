@@ -713,6 +713,136 @@ input:disabled {
   color: var(--muted);
 }
 
+.database-browser {
+  padding-bottom: 22px;
+}
+
+.database-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.database-tab {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--muted);
+  background: transparent;
+}
+
+.database-tab strong {
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--brand-dark);
+  background: rgba(12, 161, 217, 0.1);
+}
+
+.database-tab--active {
+  color: var(--ink);
+  border-color: var(--blue);
+}
+
+.database-description,
+.snapshot-time {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.database-description {
+  margin: 0 0 12px;
+}
+
+.database-search {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.database-search__field {
+  display: grid;
+  gap: 6px;
+}
+
+.database-search__field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.database-search__field input {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+}
+
+.database-browser .table-wrap {
+  max-height: min(760px, calc(100vh - 360px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.database-browser .admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+}
+
+.database-browser .admin-table th,
+.database-browser .admin-table td {
+  padding: 12px 10px;
+}
+
+.database-table th:nth-child(n),
+.database-table td:nth-child(n) {
+  min-width: 108px;
+}
+
+.database-table td small {
+  display: block;
+  max-width: 190px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono-cell {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.empty-cell {
+  color: var(--muted);
+  text-align: center;
+}
+
 .admin-table input,
 .admin-table textarea {
   width: 100%;
@@ -999,6 +1129,18 @@ input:disabled {
   }
 
   .segment-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .database-tabs {
+    overflow-x: auto;
+  }
+
+  .database-tab {
+    flex: 0 0 auto;
+  }
+
+  .database-search {
     grid-template-columns: 1fr;
   }
 }

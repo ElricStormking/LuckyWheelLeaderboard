@@ -7,8 +7,8 @@ import {
   type WheelSegmentDto,
 } from "@lucky-wheel/contracts";
 import { playSpinningEffect, playWinningEffect, stopSpinningEffect } from "../../audio";
-import { COLORS, FONTS, SCENE_KEYS, shouldShowDevEligibilitySwitch } from "../../constants";
-import { addTextButton, openExternalLink } from "../../helpers";
+import { COLORS, FONTS, SCENE_KEYS } from "../../constants";
+import { openExternalLink } from "../../helpers";
 import { createRibbonsBurst } from "../../ribbonsFx";
 import { prototypeState } from "../../state/prototype-state";
 import {
@@ -65,7 +65,6 @@ export class DesktopWheelScene extends Phaser.Scene {
   private renderedWheelSignature = "";
   private renderedHighlightIndex?: number;
   private button?: DesktopWheelButton;
-  private testSpinButton?: ReturnType<typeof addTextButton>;
   private currentEligibility?: EligibilityStatus;
   private currentWheelVisualState = WheelVisualState.Normal;
   private spinning = false;
@@ -87,26 +86,6 @@ export class DesktopWheelScene extends Phaser.Scene {
     this.wheelRoot.setScale(WHEEL_SCALE);
     this.drawWheel([]);
     this.button = this.createWheelCenterButton();
-
-    if (shouldShowDevEligibilitySwitch()) {
-      this.testSpinButton = addTextButton(
-        this,
-        1734,
-        148,
-        188,
-        56,
-        "Test Spin",
-        () => {
-          this.runVisualTestSpin();
-        },
-        {
-          backgroundColor: 0xe9f7ff,
-          labelColor: "#0a2942",
-          radius: 28,
-        },
-      );
-      this.testSpinButton.label.setFontSize("20px");
-    }
 
     this.drawPointer();
     this.applyState();
@@ -145,12 +124,6 @@ export class DesktopWheelScene extends Phaser.Scene {
 
   private applyState() {
     const snapshot = prototypeState.getSnapshot();
-    const canTestSpin = !this.spinning && Boolean(snapshot.currentEvent?.wheelSegments.length);
-    if (this.testSpinButton) {
-      this.testSpinButton.setEnabled(canTestSpin);
-      this.testSpinButton.setBackground(canTestSpin ? 0xe9f7ff : COLORS.disabled);
-      this.testSpinButton.label.setColor("#0a2942");
-    }
 
     if (!this.wheelRoot || !this.button) {
       return;

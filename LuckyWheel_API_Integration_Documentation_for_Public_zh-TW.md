@@ -1,6 +1,6 @@
 # Lucky Wheel 公開整合 API 文件
 
-**Version:** 1.12
+**Version:** 1.12  
 **Last Updated:** 2026 年 5 月 28 日
 
 ---
@@ -82,7 +82,7 @@ Customer Platform 也可以在 launch 時一併傳入目前網域使用中的 de
 |------------|----------|
 | AWS Production - Preferred | `https://ibetlucky.org/merchant-api` |
 | AWS Production - Direct IP Fallback | `http://47.236.166.230:4003/merchant-api` |
-| Legacy GCP UAT | `http://34.81.237.79:4003/merchant-api` |
+| Old Legacy GCP UAT | `http://34.81.237.79:4003/merchant-api` |
 
 所有公開整合端點皆以 `/integration/` 為前綴。
 
@@ -311,14 +311,14 @@ Lucky Wheel 在遊戲進行期間，會用 server-to-server 方式做 deposit el
 
 Customer Platform 若要針對 SOAP/WCF 做 allow-list，應使用 Merchant API 伺服器的 outbound source IP，而不是 Merchant API 對外監聽的 public port。
 
-目前 GCP 測試環境範例：
+GCP 測試環境範例(old)：
 
 - Customer Platform launch endpoint：
   - `http://34.81.237.79:4003/merchant-api/integration/launch`
 - Merchant API 對外呼叫 Customer Platform SOAP/WCF 時的來源 IP：
   - `34.81.237.79`
 
-AWS production 測試：
+AWS production 正式環境測試(new)：
 
 - Customer Platform launch endpoint：
   - preferred：`https://ibetlucky.org/merchant-api/integration/launch`

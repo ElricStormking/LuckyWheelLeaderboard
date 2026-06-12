@@ -213,6 +213,23 @@ export class AdminController {
     );
   }
 
+  @Get("events/:eventId/database")
+  getDatabaseSnapshot(
+    @Param("eventId") eventId: string,
+    @Query("table") table?: string,
+    @Query("search") search?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return this.adminService.getDatabaseSnapshot(
+      eventId,
+      table,
+      search,
+      parsePositiveInt(page, 1),
+      parsePositiveInt(pageSize, 12),
+    );
+  }
+
   @Get("events/:eventId/audit")
   getAuditLog(
     @Param("eventId") eventId: string,
